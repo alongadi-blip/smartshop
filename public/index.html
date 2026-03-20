@@ -1,0 +1,2292 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="theme-color" content="#2E7D32">
+  <title>SmartShop List</title>
+  <style>
+    :root {
+      --primary: #2E7D32;
+      --primary-light: #4CAF50;
+      --bg: #F0F4F0;
+      --surface: #FFFFFF;
+      --surface2: #F5F5F5;
+      --text: #1A1A1A;
+      --text-muted: #666;
+      --border: #E0E0E0;
+      --danger: #E53935;
+      --shadow: 0 2px 8px rgba(0,0,0,0.1);
+      --radius: 12px;
+      --tr: 0.2s ease;
+    }
+    [data-theme="dark"] {
+      --primary: #4CAF50;
+      --primary-light: #66BB6A;
+      --bg: #121212;
+      --surface: #1E1E1E;
+      --surface2: #2A2A2A;
+      --text: #E8E8E8;
+      --text-muted: #999;
+      --border: #333;
+      --danger: #EF5350;
+      --shadow: 0 2px 8px rgba(0,0,0,0.4);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; transition: background var(--tr), color var(--tr); }
+
+    /* ---- SETUP ---- */
+    .setup-screen { position: fixed; inset: 0; background: var(--bg); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 24px; }
+    .setup-card { background: var(--surface); border-radius: 16px; padding: 32px; max-width: 520px; width: 100%; box-shadow: var(--shadow); }
+    .setup-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 6px; }
+    .setup-sub { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px; }
+    .code-block { background: #1A1A2E; color: #4EC9B0; padding: 14px; border-radius: 10px; font-family: 'Courier New', monospace; font-size: 0.78rem; margin: 12px 0 20px; overflow-x: auto; white-space: pre; line-height: 1.6; }
+    .setup-steps { font-size: 0.88rem; line-height: 2; padding-right: 18px; margin-bottom: 16px; }
+    .setup-steps a { color: var(--primary-light); }
+    .setup-divider { text-align: center; color: var(--text-muted); font-size: 0.85rem; margin: 16px 0; }
+
+    /* ---- HEADER ---- */
+    header { background: var(--primary); color: white; padding: 10px 14px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.25); }
+    .header-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .logo { font-size: 1.2rem; font-weight: 700; white-space: nowrap; }
+
+    /* list name */
+    .list-name-area { flex: 1; min-width: 0; display: flex; align-items: center; }
+    .list-name-disp {
+      display: flex; align-items: center; gap: 4px; cursor: pointer;
+      padding: 3px 8px; border-radius: 8px; max-width: 180px;
+      transition: background var(--tr); min-width: 0;
+    }
+    .list-name-disp:hover { background: rgba(255,255,255,0.18); }
+    .list-name-text { font-size: 0.88rem; font-weight: 600; opacity: 0.92; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .list-name-edit-icon { font-size: 0.75rem; opacity: 0.7; flex-shrink: 0; }
+    .list-name-input {
+      font-size: 0.9rem; font-weight: 600; background: rgba(255,255,255,0.2);
+      border: 1px solid rgba(255,255,255,0.5); color: white; border-radius: 8px;
+      padding: 3px 10px; outline: none; width: 150px; font-family: inherit; display: none;
+    }
+    .list-name-input::placeholder { color: rgba(255,255,255,0.6); }
+
+    .header-right { display: flex; gap: 5px; flex-shrink: 0; }
+    .icon-btn {
+      background: rgba(255,255,255,0.2); border: none; color: white;
+      width: 34px; height: 34px; border-radius: 50%; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; transition: background var(--tr); flex-shrink: 0;
+    }
+    .icon-btn:hover { background: rgba(255,255,255,0.35); }
+
+    /* ---- SEARCH ROW ---- */
+    .search-row { display: flex; align-items: center; gap: 6px; }
+    .search-wrap { flex: 1; position: relative; }
+    .search-input {
+      width: 100%; padding: 9px 14px; border: none; border-radius: 24px;
+      background: rgba(255,255,255,0.92); color: #222; font-size: 0.97rem; outline: none;
+    }
+    .search-input::placeholder { color: #888; }
+    .search-dropdown {
+      position: absolute; top: calc(100% + 4px); right: 0; left: 0;
+      background: var(--surface); border-radius: var(--radius);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+      max-height: 320px; overflow-y: auto; z-index: 200; display: none;
+    }
+    .search-dropdown.open { display: block; }
+    .s-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 14px; cursor: pointer; border-bottom: 1px solid var(--border);
+      color: var(--text); transition: background var(--tr); font-size: 0.9rem;
+    }
+    .s-item:last-child { border-bottom: none; }
+    .s-item:hover, .s-item:active { background: var(--surface2); }
+    .s-cat { font-size: 0.72rem; color: var(--text-muted); margin-right: auto; white-space: nowrap; }
+    .s-browse-link { color: var(--primary); border-top: 1px solid var(--border); font-size: 0.85rem; }
+    .search-icon-btn {
+      background: rgba(255,255,255,0.2); border: none; color: white;
+      width: 40px; height: 40px; border-radius: 50%; cursor: pointer; flex-shrink: 0;
+      font-size: 1.15rem; display: flex; align-items: center; justify-content: center;
+      transition: background var(--tr); font-weight: 700;
+    }
+    .search-icon-btn:hover { background: rgba(255,255,255,0.35); }
+    .search-add-btn { font-size: 1.5rem; }
+
+    /* ---- MOBILE CHIPS ---- */
+    .chip-bar { display: none; overflow-x: auto; gap: 7px; padding: 8px 12px; background: var(--surface); border-bottom: 1px solid var(--border); scrollbar-width: none; }
+    .chip-bar::-webkit-scrollbar { display: none; }
+    @media (max-width: 620px) { .chip-bar { display: flex; } }
+    .chip { white-space: nowrap; padding: 5px 12px; border-radius: 20px; flex-shrink: 0; background: var(--surface2); border: 1px solid var(--border); font-size: 0.82rem; cursor: pointer; transition: all var(--tr); }
+    .chip.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+    /* ---- LAYOUT ---- */
+    .layout { max-width: 960px; margin: 0 auto; padding: 16px; display: grid; grid-template-columns: 190px 1fr; gap: 16px; }
+    @media (max-width: 620px) { .layout { grid-template-columns: 1fr; padding: 10px; } .sidebar { display: none; } }
+
+    /* ---- SIDEBAR ---- */
+    .sidebar { background: var(--surface); border-radius: var(--radius); padding: 12px; position: sticky; top: 90px; height: fit-content; box-shadow: var(--shadow); }
+    .sidebar-title { font-size: 0.82rem; font-weight: 600; color: var(--text-muted); padding-bottom: 8px; margin-bottom: 6px; border-bottom: 1px solid var(--border); }
+    .cat-row { display: flex; align-items: center; gap: 6px; padding: 7px 8px; border-radius: 8px; cursor: pointer; font-size: 0.88rem; transition: background var(--tr); }
+    .cat-row:hover { background: var(--surface2); }
+    .cat-row.active { background: var(--primary); color: white; }
+    .cat-row .badge { margin-right: auto; background: var(--surface2); color: var(--text-muted); border-radius: 10px; padding: 1px 7px; font-size: 0.72rem; font-weight: 700; }
+    .cat-row.active .badge { background: rgba(255,255,255,0.25); color: white; }
+
+    /* ---- MAIN ---- */
+    .main { display: flex; flex-direction: column; gap: 12px; }
+    .stats-bar { background: var(--surface); border-radius: var(--radius); padding: 10px 14px; display: flex; align-items: center; gap: 12px; box-shadow: var(--shadow); font-size: 0.83rem; }
+    .stat { display: flex; align-items: center; gap: 5px; color: var(--text-muted); }
+    .stat b { color: var(--text); }
+    .prog-wrap { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+    .prog-fill { height: 100%; background: var(--primary-light); border-radius: 3px; transition: width 0.35s; }
+    .clear-btn { padding: 4px 10px; border-radius: 8px; border: none; cursor: pointer; background: var(--surface2); color: var(--text-muted); font-size: 0.78rem; transition: all var(--tr); }
+    .clear-btn:hover { background: #FFEBEE; color: var(--danger); }
+
+    .cat-group { background: var(--surface); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
+    .cat-head { padding: 9px 14px; background: var(--surface2); border-bottom: 1px solid var(--border); font-weight: 600; font-size: 0.88rem; display: flex; align-items: center; gap: 7px; }
+    .cat-head .cnt { font-size: 0.78rem; color: var(--text-muted); font-weight: normal; }
+
+    .item { display: flex; align-items: center; padding: 11px 14px; border-bottom: 1px solid var(--border); gap: 9px; transition: background var(--tr), transform 0.25s, opacity 0.25s; position: relative; overflow: hidden; }
+    .item:last-child { border-bottom: none; }
+    .item:hover { background: var(--surface2); }
+    .item.done { opacity: 1; } /* purchased items handled by purch-body styles */
+    .check { width: 30px; height: 30px; border-radius: 50%; border: 2px solid #BDBDBD; background: none; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #BDBDBD; font-size: 1rem; font-weight: 700; transition: all var(--tr); }
+    .check:hover { border-color: var(--primary-light); color: var(--primary-light); background: rgba(76,175,80,0.12); }
+    .done-chk { background: var(--primary-light) !important; border-color: var(--primary-light) !important; color: white !important; }
+    .done-chk:hover { background: #388E3C !important; border-color: #388E3C !important; }
+    .item-body { flex: 1; min-width: 0; }
+    .item-name-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .item-name { font-size: 0.94rem; font-weight: 500; display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
+    .item-emoji { font-size: 1.1rem; line-height: 1; flex-shrink: 0; }
+    .item-note { font-size: 0.76rem; color: var(--text-muted); font-style: italic; margin-top: 2px; }
+    .qty-tag { display: inline-flex; align-items: center; background: #E8F5E9; border-radius: 10px; padding: 3px 10px; color: var(--primary); font-weight: 700; font-size: 0.82rem; cursor: pointer; gap: 3px; transition: background var(--tr); }
+    [data-theme="dark"] .qty-tag { background: #1B3A1B; }
+    .qty-tag:hover { background: #C8E6C9; }
+    [data-theme="dark"] .qty-tag:hover { background: #2E4A2E; }
+    .qty-tag .edit-hint { font-size: 0.65rem; opacity: 0.5; }
+    .qty-add-hint { display: inline-flex; align-items: center; gap: 3px; font-size: 0.78rem; color: var(--primary); cursor: pointer; border: 1px solid var(--primary-light); border-radius: 10px; padding: 3px 9px; opacity: 0.75; transition: all var(--tr); font-weight: 500; }
+    .qty-add-hint:hover { opacity: 1; background: rgba(76,175,80,0.08); }
+    .qty-inline { display: inline-flex; align-items: center; gap: 4px; }
+    .qty-num-in { width: 52px; padding: 2px 6px; border: 2px solid var(--primary-light); border-radius: 8px; background: var(--surface); color: var(--text); font-size: 0.85rem; font-family: inherit; outline: none; }
+    .qty-unit-in { padding: 2px 4px; border: 2px solid var(--primary-light); border-radius: 8px; background: var(--surface); color: var(--text); font-size: 0.82rem; font-family: inherit; outline: none; }
+    .qty-ok-btn { width: 24px; height: 24px; border-radius: 50%; border: none; background: var(--primary); color: white; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; }
+    .qty-x-btn  { width: 24px; height: 24px; border-radius: 50%; border: none; background: var(--surface2); color: var(--text-muted); cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; }
+    .item-actions { display: flex; gap: 2px; opacity: 0; transition: opacity var(--tr); align-items: center; }
+    .item:hover .item-actions { opacity: 1; }
+    @media (max-width: 620px) { .item-actions { opacity: 1; } }
+    .act { background: none; border: none; cursor: pointer; width: 30px; height: 30px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; color: var(--text-muted); transition: all var(--tr); }
+    .act:hover { background: var(--surface2); color: var(--text); }
+    .act.del:hover { background: #FFEBEE; color: var(--danger); }
+    /* undo btn – always visible in purchased items */
+    .undo-btn { background: none; border: 1px solid var(--border); border-radius: 10px; cursor: pointer; color: var(--text-muted); font-size: 0.76rem; padding: 2px 8px; transition: all var(--tr); white-space: nowrap; font-family: inherit; }
+    .undo-btn:hover { border-color: var(--primary); color: var(--primary); background: rgba(76,175,80,0.08); }
+
+    /* empty state */
+    .empty { text-align: center; padding: 40px 24px; background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); color: var(--text-muted); }
+    .empty .big { font-size: 2.5rem; margin-bottom: 10px; }
+    .empty .title { font-size: 1.05rem; font-weight: 600; margin-bottom: 8px; color: var(--text); }
+    .add-btn-big { display: inline-flex; align-items: center; gap: 8px; background: var(--primary); color: white; border: none; cursor: pointer; padding: 11px 24px; border-radius: 28px; font-size: 0.97rem; font-weight: 600; margin-top: 12px; box-shadow: 0 3px 10px rgba(0,0,0,0.2); transition: all var(--tr); font-family: inherit; }
+    .add-btn-big:hover { background: var(--primary-light); transform: translateY(-1px); }
+
+    /* purchased */
+    .purch-section { border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); border: 2px solid #A5D6A7; }
+    [data-theme="dark"] .purch-section { border-color: #2E4A2E; }
+    .purch-head { padding: 11px 14px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.9rem; color: #2E7D32; background: #E8F5E9; user-select: none; transition: background var(--tr); }
+    [data-theme="dark"] .purch-head { background: #1B2E1B; color: #66BB6A; }
+    .purch-head:hover { background: #C8E6C9; }
+    [data-theme="dark"] .purch-head:hover { background: #243524; }
+    .purch-head .chev { margin-right: auto; transition: transform 0.2s; }
+    .purch-section.collapsed .chev { transform: rotate(-90deg); }
+    .purch-body { display: none; background: var(--surface); }
+    .purch-section:not(.collapsed) .purch-body { display: block; }
+    /* purchased items always show their actions */
+    .purch-body .item-actions { opacity: 1; }
+    .purch-body .item { background: var(--surface); opacity: 1; }
+    .purch-body .item-name { text-decoration: line-through; color: var(--text-muted); }
+
+    .swipe-hint { font-size: 0.74rem; color: var(--text-muted); text-align: center; padding: 4px 0; }
+    @media (min-width: 621px) { .swipe-hint { display: none; } }
+
+    /* FAB — bottom RIGHT (natural for RTL) */
+    .fab { position: fixed; bottom: 24px; right: 24px; width: 56px; height: 56px; border-radius: 28px; background: var(--primary); color: white; border: none; font-size: 1.6rem; cursor: pointer; z-index: 50; box-shadow: 0 4px 14px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; transition: all var(--tr); }
+    .fab:hover { background: var(--primary-light); transform: scale(1.07); }
+
+    /* ---- MODALS (shared) ---- */
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 300; display: none; align-items: center; justify-content: center; }
+    .overlay.open { display: flex; }
+    .modal { background: var(--surface); border-radius: 16px; padding: 24px; width: min(92vw, 420px); box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+    .modal-title { font-size: 1.15rem; font-weight: 700; margin-bottom: 18px; }
+    .fg { margin-bottom: 14px; }
+    .fg label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-muted); margin-bottom: 5px; }
+    .fc { width: 100%; padding: 9px 13px; border: 2px solid var(--border); border-radius: 10px; background: var(--surface2); color: var(--text); font-size: 0.93rem; outline: none; transition: border-color var(--tr); font-family: inherit; }
+    .fc:focus { border-color: var(--primary-light); }
+    .fc-row { display: flex; gap: 10px; }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
+    .btn { padding: 9px 20px; border-radius: 10px; border: none; cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: all var(--tr); font-family: inherit; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-light); }
+    .btn-ghost { background: var(--surface2); color: var(--text); }
+    .btn-ghost:hover { background: var(--border); }
+    .btn-full { width: 100%; }
+
+    /* ---- BROWSE MODAL ---- */
+    .bmodal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 400; display: none; align-items: center; justify-content: center; padding: 16px; }
+    .bmodal-overlay.open { display: flex; }
+    .bmodal { background: var(--surface); border-radius: 16px; width: min(96vw, 480px); max-height: 88vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+    .bmodal-head { padding: 12px 16px; border-bottom: 1px solid var(--border); background: var(--surface2); display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .bmodal-title { font-size: 1rem; font-weight: 700; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bback-btn { background: none; border: none; color: var(--primary); cursor: pointer; font-size: 0.85rem; font-weight: 600; padding: 4px 10px; border-radius: 6px; transition: background var(--tr); white-space: nowrap; }
+    .bback-btn:hover { background: var(--surface); }
+    .bclose-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.1rem; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: background var(--tr); }
+    .bclose-btn:hover { background: var(--border); }
+    .bfilter-wrap { padding: 10px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .bfilter { width: 100%; padding: 8px 13px; border: 2px solid var(--border); border-radius: 10px; background: var(--surface2); color: var(--text); font-size: 0.9rem; outline: none; font-family: inherit; transition: border-color var(--tr); }
+    .bfilter:focus { border-color: var(--primary-light); }
+    .bmodal-body { flex: 1; overflow-y: auto; }
+    .bcat-item { display: flex; align-items: center; padding: 13px 16px; gap: 10px; cursor: pointer; border-bottom: 1px solid var(--border); transition: background var(--tr); }
+    .bcat-item:hover, .bcat-item:active { background: var(--surface2); }
+    .bcat-icon { font-size: 1.25rem; }
+    .bcat-name { flex: 1; font-size: 0.92rem; font-weight: 500; }
+    .bcat-cnt { font-size: 0.75rem; color: var(--text-muted); }
+    .bcat-arrow { color: var(--text-muted); font-size: 0.9rem; }
+    .bprod-item { display: flex; align-items: center; padding: 9px 16px; border-bottom: 1px solid var(--border); gap: 12px; transition: background var(--tr); }
+    .bprod-item:hover { background: var(--surface2); }
+    .bprod-img { width: 42px; height: 42px; border-radius: 10px; background: var(--surface2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 1.6rem; flex-shrink: 0; overflow: hidden; }
+    .bprod-img img { width: 42px; height: 42px; object-fit: cover; display: block; }
+    .bprod-name { flex: 1; font-size: 0.91rem; }
+    .bprod-add { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--primary); background: none; color: var(--primary); cursor: pointer; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all var(--tr); font-weight: 700; }
+    .bprod-add:hover { background: var(--primary); color: white; }
+    .bprod-add.added { background: var(--primary); color: white; border-color: var(--primary); font-size: 0.85rem; }
+    .bprod-add.added:hover { background: var(--danger); border-color: var(--danger); }
+
+    /* ---- LISTS MODAL ---- */
+    .lists-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 400; display: none; align-items: center; justify-content: center; padding: 16px; }
+    .lists-overlay.open { display: flex; }
+    .lists-modal { background: var(--surface); border-radius: 16px; width: min(92vw, 400px); max-height: 80vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+    .lists-head { padding: 14px 16px; border-bottom: 1px solid var(--border); background: var(--surface2); display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .lists-title { font-size: 1rem; font-weight: 700; flex: 1; }
+    .lists-body { flex: 1; overflow-y: auto; }
+    .list-row { display: flex; align-items: center; padding: 13px 16px; gap: 10px; border-bottom: 1px solid var(--border); transition: background var(--tr); }
+    .list-row:hover { background: var(--surface2); }
+    .list-row.current { border-right: 3px solid var(--primary); }
+    .list-row-info { flex: 1; min-width: 0; }
+    .list-row-name { font-size: 0.92rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 6px; }
+    .list-cur-tag { font-size: 0.68rem; background: var(--primary); color: white; border-radius: 8px; padding: 1px 6px; font-weight: 700; }
+    .list-row-date { font-size: 0.74rem; color: var(--text-muted); margin-top: 2px; }
+    .list-open-btn { padding: 5px 14px; border-radius: 8px; border: none; background: var(--primary); color: white; cursor: pointer; font-size: 0.82rem; font-weight: 600; transition: background var(--tr); font-family: inherit; flex-shrink: 0; }
+    .list-open-btn:hover { background: var(--primary-light); }
+    .list-del-btn { background: none; border: none; cursor: pointer; width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: var(--text-muted); transition: all var(--tr); font-size: 0.85rem; flex-shrink: 0; }
+    .list-del-btn:hover { background: #FFEBEE; color: var(--danger); }
+    .lists-empty { padding: 32px 16px; text-align: center; color: var(--text-muted); font-size: 0.9rem; }
+    .lists-footer { padding: 12px 16px; border-top: 1px solid var(--border); flex-shrink: 0; }
+
+    /* TOAST */
+    .toast { position: fixed; bottom: 88px; left: 50%; transform: translateX(-50%) translateY(16px); background: #222; color: #fff; padding: 9px 20px; border-radius: 24px; font-size: 0.88rem; z-index: 500; opacity: 0; transition: all 0.28s; pointer-events: none; white-space: nowrap; }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    .list-wm { font-size: 0.68rem; opacity: 0.5; font-family: monospace; text-align: center; padding: 6px; color: var(--text-muted); }
+
+    /* ---- PRESENCE BADGE ---- */
+    .presence-badge {
+      display: none; align-items: center; gap: 4px;
+      background: rgba(255,255,255,0.18); border-radius: 12px;
+      padding: 3px 9px; font-size: 0.74rem; color: white;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .presence-dot { width: 7px; height: 7px; border-radius: 50%; background: #69F0AE; display: inline-block; flex-shrink: 0; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+    /* ---- SHARE MODAL ---- */
+    .share-url-box {
+      background: var(--surface2); border: 2px solid var(--border); border-radius: 10px;
+      padding: 10px 13px; font-size: 0.76rem; font-family: monospace;
+      word-break: break-all; color: var(--text-muted); line-height: 1.6;
+      margin-bottom: 12px; cursor: text; user-select: all;
+    }
+    .share-qr { text-align: center; margin: 10px 0; }
+    .share-qr img { border-radius: 10px; border: 3px solid var(--border); width: 150px; height: 150px; }
+    .share-wa-btn {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      background: #25D366; color: white; border: none; border-radius: 10px;
+      padding: 11px 16px; font-size: 0.93rem; font-weight: 700; cursor: pointer;
+      width: 100%; margin-bottom: 8px; font-family: inherit; transition: background var(--tr);
+    }
+    .share-wa-btn:hover { background: #128C7E; }
+    .share-note { font-size: 0.8rem; color: var(--text-muted); text-align: center; margin: 8px 0 4px; line-height: 1.5; }
+    .share-revoke-link { background: none; border: none; color: var(--danger); cursor: pointer; font-size: 0.78rem; text-decoration: underline; font-family: inherit; }
+
+    /* ---- ACCESS DENIED ---- */
+    .access-denied-screen {
+      position: fixed; inset: 0; background: var(--bg); z-index: 9999;
+      display: none; align-items: center; justify-content: center; padding: 24px;
+    }
+    .access-denied-card {
+      background: var(--surface); border-radius: 16px; padding: 32px;
+      max-width: 380px; width: 100%; box-shadow: var(--shadow); text-align: center;
+    }
+
+    /* ---- LOGIN SCREEN ---- */
+    .login-screen {
+      position: fixed; inset: 0; background: var(--bg); z-index: 9999;
+      display: none; align-items: center; justify-content: center; padding: 24px;
+    }
+    .login-card {
+      background: var(--surface); border-radius: 20px; padding: 40px 32px;
+      max-width: 360px; width: 100%; box-shadow: 0 8px 32px rgba(0,0,0,0.15); text-align: center;
+    }
+    .login-title { font-size: 1.7rem; font-weight: 800; margin-bottom: 6px; }
+    .login-sub { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 28px; line-height: 1.6; }
+    .google-btn {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      width: 100%; padding: 13px 20px; border-radius: 12px;
+      border: 2px solid var(--border); background: var(--surface);
+      color: var(--text); font-size: 0.97rem; font-weight: 600; cursor: pointer;
+      transition: all var(--tr); font-family: inherit; margin-bottom: 10px;
+    }
+    .google-btn:hover { background: var(--surface2); border-color: var(--primary); }
+    .google-btn:disabled { opacity: 0.6; cursor: default; }
+    .google-icon { width: 20px; height: 20px; flex-shrink: 0; }
+
+    /* ---- USER AREA (header) ---- */
+    .user-area { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+    .user-photo { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.5); flex-shrink: 0; }
+    .user-name-short { font-size: 0.78rem; font-weight: 600; color: white; opacity: 0.92; max-width: 72px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .signout-btn { background: rgba(255,255,255,0.15); border: none; color: white; padding: 3px 7px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; transition: background var(--tr); font-family: inherit; white-space: nowrap; }
+    .signout-btn:hover { background: rgba(255,255,255,0.3); }
+    @media (max-width: 620px) {
+      .user-name-short { display: none; }
+      .signout-btn { display: none; }
+      .list-name-area { display: none; }
+      .user-photo { cursor: pointer; width: 30px; height: 30px; }
+    }
+    .list-shared-tag { font-size: 0.68rem; background: #E3F2FD; color: #1565C0; border-radius: 8px; padding: 1px 6px; font-weight: 700; }
+    [data-theme="dark"] .list-shared-tag { background: #1A2A3A; color: #90CAF9; }
+  </style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="loginScreen" class="login-screen" style="display:none">
+  <div class="login-card">
+    <div style="font-size:3rem;margin-bottom:10px">🛒</div>
+    <div class="login-title">SmartShop</div>
+    <div class="login-sub">
+      אפליקציית קניות חכמה ומשותפת.<br>
+      כנס עם Google כדי לגשת לרשימות שלך מכל מכשיר.
+    </div>
+    <button class="google-btn" id="googleSignInBtn" onclick="signInWithGoogle()">
+      <svg class="google-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+      </svg>
+      כניסה עם Google
+    </button>
+    <div style="margin:14px 0;color:var(--text-muted);font-size:0.85rem">— או —</div>
+    <button class="btn btn-ghost btn-full" onclick="continueWithoutLogin()">המשך ללא חשבון</button>
+    <div style="font-size:0.75rem;color:var(--text-muted);margin-top:14px;line-height:1.6">
+      ללא חשבון הרשימות נשמרות רק במכשיר זה.
+    </div>
+  </div>
+</div>
+
+<!-- SETUP SCREEN -->
+<div id="setupScreen" class="setup-screen" style="display:none">
+  <div class="setup-card">
+    <div style="font-size:2rem;margin-bottom:8px">🛒</div>
+    <div class="setup-title">SmartShop List — הגדרה ראשונית</div>
+    <div class="setup-sub">לסנכרון בזמן אמת בין מכשירים, הגדר Firebase Realtime Database:</div>
+    <ol class="setup-steps">
+      <li>כנס ל‑<a href="https://console.firebase.google.com" target="_blank">console.firebase.google.com</a> וצור פרויקט</li>
+      <li>הוסף <strong>Realtime Database</strong> ← Start in test mode</li>
+      <li>לחץ ⚙️ Project settings ← Your apps ← הוסף Web App</li>
+      <li>העתק את <code>firebaseConfig</code> לקובץ זה (החלף <code>YOUR_…</code>)</li>
+    </ol>
+    <div class="code-block">const firebaseConfig = {
+  apiKey: "AIzaSyDnt9ZDEmNd-ja_mHUg3XfTQyDHsBcRHjU",
+  authDomain: "smartshop-c58a5.firebaseapp.com",
+  databaseURL: "https://smartshop-c58a5-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "smartshop-c58a5",
+  messagingSenderId: "130633295953",
+  appId: "1:130633295953:web:0be174e7e377267bc7b070"
+};</div>
+    <div class="setup-divider">— או —</div>
+    <button class="btn btn-ghost btn-full" onclick="startOffline()">🖥️ המשך ללא סנכרון (שמירה מקומית בלבד)</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <header>
+    <div class="header-top">
+      <div class="logo">🛒</div>
+
+      <!-- List name (editable) -->
+      <div class="list-name-area">
+        <div class="list-name-disp" id="listNameDisp" onclick="startEditName()" title="לחץ לשינוי שם הרשימה">
+          <span class="list-name-text" id="listNameText">…</span>
+          <span class="list-name-edit-icon">✏️</span>
+        </div>
+        <input id="listNameInput" class="list-name-input" maxlength="40" placeholder="שם הרשימה"
+               onblur="saveEditName()" onkeydown="nameInputKey(event)">
+      </div>
+
+      <div class="presence-badge" id="presenceBadge">
+        <span class="presence-dot"></span><span id="presenceText"></span>
+      </div>
+
+      <div class="user-area" id="userArea" style="display:none">
+        <img class="user-photo" id="userPhoto" src="" alt="" onclick="mobileUserTap()" title="לחץ להתנתקות">
+        <span class="user-name-short" id="userNameShort"></span>
+        <button class="signout-btn" onclick="doSignOut()">יציאה</button>
+      </div>
+
+      <div class="header-right">
+        <button class="icon-btn" onclick="openAdd()" title="הוסף מוצר חדש" style="font-size:1.2rem">➕</button>
+        <button class="icon-btn" onclick="openBrowse()" title="עיון לפי קטגוריה">📂</button>
+        <button class="icon-btn" onclick="openLists()" title="הרשימות שלי">📋</button>
+        <button class="icon-btn" id="darkBtn" onclick="toggleDark()" title="מצב כהה/בהיר">🌙</button>
+        <button class="icon-btn" onclick="openShare()" title="הזמן לרשימה">🔗</button>
+      </div>
+    </div>
+
+    <!-- Search -->
+    <div class="search-wrap">
+      <input type="text" class="search-input" id="searchInput"
+             placeholder="🔍  חפש מוצר…"
+             oninput="onSearch(this.value)" onkeydown="onSearchKey(event)"
+             autocomplete="off" autocorrect="off" spellcheck="false">
+      <div class="search-dropdown" id="searchDrop"></div>
+    </div>
+  </header>
+
+  <div class="chip-bar" id="chipBar"></div>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-title">📂 קטגוריות</div>
+      <div id="catFilters"></div>
+    </aside>
+
+    <div class="main">
+      <div class="stats-bar" id="statsBar" style="display:none">
+        <div class="stat">סה"כ: <b id="sTotal">0</b></div>
+        <div class="prog-wrap"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+        <div class="stat">נרכשו: <b id="sDone">0</b></div>
+        <button class="clear-btn" onclick="clearPurchased()">נקה נרכשו</button>
+      </div>
+
+      <div id="listContainer"></div>
+
+      <div class="purch-section collapsed" id="purchSect" style="display:none">
+        <div class="purch-head" onclick="togglePurchSect()">
+          <span>✅</span>
+          <span>נרכשו (<span id="purchCount">0</span>)</span>
+          <span class="chev">▼</span>
+        </div>
+        <div class="purch-body" id="purchBody"></div>
+      </div>
+
+      <div class="swipe-hint" id="swipeHint" style="display:none">← החלק שמאלה למחיקה</div>
+      <div class="list-wm" id="listWm"></div>
+    </div>
+  </div>
+
+  <button class="fab" onclick="openAdd()" title="הוסף מוצר">+</button>
+  <div class="toast" id="toast"></div>
+</div>
+
+<!-- ADD MODAL -->
+<div class="overlay" id="addOverlay">
+  <div class="modal" role="dialog">
+    <div class="modal-title">➕ הוסף מוצר</div>
+    <div class="fg">
+      <label>שם המוצר *</label>
+      <input class="fc" id="mName" placeholder="למשל: ביצים, לחם שיפון…" maxlength="80">
+    </div>
+    <div class="fg">
+      <label>קטגוריה</label>
+      <select class="fc" id="mCat"></select>
+    </div>
+    <div class="fc-row">
+      <div class="fg" style="flex:1">
+        <label>כמות</label>
+        <input class="fc" id="mQtyNum" type="number" min="0.1" step="0.1" placeholder="1" dir="ltr">
+      </div>
+      <div class="fg" style="flex:2">
+        <label>יחידה / משקל</label>
+        <select class="fc" id="mQtyUnit">
+          <option value="יח'">יחידות (יח')</option>
+          <option value='ק"ג'>קילוגרם (ק"ג)</option>
+          <option value="גרם">גרם</option>
+          <option value="ליטר">ליטר</option>
+          <option value='מ"ל'>מיליליטר (מ"ל)</option>
+          <option value="חבילה">חבילה</option>
+          <option value="צרור">צרור</option>
+          <option value="קרטון">קרטון</option>
+        </select>
+      </div>
+    </div>
+    <div class="fg"><label>הערה</label><input class="fc" id="mNote" placeholder="למשל: רק של מותג X"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeAdd()">ביטול</button>
+      <button class="btn btn-primary" onclick="submitAdd()">הוסף ✓</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div class="overlay" id="editOverlay">
+  <div class="modal" role="dialog">
+    <div class="modal-title">✏️ עריכת פריט</div>
+    <div class="fg"><label>שם המוצר</label><input class="fc" id="eName" maxlength="80"></div>
+    <div class="fg"><label>קטגוריה</label><select class="fc" id="eCat"></select></div>
+    <div class="fc-row">
+      <div class="fg" style="flex:1">
+        <label>כמות</label>
+        <input class="fc" id="eQtyNum" type="number" min="0.1" step="0.1" placeholder="1" dir="ltr">
+      </div>
+      <div class="fg" style="flex:2">
+        <label>יחידה / משקל</label>
+        <select class="fc" id="eQtyUnit">
+          <option value="יח'">יחידות (יח')</option>
+          <option value='ק"ג'>קילוגרם (ק"ג)</option>
+          <option value="גרם">גרם</option>
+          <option value="ליטר">ליטר</option>
+          <option value='מ"ל'>מיליליטר (מ"ל)</option>
+          <option value="חבילה">חבילה</option>
+          <option value="צרור">צרור</option>
+          <option value="קרטון">קרטון</option>
+        </select>
+      </div>
+    </div>
+    <div class="fg"><label>הערה</label><input class="fc" id="eNote"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeEdit()">ביטול</button>
+      <button class="btn btn-primary" onclick="submitEdit()">שמור ✓</button>
+    </div>
+  </div>
+</div>
+
+<!-- BROWSE MODAL -->
+<div class="bmodal-overlay" id="browseOverlay">
+  <div class="bmodal">
+    <div class="bmodal-head">
+      <button class="bback-btn" id="bbackBtn" onclick="browseCatBack()" style="display:none">← חזרה</button>
+      <div class="bmodal-title" id="bTitle">📂 עיון מוצרים</div>
+      <button class="bclose-btn" onclick="closeBrowse()">✕</button>
+    </div>
+    <div class="bfilter-wrap" id="bFilterWrap" style="display:none">
+      <input class="bfilter" id="bFilter" placeholder="🔍 סנן מוצרים…" oninput="filterBrowseProducts(this.value)">
+    </div>
+    <div class="bmodal-body" id="bBody"></div>
+  </div>
+</div>
+
+<!-- LISTS MODAL -->
+<div class="lists-overlay" id="listsOverlay">
+  <div class="lists-modal">
+    <div class="lists-head">
+      <div class="lists-title">📋 הרשימות שלי</div>
+      <button class="bclose-btn" onclick="closeLists()">✕</button>
+    </div>
+    <div class="lists-body" id="listsBody"></div>
+    <div class="lists-footer">
+      <button class="btn btn-primary btn-full" onclick="newList()">➕ צור רשימה חדשה</button>
+    </div>
+  </div>
+</div>
+
+<!-- ACCESS DENIED -->
+<div id="accessDenied" class="access-denied-screen">
+  <div class="access-denied-card">
+    <div style="font-size:3rem;margin-bottom:12px">🔒</div>
+    <div style="font-size:1.2rem;font-weight:700;margin-bottom:8px">אין גישה לרשימה</div>
+    <div style="font-size:0.9rem;color:var(--text-muted);line-height:1.6;margin-bottom:20px">
+      הקישור שבידיך אינו תקף.<br>בקש קישור הזמנה עדכני מבעל הרשימה.
+    </div>
+    <button class="btn btn-primary btn-full" onclick="location.hash='';location.reload()">צור רשימה חדשה</button>
+  </div>
+</div>
+
+<!-- SHARE MODAL -->
+<div class="overlay" id="shareOverlay">
+  <div class="modal" role="dialog" style="max-height:92vh;overflow-y:auto">
+    <div class="modal-title">🔗 הזמן לרשימה</div>
+    <div style="font-size:0.84rem;color:var(--text-muted);margin-bottom:12px">
+      שתף את הקישור הבא עם מי שרצונך שיראה ויעדכן את הרשימה:
+    </div>
+    <div class="share-url-box" id="shareUrlBox"></div>
+    <div class="share-qr">
+      <img id="shareQrImg" src="" alt="QR code" loading="lazy">
+    </div>
+    <button class="share-wa-btn" id="shareWaBtn">
+      <span style="font-size:1.1rem">💬</span> שלח בוואטסאפ
+    </button>
+    <button class="btn btn-primary btn-full" onclick="copyShareUrl()">📋 העתק קישור</button>
+
+    <div style="border-top:1px solid var(--border);margin:14px 0"></div>
+    <div style="font-size:0.84rem;color:var(--text-muted);margin-bottom:10px">
+      שלח את הרשימה כטקסט — הצד השני לא צריך להיכנס לאפליקציה:
+    </div>
+    <button class="share-wa-btn" onclick="sendListAsTextWA()" style="background:#128C7E">
+      <span style="font-size:1.1rem">📝</span> שלח רשימה כטקסט בוואטסאפ
+    </button>
+    <button class="btn btn-ghost btn-full" onclick="copyListAsText()">📋 העתק רשימה כטקסט</button>
+
+    <div class="share-note">
+      כל מי שיקבל את הקישור הזה יוכל לצפות ולהוסיף מוצרים לרשימה.<br>
+      <button class="share-revoke-link" onclick="revokeAccess()">🔄 בטל את הקישור הנוכחי ובצור חדש</button>
+    </div>
+    <div class="modal-actions" style="margin-top:12px">
+      <button class="btn btn-ghost btn-full" onclick="closeShare()">סגור</button>
+    </div>
+  </div>
+</div>
+
+<!-- FIREBASE -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+
+<script>
+// ============================================================
+//  FIREBASE CONFIG — החלף בנתוני הפרויקט שלך
+// ============================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyDnt9ZDEmNd-ja_mHUg3XfTQyDHsBcRHjU",
+  authDomain: "smartshop-c58a5.firebaseapp.com",
+  databaseURL: "https://smartshop-c58a5-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "smartshop-c58a5",
+  messagingSenderId: "130633295953",
+  appId: "1:130633295953:web:0be174e7e377267bc7b070"
+};
+// ============================================================
+
+// ============================================================
+//  PRODUCT DATABASE
+// ============================================================
+const DB = {
+  "ירקות ופירות": [
+    "עגבניות","מלפפונים","פלפל אדום","פלפל ירוק","פלפל צהוב","בצל","שום",
+    "תפוחי אדמה","בטטה","גזר","סלרי","פטרוזיליה","כוסברה","חסה","כרוב",
+    "כרובית","ברוקולי","תירס","אבוקדו","עגבניות שרי","כרישה","זוקיני",
+    "חציל","שעועית ירוקה","אפונה","תרד","שומר","אספרגוס","ארטישוק",
+    "צנונית","לפת","קולרבי","כרוב סגול","כרוב ניצנים","מנגולד","רוקט",
+    "בזיליקום","נענע","אורגנו","רוזמרין","טימין","עירית","שמיר",
+    "פטריות שמפיניון","פטריות שיטאקי","פטריות פורטובלו",
+    "תפוחים","בננות","תפוזים","לימונים","מנגו","ענבים","תותים",
+    "אוכמניות","אפרסקים","נקטרינות","מלון","אבטיח","אננס","קיווי",
+    "אגס","דובדבן","שזיפים","תמרים","פסיפלורה","רימון","אפרסמון",
+    "פפאיה","ליצ'י","סברס","שסק","תאנים","צימוקים","שזיפים מיובשים",
+    "משמשים מיובשים","כרנבול","קלמנטינות","פומלה","גרייפפרוט"
+  ],
+  "מוצרי חלב וביצים": [
+    "חלב 3%","חלב 1%","חלב דל לקטוז","חלב שקדים","חלב שיבולת שועל","חלב קוקוס",
+    "שמנת לקפה","שמנת מתוקה","שמנת חמוצה","יוגורט טבעי","יוגורט יווני",
+    "יוגורט פירות","לבן","קפיר","לאסי",
+    "גבינה לבנה 5%","גבינה לבנה 9%","גבינה בולגרית","גבינה צהובה",
+    "גבינת מוצרלה","גבינת פרמזן","גבינת קממבר","גבינת ברי","גבינת גאודה",
+    "גבינת עמק","גבינת צפתית","גבינת פטה","גבינת ריקוטה","גבינת מסקרפונה",
+    "קוטג' 5%","קוטג' 9%","שמנת בישול 15%","שמנת בישול 38%",
+    "חמאה","חמאה מלוחה","חמאה ללא לקטוז","מרגרינה","ממרח שמנת",
+    "ביצים גדולות","ביצים בינוניות","ביצי חופש","ביצים אורגניות"
+  ],
+  "לחם ומאפים": [
+    "לחם אחיד","לחם מלא","לחם שיפון","לחם כוסמין","לחם קמח מלא","חלה",
+    "פיתות","לאפה","טורטיות","בגט","לחמניות","קרואסון","לחם ללא גלוטן",
+    "קרקרים","מצות","בייגל","גריסימי","פרצלים","כעכים","לחם שיפון עם זרעים",
+    "לחם עם אגוזים","פיתה מלאה","טורטיה מלאה","לחמניות מלאות",
+    "מאפין","עוגת שיש","עוגת תפוחים","דנמרק","בורקס גבינה","בורקס תפוח אדמה",
+    "קיש","פשטידה","רוגלך","הורן","אקלר"
+  ],
+  "בשר ועוף": [
+    "חזה עוף","שוקיים עוף","פרגיות","כנפיים עוף","קציצות עוף","שניצל עוף",
+    "עוף שלם","עוף מפורק","צוואר עוף","כבד עוף","לבבות עוף",
+    "בשר טחון","קציצות בקר","אנטריקוט","פילה בקר","ורד ירך","שפונדרה",
+    "צלי כתף","צלי קדר","בשר לגולש","אסאדו","נקניקיות","קבב","המבורגר",
+    "שניצל בקר","כבש טחון","צלעות כבש","כבש שלם","טלה",
+    "טחול","כבד בקר","לשון","שקדי עגל","מוח","ריאה",
+    "נקניק","סלמי","פפרוני","בייקון הודו","שניצלונים"
+  ],
+  "דגים ופירות ים": [
+    "סלמון טרי","סלמון מעושן","דניס","לוקוס","פאר","בורי","מוסר ים",
+    "טונה בשמן","טונה במים","מקרל","סרדינים","הרינג","בסה","אמנון",
+    "שרימפס","קלמרי","תמנון","מולים","צדפות","סרטן",
+    "קציצות דגים","פילה סלמון","פילה טילפיה","פילה בקלה",
+    "דג מלוח","אנשובי","קוויאר","גפילטע פיש","כרוב ממולא דגים"
+  ],
+  "מזון יבש": [
+    "אורז לבן","אורז מלא","אורז בסמטי","אורז יסמין","אורז פרסי",
+    "פסטה ספגטי","פסטה פנה","פסטה פרפרים","פסטה ריגטוני","פסטה לזניה",
+    "פסטה אורז","אטריות אורז","אטריות אביב","קוסקוס","בורגול","קינואה","כוסמת",
+    "עדשים כתומות","עדשים ירוקות","עדשים שחורות","חומוס יבש","שעועית יבשה",
+    "שעועית אדומה","שעועית שחורה","פול","תורמוס",
+    "קמח לבן","קמח מלא","קמח כוסמין","קמח תפוח אדמה","קמח שקדים",
+    "שיבולת שועל","גרנולה","קורנפלקס","מוסלי","פתיתי חיטה",
+    "סוכר לבן","סוכר חום","סוכר דקלים","מייפל","דבש","ריבה תות","ריבה משמש",
+    "מלח","פלפל שחור","כמון","פפריקה","כורכום","קינמון","כוסברה טחונה",
+    "זעתר","סומק","בהרט","ראס אל חנות","קארי","ג'ינג'ר טחון","שום גרנולה",
+    "שמן זית","שמן חמניות","שמן קוקוס","שמן שומשום","חומץ תפוחים","חומץ בלסמי",
+    "רוטב סויה","רוטב טריאקי","רוטב וורצ'סטר","רוטב צ'ילי","טבסקו",
+    "רוטב פסטה","עגבניות מרוסקות","ממרח עגבניות","עגבניות שלמות משומר",
+    "חרדל","קטשופ","מיונז","טחינה גולמית","חומוס מוכן","שימורי גרגרי חומוס",
+    "שימורי תירס","שימורי אפונה","שימורי שעועית","שימורי טונה",
+    "מרק עוף מוכן","אבקת מרק","קוביות מרק","נודלס מיידי","אורז מיידי"
+  ],
+  "שתיות": [
+    "מים מינרלים 0.5L","מים מינרלים 1.5L","מים מינרלים 5L","מים מוגזים",
+    "מיץ תפוזים","מיץ תפוחים","מיץ גזר","מיץ ענבים","מיץ אשכוליות",
+    "מיץ מנגו","מיץ אננס","מיץ עגבניות","מיץ רימונים",
+    "קוקה קולה","קוקה קולה זירו","ספרייט","פאנטה","דיאט קולה",
+    "רד בול","מונסטר","גאטורייד","פוקוס",
+    "בירה","בירה קלה","בירה שחורה","סיידר",
+    "יין אדום","יין לבן","יין רוזה","יין מבעבע","פרוסקו","שמפניה",
+    "וודקה","ויסקי","ברנדי","עראק","רום","ג'ין",
+    "קפה שחור","קפה טחון","קפה נמס","קפה קפסולות","אספרסו",
+    "תה שחור","תה ירוק","תה צמחים","תה מנטה","קמומיל","זנגביל לימון",
+    "שוקו","מנה שחומה","לימונדה","סודה"
+  ],
+  "חטיפים וממתקים": [
+    "שוקולד מריר 70%","שוקולד מריר 85%","שוקולד חלב","שוקולד לבן",
+    "שוקולד עם אגוזים","שוקולד עם שקדים","קינדר","קיטקט","טוויקס","סניקרס","מארס",
+    "ביסקוויטים","אוריאו","לוטוס","מרייה","פטי בר","אנג'ל",
+    "צ'יפס","פרינגלס","ביסלי","במבה","בורקסים","קרקר מלוח",
+    "פופקורן","אגוזי מלך","שקדים","קשיו","פיסטוק","מקדמיה",
+    "בוטנים","גרעיני חמניות","גרעיני דלעת","מיקס אגוזים",
+    "חטיף גרנולה","חטיף אנרגיה","חטיף חלבון","גמי","סוכריות",
+    "הלווה","פאדג'","ברולה","נוגט","ממרח שוקולד","פנוט בטר",
+    "וופל","עוגיות שוקולד צ'יפס","עוגיות קמח שיבולת"
+  ],
+  "מוצרים קפואים": [
+    "גלידה וניל","גלידה שוקולד","גלידה תות","גלידה פיסטוק","שלגון","ארטיק",
+    "פיצה קפואה","לזניה קפואה","פסטה קפואה","אניולוטי קפוא",
+    "שניצל קפוא","קציצות קפואות","נקניקיות קפואות","המבורגר קפוא",
+    "ירקות קפואים מעורבים","תירס קפוא","אפונה קפואה","תרד קפוא","שעועית קפואה",
+    "בצק עלים","בצק פילו","בצק שמרים","בצק פיצה","לחמניות קפואות",
+    "כדורי בשר קפואים","דגים קפואים","שרימפס קפוא","אדמאמה",
+    "פירות ים קפואים","בורקס קפוא","סמוסה קפואה","ספרינג רול"
+  ],
+  "אפייה ומתוקים": [
+    "קמח לתפיחה","שמרים יבשים","שמרים טריים","אבקת אפייה","סודה לשתייה",
+    "וניל","תמצית וניל","אבקת קקאו","שוקולד לאפייה","שוקולד צ'יפס",
+    "סוכר וניל","סוכר אבקה","ג'לי אגר אגר","ג'לטין","קורנפלור",
+    "שקדים טחונים","אגוזי לוז טחונים","קוקוס טחון","שומשום",
+    "פירות יבשים לאפייה","צימוקים לאפייה","תמרים מגולענים",
+    "ריבת חלב","לוטוס","נוטלה","קרם פטיסייר","קרם שנטי",
+    "תבנית אפייה","כוסות נייר","שקיות קינוח","שקיות זילוף"
+  ],
+  "מזון בריאות וטבעי": [
+    "חלב שיבולת שועל","חלב שקדים","חלב קשיו","חלב סויה","חלב קוקוס",
+    "יוגורט סויה","גבינת טופו","טופו רגיל","טופו מוצק","טמפה",
+    "חטיף חלבון","אבקת חלבון","שייק חלבון","אנרגיה ירוקה",
+    "ספירולינה","כלורלה","אבקת מאקה","אבקת קאמו קאמו",
+    "שמן MCT","שמן שבט","אמגה 3","קולגן","קריאטין",
+    "קינואה אדומה","אמרנט","פרה ביוטיק","פרוביוטיק",
+    "לחם כוסמין","לחם ללא גלוטן","פסטה ללא גלוטן","קרקרים ללא גלוטן",
+    "שיבולת שועל ללא גלוטן","קמח ללא גלוטן","ביסקוויטים ללא גלוטן"
+  ],
+  "ניקיון ובית": [
+    "אבקת כביסה","נוזל כביסה","מרכך כביסה","כמוסות כביסה","נוזל כלים",
+    "נייר טואלט","מגבות נייר","ממחטות נייר","מגבונים לחים",
+    "שקיות אשפה קטנות","שקיות אשפה גדולות","שקיות אחסון","ניילון הדבקה",
+    "נייר אלומיניום","נייר אפייה","ניילון טרי","מכסי סיליקון",
+    "אקונומיקה","חומר שירותים","ספוגים","מטאטא","מגב",
+    "כפפות גומי","נוזל ניקוי רצפות","ווינדקס","מבהיק","ברקון",
+    "תרסיס חרקים","מדביר","כדורי נפטלין","פנל","מטהר אוויר",
+    "סבון ידיים","ג'ל אנטי בקטריאלי","מגבוני חיטוי","כוהל",
+    "מנורת חירום","סוללות AA","סוללות AAA","מנורת LED","פנס"
+  ],
+  "טיפוח ובריאות": [
+    "שמפו","שמפו לשיער יבש","שמפו נגד קשקשים","מרכך שיער","מסכת שיער",
+    "סבון גוף","ג'ל מקלחת","קרם מקלחת","שמן גוף",
+    "משחת שיניים","מברשת שיניים","מברשת חשמלית","חוט דנטלי","מי פה","אירריגטור",
+    "דאודורנט","ספריי אנטיפרספירנט","קרם לחות לפנים","קרם לילה","סרום פנים",
+    "קרם גוף","חמאת גוף","קרם ידיים","קרם רגליים","קרם שמש SPF30","קרם שמש SPF50",
+    "מסכת פנים","מסיר איפור","מיסלר","טונר","לחות קלה",
+    "ויטמין C","ויטמין D","ויטמין B12","מולטי ויטמין","אבץ","מגנזיום","אומגה 3",
+    "כדורי כאב ראש","פרצטמול","איבופרופן","אנטי היסטמין","ספריי לגרון",
+    "פלסתרים","גזה","חוט תפרים","חומר חיטוי","תרסיס לחרקים",
+    "תחבושות היגייניות","טמפונים","קאפ מחזור","ממחטות היגיינה"
+  ],
+  "מוצרי תינוק": [
+    "חיתולים מידה 1","חיתולים מידה 2","חיתולים מידה 3","חיתולים מידה 4","חיתולים מידה 5","חיתולים מידה 6",
+    "מגבונים לחים ללא ריח","מגבונים לחים עם לוסיון",
+    "שמפו לתינוק","קרם לתינוק","שמן לתינוק","טלק","סבון לתינוק",
+    "מוצץ","בקבוק תינוק","פטמות לבקבוק","כוס שתייה",
+    "אוכל תינוקות ירקות","אוכל תינוקות פירות","דייסת תינוקות","ביסקוויטים לתינוקות",
+    "פורמולה לתינוק","פורמולה מועשרת","חלב המשך","תה לתינוקות",
+    "שמיכת תינוק","סדין לעריסה","שק שינה","בגדי בית לתינוק"
+  ],
+  "חיות מחמד": [
+    "אוכל כלבים יבש","אוכל כלבים רטוב","חטיפים לכלב","עצמות לעיסה",
+    "אוכל חתולים יבש","אוכל חתולים רטוב","חטיפים לחתול","חול לחתולים",
+    "אוכל לדגים","אוכל לציפורים","אוכל לארנבים","אוכל לגינאה פיגס",
+    "שמפו לכלב","מברשת לכלב","קולר","רצועה","מיכל שתייה לכלב",
+    "צעצוע לכלב","צעצוע לחתול","טיפות נגד פרעושים","טיפות נגד קרציות"
+  ],
+  "מוצרי פסח": [
+    "מצות רגילות","מצות שמורות","מצות עבות","מצות ללא גלוטן","קמח מצה",
+    "יין אדום לפסח","יין לבן לפסח","מיץ ענבים כשל\"פ",
+    "חרוסת","מרור (חסה)","מרור (חזרת)","כרפס","ביצים (לסדר)",
+    "שמן זית כשל\"פ","שמן קנולה כשל\"פ",
+    "מרק עוף כשל\"פ","ציר עוף כשל\"פ",
+    "שוקולד כשל\"פ","עוגיות פסח","עוגת פסח","אבקת שקדים","ממרח שוקולד כשל\"פ",
+    "גבינה לבנה כשל\"פ","גבינה צהובה כשל\"פ","חלב כשל\"פ","קפה כשל\"פ",
+    "ריבה כשל\"פ","דבש","תבלינים כשל\"פ","מלח גס"
+  ],
+  "סלטים ומוכן לאכילה": [
+    "חומוס","טחינה","מטבוחה","סלט חצילים","חציל קלוי","בבא גנוש",
+    "סלט ירוק","סלט עגבניות","סלט יווני","סלט קיסר","סלט קולסלאו",
+    "סלט כרוב","סלט גזר","סלט סלק","סלט תפוחי אדמה","סלט ביצים",
+    "סלט טונה","סלט קורנביף","סלט ירקות קלויים","סלט עדשים",
+    "סלט חומוס ירקות","טבולה","פטוש","סלט לובי","סלט שעועית",
+    "סלט מרוקאי","סלט כוסמת","סלט קינואה","סלט אבוקדו",
+    "פלאפל","שקשוקה","חריימה","מרק עדשים","מרק עגבניות",
+    "מרק ירקות","מרק עוף","מרק בצל","מנות ראשונות מוכנות"
+  ],
+  "נקניקים ומעדניה": [
+    "נקניק בקר","נקניק עוף","נקניק הודו","נקניק כבש",
+    "סלמי","פפרוני","מורטדלה","בולונה","פסטרמה",
+    "פסטרמה עוף","פסטרמה הודו","בייקון הודו","שינקן עוף",
+    "קבנוס","כבד קצוץ","כבד עוף מטוגן","ריבת כבד",
+    "נקניקיות הודו","נקניקיות עוף","נקניקיות בקר","מרלינגז",
+    "קורנביף","חזה עוף מעושן","לשון מעושנת","פרוסות עוף מוכן",
+    "גביניות שמנת","גבינת שמנת עם עשבים","ממרח גבינה"
+  ]
+};
+
+const CAT_ICON = {
+  "ירקות ופירות":"🥦","מוצרי חלב וביצים":"🥛","לחם ומאפים":"🍞",
+  "בשר ועוף":"🥩","דגים ופירות ים":"🐟","מזון יבש":"🌾",
+  "שתיות":"🧃","חטיפים וממתקים":"🍫","מוצרים קפואים":"❄️",
+  "אפייה ומתוקים":"🎂","מזון בריאות וטבעי":"🌿",
+  "ניקיון ובית":"🧹","טיפוח ובריאות":"🧴","מוצרי תינוק":"👶",
+  "חיות מחמד":"🐾","מוצרי פסח":"🍷",
+  "סלטים ומוכן לאכילה":"🥗","נקניקים ומעדניה":"🌭","כללי":"📦"
+};
+
+// ============================================================
+//  PRODUCT IMAGES (real photos from Spoonacular ingredient CDN)
+// ============================================================
+const IMG_BASE = 'https://www.themealdb.com/images/ingredients/';
+const PROD_IMAGE = {
+  // ירקות
+  "עגבניות":"Tomato","מלפפונים":"Cucumber","פלפל אדום":"Red_Pepper",
+  "פלפל ירוק":"Green_Pepper","פלפל צהוב":"Yellow_Pepper",
+  "בצל":"Onion","שום":"Garlic","תפוחי אדמה":"Potato",
+  "בטטה":"Sweet_Potato","גזר":"Carrots","סלרי":"Celery",
+  "חסה":"Lettuce","כרוב":"Cabbage","כרובית":"Cauliflower",
+  "ברוקולי":"Broccoli","תירס":"Corn","אבוקדו":"Avocado",
+  "כרישה":"Leek","זוקיני":"Courgette","חציל":"Aubergine",
+  "שעועית ירוקה":"Green_Beans","אפונה":"Peas","תרד":"Spinach",
+  "אספרגוס":"Asparagus","ארטישוק":"Artichoke","שומר":"Fennel",
+  "עגבניות שרי":"Cherry_Tomatoes","כרוב סגול":"Red_Cabbage",
+  "פטריות שמפיניון":"Mushrooms","פטריות שיטאקי":"Shiitake_Mushrooms",
+  "בזיליקום":"Basil","נענע":"Mint","פטרוזיליה":"Parsley",
+  "כוסברה":"Coriander","שמיר":"Dill","רוקט":"Rocket",
+  // פירות
+  "תפוחים":"Apple","בננות":"Banana","תפוזים":"Oranges",
+  "לימונים":"Lemon","מנגו":"Mango","ענבים":"Grapes",
+  "תותים":"Strawberries","אוכמניות":"Blueberries","אפרסקים":"Peaches",
+  "נקטרינות":"Nectarine","מלון":"Melon","אבטיח":"Watermelon",
+  "אננס":"Pineapple","קיווי":"Kiwi","אגס":"Pears",
+  "דובדבן":"Cherries","שזיפים":"Plums","תמרים":"Dates",
+  "רימון":"Pomegranate","צימוקים":"Raisins","גרייפפרוט":"Grapefruit",
+  // חלב וביצים
+  "חלב 3%":"Milk","חלב 1%":"Milk","חלב דל לקטוז":"Milk",
+  "חלב שקדים":"Almond_Milk","חלב שיבולת שועל":"Oat_Milk","חלב סויה":"Soy_Milk",
+  "שמנת מתוקה":"Double_Cream","שמנת חמוצה":"Sour_Cream","שמנת לקפה":"Single_Cream",
+  "יוגורט טבעי":"Yogurt","יוגורט יווני":"Greek_Yoghurt",
+  "גבינה בולגרית":"Feta","גבינה צהובה":"Cheddar_Cheese",
+  "גבינת מוצרלה":"Mozzarella","גבינת פרמזן":"Parmesan",
+  "גבינת פטה":"Feta","גבינת ריקוטה":"Ricotta",
+  "קוטג' 5%":"Cottage_Cheese","קוטג' 9%":"Cottage_Cheese",
+  "חמאה":"Butter","חמאה מלוחה":"Butter","מרגרינה":"Butter",
+  "ביצים גדולות":"Eggs","ביצים בינוניות":"Eggs","ביצי חופש":"Eggs",
+  // לחם
+  "לחם אחיד":"White_Bread","לחם מלא":"Wholemeal_Bread",
+  "פיתות":"Pita_Bread","בגט":"French_Baguette",
+  "קרואסון":"Croissant","בייגל":"Bagels",
+  // בשר
+  "חזה עוף":"Chicken_Breast","שוקיים עוף":"Chicken_Thighs",
+  "כנפיים עוף":"Chicken_Wings","פרגיות":"Chicken_Thighs",
+  "בשר טחון":"Minced_Beef","אנטריקוט":"Ribeye_Steak",
+  "נקניקיות":"Sausages","כבד עוף":"Chicken_Liver",
+  "שניצל עוף":"Chicken_Breast","קציצות עוף":"Chicken_Breast",
+  "נקניק":"Salami","סלמי":"Salami",
+  // דגים
+  "סלמון טרי":"Salmon","סלמון מעושן":"Smoked_Salmon",
+  "טונה בשמן":"Tuna","טונה במים":"Tuna",
+  "שרימפס":"Tiger_Prawns","קלמרי":"Squid","סרדינים":"Sardines",
+  "פילה סלמון":"Salmon","דניס":"Sea_Bass",
+  // מזון יבש
+  "אורז לבן":"Rice","אורז מלא":"Brown_Rice","אורז בסמטי":"Basmati_Rice",
+  "פסטה ספגטי":"Spaghetti","פסטה פנה":"Penne",
+  "פסטה פרפרים":"Farfalle","פסטה ריגטוני":"Rigatoni",
+  "קוסקוס":"Couscous","קינואה":"Quinoa","בורגול":"Bulgur_Wheat",
+  "עדשים כתומות":"Red_Lentils","עדשים ירוקות":"Lentils",
+  "חומוס יבש":"Chickpeas","שעועית יבשה":"Cannellini_Beans",
+  "שעועית אדומה":"Red_Kidney_Beans","שעועית שחורה":"Black_Beans",
+  "קמח לבן":"Plain_Flour","קמח מלא":"Wholemeal_Flour",
+  "שיבולת שועל":"Oats","גרנולה":"Granola",
+  "סוכר לבן":"Sugar","סוכר חום":"Brown_Sugar",
+  "מלח":"Salt","פלפל שחור":"Black_Pepper",
+  "כמון":"Cumin","פפריקה":"Paprika","כורכום":"Turmeric",
+  "קינמון":"Cinnamon","שמן זית":"Olive_Oil","שמן חמניות":"Sunflower_Oil",
+  "חומץ":"White_Wine_Vinegar","חומץ בלסמי":"Balsamic_Vinegar",
+  "רוטב סויה":"Soy_Sauce","ממרח עגבניות":"Tomato_Puree",
+  "עגבניות מרוסקות":"Chopped_Tomatoes",
+  "חרדל":"Dijon_Mustard","קטשופ":"Tomato_Ketchup",
+  "מיונז":"Mayonnaise","דבש":"Honey",
+  "טחינה":"Tahini","חומוס מוכן":"Hummus",
+  "פנוט בטר":"Peanut_Butter","ממרח שוקולד":"Chocolate_Spread",
+  // שתיות
+  "מיץ תפוזים":"Orange_Juice","קפה טחון":"Coffee",
+  "קפה נמס":"Instant_Coffee","תה ירוק":"Green_Tea",
+  "תה שחור":"Black_Tea","יין אדום":"Red_Wine","יין לבן":"White_Wine",
+  // חטיפים
+  "שוקולד מריר 70%":"Dark_Chocolate","שוקולד מריר 85%":"Dark_Chocolate",
+  "שוקולד חלב":"Milk_Chocolate","שוקולד לבן":"White_Chocolate",
+  "שקדים":"Almonds","אגוזי מלך":"Walnuts",
+  "קשיו":"Cashew_Nuts","פיסטוק":"Pistachios","בוטנים":"Peanuts",
+  "גרעיני חמניות":"Sunflower_Seeds","פופקורן":"Popcorn",
+  "גרעיני דלעת":"Pumpkin_Seeds",
+  // אפייה
+  "קמח לתפיחה":"Self-raising_Flour","שמרים יבשים":"Dried_Yeast",
+  "אבקת קקאו":"Cocoa_Powder","שוקולד לאפייה":"Dark_Chocolate",
+  "שוקולד צ'יפס":"Chocolate_Chips","שמן קוקוס":"Coconut_Oil",
+  "שומשום":"Sesame_Seeds","צימוקים לאפייה":"Raisins",
+  "אבקת שקדים":"Ground_Almonds",
+  // בריאות
+  "טופו רגיל":"Tofu","טופו מוצק":"Tofu","גבינת טופו":"Tofu",
+  // סלטים
+  "חומוס":"Hummus","טחינה":"Tahini","סלט ירוק":"Lettuce",
+  "סלט עגבניות":"Tomato","סלט יווני":"Feta","סלט קיסר":"Lettuce",
+  "סלט כרוב":"Cabbage","סלט גזר":"Carrots","סלט סלק":"Beetroot",
+  "סלט טונה":"Tuna","טבולה":"Parsley","סלט אבוקדו":"Avocado",
+  "פלאפל":"Chickpeas","סלט עדשים":"Lentils","סלט קינואה":"Quinoa",
+  "מרק עדשים":"Red_Lentils","מרק עגבניות":"Tomato",
+  "מרק ירקות":"Mixed_Vegetables","מרק עוף":"Chicken_Breast",
+  // נקניקים
+  "סלמי":"Salami","פפרוני":"Pepperoni","נקניקיות עוף":"Sausages",
+  "נקניקיות בקר":"Sausages","נקניקיות הודו":"Sausages",
+  "נקניק בקר":"Salami","נקניק עוף":"Salami","נקניק הודו":"Salami",
+  "פסטרמה עוף":"Chicken_Breast","פסטרמה הודו":"Chicken_Breast",
+  "קורנביף":"Minced_Beef","כבד קצוץ":"Chicken_Liver",
+  "בייקון הודו":"Salami","קבנוס":"Sausages"
+};
+
+function prodImgEl(name, catKey) {
+  const ingr = PROD_IMAGE[name];
+  const emoji = prodEmoji(name) || (CAT_ICON[catKey] || '📦');
+  if (ingr) {
+    const url = IMG_BASE + encodeURIComponent(ingr) + '-Small.png';
+    return `<img src="${url}" alt="" loading="lazy"` +
+      ` onerror="this.style.display='none';this.nextSibling.style.display=''">` +
+      `<span style="display:none;font-size:1.55rem">${emoji}</span>`;
+  }
+  return `<span style="font-size:1.55rem">${emoji}</span>`;
+}
+
+const PROD_EMOJI = {
+  // ירקות ופירות
+  "עגבניות":"🍅","מלפפונים":"🥒","פלפל אדום":"🌶️","פלפל ירוק":"🫑","פלפל צהוב":"🫑",
+  "בצל":"🧅","שום":"🧄","תפוחי אדמה":"🥔","בטטה":"🍠","גזר":"🥕",
+  "סלרי":"🥬","פטרוזיליה":"🌿","כוסברה":"🌿","חסה":"🥬","כרוב":"🥬",
+  "כרובית":"🥦","ברוקולי":"🥦","תירס":"🌽","אבוקדו":"🥑","עגבניות שרי":"🍅",
+  "כרישה":"🧅","זוקיני":"🥒","חציל":"🍆","שעועית ירוקה":"🫘","אפונה":"🫛",
+  "תרד":"🥬","שומר":"🌿","אספרגוס":"🥦",
+  "תפוחים":"🍎","בננות":"🍌","תפוזים":"🍊","לימונים":"🍋","מנגו":"🥭",
+  "ענבים":"🍇","תותים":"🍓","אוכמניות":"🫐","אפרסקים":"🍑","נקטרינות":"🍑",
+  "מלון":"🍈","אבטיח":"🍉","אננס":"🍍","קיווי":"🥝","אגס":"🍐",
+  "דובדבן":"🍒","שזיפים":"🍑","תמרים":"🌴","פסיפלורה":"🌺","רימון":"🍎","אפרסמון":"🍊",
+  // מוצרי חלב וביצים
+  "חלב 3%":"🥛","חלב 1%":"🥛","חלב דל לקטוז":"🥛","שמנת לקפה":"🥛","שמנת מתוקה":"🥛",
+  "שמנת חמוצה":"🥛","יוגורט טבעי":"🥛","יוגורט יווני":"🥛","לבן":"🥛","קפיר":"🥛",
+  "גבינה לבנה 5%":"🧀","גבינה לבנה 9%":"🧀","גבינה בולגרית":"🧀","גבינה צהובה":"🧀",
+  "גבינת מוצרלה":"🧀","גבינת פרמזן":"🧀","גבינת קממבר":"🧀",
+  "קוטג' 5%":"🧀","קוטג' 9%":"🧀","שמנת בישול":"🥛",
+  "חמאה":"🧈","חמאה מלוחה":"🧈","ביצים גדולות":"🥚","ביצים בינוניות":"🥚","ביצי חופש":"🥚","מרגרינה":"🧈",
+  // לחם ומאפים
+  "לחם אחיד":"🍞","לחם מלא":"🍞","לחם שיפון":"🍞","לחם כוסמין":"🍞","חלה":"🍞",
+  "פיתות":"🫓","לאפה":"🫓","טורטיות":"🌮","בגט":"🥖","לחמניות":"🥐",
+  "קרואסון":"🥐","לחם ללא גלוטן":"🍞","קרקרים":"🍪","מצות":"🫓","בייגל":"🥯",
+  "גריסימי":"🥨","פרצלים":"🥨","כעכים":"🥯",
+  // בשר ועוף
+  "חזה עוף":"🍗","שוקיים עוף":"🍗","פרגיות":"🍗","כנפיים עוף":"🍗",
+  "קציצות עוף":"🍗","שניצל עוף":"🍗","בשר טחון":"🥩","קציצות בקר":"🥩",
+  "אנטריקוט":"🥩","פילה בקר":"🥩","נקניקיות":"🌭","קבב":"🥙",
+  "המבורגר":"🍔","בשר לגולש":"🥩","ורד ירך":"🥩","כבד עוף":"🫀","טחול":"🫀","שפונדרה":"🥩",
+  // דגים ופירות ים
+  "סלמון":"🐟","דניס":"🐠","לוקוס":"🐟","פאר":"🐠","בורי":"🐟","מוסר ים":"🐟",
+  "טונה בשמן":"🐟","טונה במים":"🐟","מקרל":"🐟","סרדינים":"🐟",
+  "הרינג":"🐟","בסה":"🐟","אמנון":"🐟","שרימפס":"🦐","לדגים":"🐟",
+  // מזון יבש
+  "אורז לבן":"🍚","אורז מלא":"🍚","אורז בסמטי":"🍚",
+  "פסטה ספגטי":"🍝","פסטה פנה":"🍝","פסטה פרפרים":"🍝",
+  "קוסקוס":"🌾","בורגול":"🌾","קינואה":"🌾",
+  "עדשים כתומות":"🫘","עדשים ירוקות":"🫘","חומוס יבש":"🫘","שעועית יבשה":"🫘",
+  "קמח לבן":"🌾","קמח מלא":"🌾","שיבולת שועל":"🥣","גרנולה":"🥣","קורנפלקס":"🥣","כוסמת":"🌾",
+  "סוכר לבן":"🍬","סוכר חום":"🍬","מלח":"🧂",
+  "פלפל שחור":"🌶️","כמון":"🌿","פפריקה":"🌶️","כורכום":"🌿",
+  "שמן זית":"🫒","שמן חמניות":"🌻","חומץ":"🫙","רוטב סויה":"🫙",
+  "רוטב פסטה":"🍅","עגבניות מרוסקות":"🍅","ממרח עגבניות":"🍅",
+  "חרדל":"🫙","קטשופ":"🍅","מיונז":"🫙","טחינה":"🌰",
+  "חומוס מוכן":"🫘","שימורי גרגרי חומוס":"🫘",
+  // שתיות
+  "מים מינרלים":"💧","מים מוגזים":"💧",
+  "מיץ תפוזים":"🍊","מיץ תפוחים":"🍎","מיץ גזר":"🥕",
+  "קוקה קולה":"🥤","ספרייט":"🥤","פאנטה":"🥤",
+  "בירה":"🍺","יין אדום":"🍷","יין לבן":"🍾","יין רוזה":"🍷",
+  "קפה שחור":"☕","קפה טחון":"☕","קפה נמס":"☕",
+  "תה שחור":"🍵","תה ירוק":"🍵","תה צמחים":"🌿",
+  "לימונדה":"🍋","מיץ ענבים":"🍇","מיץ גויאבה":"🍈",
+  // חטיפים וממתקים
+  "שוקולד מריר":"🍫","שוקולד חלב":"🍫","שוקולד לבן":"🍫",
+  "ביסקוויטים":"🍪","אוריאו":"🍪","צ'יפס":"🥔","במבה":"🥜","ביסלי":"🥨",
+  "פופקורן":"🍿","אגוזי מלך":"🌰","שקדים":"🌰","קשיו":"🥜","פיסטוק":"🥜",
+  "בוטנים":"🥜","גרעיני חמניות":"🌻","חטיף גרנולה":"🥣",
+  "הלווה":"🍯","ממתקים":"🍬","סוכריות":"🍬",
+  // מוצרים קפואים
+  "גלידה וניל":"🍦","גלידה שוקולד":"🍫","שלגון":"🧊","פיצה קפואה":"🍕",
+  "שניצל קפוא":"🍗","ירקות קפואים מעורבים":"🥦","תירס קפוא":"🌽",
+  "אפונה קפואה":"🫛","תרד קפוא":"🥬",
+  "בצק עלים":"🫓","בצק פילו":"🫓","לחמניות קפואות":"🍞","כדורי בשר קפואים":"🥩",
+  // ניקיון ובית
+  "אבקת כביסה":"🧺","נוזל כביסה":"🧺","מרכך כביסה":"🧺","נוזל כלים":"🧼",
+  "נייר טואלט":"🧻","מגבות נייר":"🧻","ממחטות נייר":"🧻",
+  "שקיות אשפה":"🗑️","שקיות אחסון":"🛍️","ניילון הדבקה":"🌀",
+  "נייר אלומיניום":"🌀","נייר אפייה":"📄","אקונומיקה":"🧴",
+  "חומר שירותים":"🚽","ספוגים":"🧽","כפפות גומי":"🧤",
+  "נוזל ניקוי רצפות":"🧹","ווינדקס":"🪟","תרסיס חרקים":"🌿",
+  // טיפוח ובריאות
+  "שמפו":"🧴","מרכך שיער":"🧴","סבון גוף":"🧼","ג'ל מקלחת":"🚿",
+  "משחת שיניים":"🦷","מברשת שיניים":"🪥","חוט דנטלי":"🦷","מי פה":"🦷",
+  "דאודורנט":"🧴","קרם לחות":"🧴","קרם גוף":"🧴","קרם שמש":"☀️",
+  "ויטמינים":"💊","רטייה":"🩹",
+  // מוצרי תינוק
+  "חיתולים מידה 3":"👶","חיתולים מידה 4":"👶","חיתולים מידה 5":"👶",
+  "מגבונים לחים":"🧻","שמפו לתינוק":"🧴","קרם לתינוק":"🧴",
+  "סבון לתינוק":"🧼","מוצץ":"👶","בקבוק תינוק":"🍼",
+  // מוצרי פסח
+  "מצות רגילות":"🫓","מצות שמורות":"🫓","מצות עבות":"🫓","מצות ללא גלוטן":"🫓",
+  "קמח מצה":"🌾","יין אדום לפסח":"🍷","יין לבן לפסח":"🍾",
+  'מיץ ענבים כשל"פ':"🍇","חרוסת":"🍯","מרור (חסה)":"🥬","מרור (חזרת)":"🌿",
+  "כרפס":"🥬","ביצים (לסדר)":"🥚",'שמן זית כשל"פ':"🫒",'שמן קנולה כשל"פ':"🌿",
+  'מרק עוף כשל"פ':"🍲",'ציר עוף כשל"פ':"🍲",'שוקולד כשל"פ':"🍫",
+  "עוגיות פסח":"🍪","עוגת פסח":"🎂","אבקת שקדים":"🌰",'ממרח שוקולד כשל"פ':"🍫",
+  'גבינה לבנה כשל"פ':"🧀",'גבינה צהובה כשל"פ':"🧀",'חלב כשל"פ':"🥛",
+  'קפה כשל"פ':"☕",'ריבה כשל"פ':"🍓","דבש":"🍯",'תבלינים כשל"פ':"🌿","מלח גס":"🧂",
+  // ירקות נוספים
+  "ארטישוק":"🌿","צנונית":"🌿","לפת":"🌿","קולרבי":"🥦","כרוב סגול":"🥬",
+  "כרוב ניצנים":"🥦","מנגולד":"🥬","רוקט":"🥬","בזיליקום":"🌿","נענע":"🌿",
+  "אורגנו":"🌿","רוזמרין":"🌿","טימין":"🌿","עירית":"🌿","שמיר":"🌿",
+  "פטריות שמפיניון":"🍄","פטריות שיטאקי":"🍄","פטריות פורטובלו":"🍄",
+  // פירות נוספים
+  "פפאיה":"🥭","ליצ'י":"🍈","סברס":"🌵","שסק":"🍊","תאנים":"🍇",
+  "צימוקים":"🍇","שזיפים מיובשים":"🫐","משמשים מיובשים":"🍑",
+  "כרנבול":"🌺","קלמנטינות":"🍊","פומלה":"🍋","גרייפפרוט":"🍊",
+  // חלב נוסף
+  "חלב שקדים":"🥛","חלב שיבולת שועל":"🥛","חלב קוקוס":"🥥",
+  "יוגורט פירות":"🥛","לאסי":"🥛","ממרח שמנת":"🧀",
+  "גבינת ברי":"🧀","גבינת גאודה":"🧀","גבינת עמק":"🧀",
+  "גבינת צפתית":"🧀","גבינת פטה":"🧀","גבינת ריקוטה":"🧀","גבינת מסקרפונה":"🧀",
+  "שמנת בישול 15%":"🥛","שמנת בישול 38%":"🥛","חמאה ללא לקטוז":"🧈",
+  "ביצים אורגניות":"🥚",
+  // לחם נוסף
+  "לחם קמח מלא":"🍞","לחם עם אגוזים":"🍞","לחם שיפון עם זרעים":"🍞",
+  "פיתה מלאה":"🫓","טורטיה מלאה":"🌮","לחמניות מלאות":"🥐",
+  "מאפין":"🧁","עוגת שיש":"🎂","עוגת תפוחים":"🎂","דנמרק":"🥐",
+  "בורקס גבינה":"🫓","בורקס תפוח אדמה":"🫓","קיש":"🥧",
+  "פשטידה":"🥧","רוגלך":"🥐","הורן":"🥐","אקלר":"🍫",
+  // בשר נוסף
+  "עוף שלם":"🍗","עוף מפורק":"🍗","צוואר עוף":"🍗","לבבות עוף":"🫀",
+  "צלי כתף":"🥩","צלי קדר":"🥩","אסאדו":"🥩",
+  "כבש טחון":"🥩","צלעות כבש":"🥩","כבש שלם":"🥩","טלה":"🥩",
+  "כבד בקר":"🫀","לשון":"🥩","שקדי עגל":"🥩","מוח":"🥩","ריאה":"🥩",
+  "נקניק":"🌭","סלמי":"🌭","פפרוני":"🌭","בייקון הודו":"🥓","שניצלונים":"🍗",
+  // דגים נוסף
+  "סלמון טרי":"🐟","סלמון מעושן":"🐟","פילה סלמון":"🐟",
+  "פילה טילפיה":"🐟","פילה בקלה":"🐟","קלמרי":"🦑","תמנון":"🐙",
+  "מולים":"🐚","צדפות":"🐚","סרטן":"🦀","קציצות דגים":"🐟",
+  "דג מלוח":"🐟","אנשובי":"🐟","קוויאר":"🫙","גפילטע פיש":"🐟",
+  // מזון יבש נוסף
+  "אורז יסמין":"🍚","אורז פרסי":"🍚",
+  "פסטה ריגטוני":"🍝","פסטה לזניה":"🍝","פסטה אורז":"🍝",
+  "אטריות אורז":"🍜","אטריות אביב":"🍜",
+  "עדשים שחורות":"🫘","שעועית אדומה":"🫘","שעועית שחורה":"🫘","פול":"🫘","תורמוס":"🫘",
+  "קמח כוסמין":"🌾","קמח תפוח אדמה":"🥔","קמח שקדים":"🌰",
+  "מוסלי":"🥣","פתיתי חיטה":"🌾",
+  "סוכר דקלים":"🍬","ריבה תות":"🍓","ריבה משמש":"🍑",
+  "כוסברה טחונה":"🌿","זעתר":"🌿","סומק":"🌿","בהרט":"🌿",
+  "ראס אל חנות":"🌿","קארי":"🌿","ג'ינג'ר טחון":"🌿","שום גרנולה":"🧄",
+  "שמן קוקוס":"🥥","שמן שומשום":"🫙","חומץ תפוחים":"🫙","חומץ בלסמי":"🫙",
+  "רוטב טריאקי":"🫙","רוטב וורצ'סטר":"🫙","רוטב צ'ילי":"🌶️","טבסקו":"🌶️",
+  "עגבניות שלמות משומר":"🍅","שימורי תירס":"🌽","שימורי אפונה":"🫛",
+  "שימורי שעועית":"🫘","שימורי טונה":"🐟",
+  "מרק עוף מוכן":"🍲","אבקת מרק":"🫙","קוביות מרק":"🫙",
+  "נודלס מיידי":"🍜","אורז מיידי":"🍚",
+  // שתיות נוסף
+  "מים מינרלים 0.5L":"💧","מים מינרלים 1.5L":"💧","מים מינרלים 5L":"💧",
+  "מיץ אשכוליות":"🍊","מיץ מנגו":"🥭","מיץ אננס":"🍍","מיץ עגבניות":"🍅","מיץ רימונים":"🍎",
+  "קוקה קולה זירו":"🥤","דיאט קולה":"🥤",
+  "רד בול":"⚡","מונסטר":"⚡","גאטורייד":"🥤","פוקוס":"🥤",
+  "בירה קלה":"🍺","בירה שחורה":"🍺","סיידר":"🍺",
+  "יין מבעבע":"🍾","פרוסקו":"🍾","שמפניה":"🍾",
+  "וודקה":"🥃","ויסקי":"🥃","ברנדי":"🥃","עראק":"🥃","רום":"🥃","ג'ין":"🥃",
+  "קפה קפסולות":"☕","אספרסו":"☕","תה מנטה":"🍵","קמומיל":"🍵","זנגביל לימון":"🍵",
+  "שוקו":"🍫","מנה שחומה":"🍫","סודה":"🥤",
+  // חטיפים נוסף
+  "שוקולד מריר 70%":"🍫","שוקולד מריר 85%":"🍫",
+  "שוקולד עם אגוזים":"🍫","שוקולד עם שקדים":"🍫",
+  "קינדר":"🍫","קיטקט":"🍫","טוויקס":"🍫","סניקרס":"🍫","מארס":"🍫",
+  "לוטוס":"🍪","מרייה":"🍪","פטי בר":"🍫","אנג'ל":"🍪",
+  "פרינגלס":"🥔","קרקר מלוח":"🍘","בורקסים":"🫓",
+  "מקדמיה":"🥜","גרעיני דלעת":"🌰","מיקס אגוזים":"🌰",
+  "חטיף אנרגיה":"🍫","חטיף חלבון":"💪","גמי":"🍬",
+  "פאדג'":"🍬","ברולה":"🍮","נוגט":"🍬","ממרח שוקולד":"🍫","פנוט בטר":"🥜",
+  "וופל":"🧇","עוגיות שוקולד צ'יפס":"🍪","עוגיות קמח שיבולת":"🍪",
+  // קפוא נוסף
+  "גלידה תות":"🍓","גלידה פיסטוק":"🍦","ארטיק":"🧊",
+  "לזניה קפואה":"🍝","פסטה קפואה":"🍝","אניולוטי קפוא":"🍝",
+  "נקניקיות קפואות":"🌭","המבורגר קפוא":"🍔",
+  "שעועית קפואה":"🫘","בצק שמרים":"🍞","בצק פיצה":"🍕",
+  "אדמאמה":"🫛","פירות ים קפואים":"🦐","בורקס קפוא":"🫓",
+  "סמוסה קפואה":"🫓","ספרינג רול":"🌯",
+  // אפייה
+  "קמח לתפיחה":"🌾","שמרים יבשים":"🫙","שמרים טריים":"🫙",
+  "אבקת אפייה":"🫙","סודה לשתייה":"🫙",
+  "וניל":"🫙","תמצית וניל":"🫙","אבקת קקאו":"🍫","שוקולד לאפייה":"🍫",
+  "שוקולד צ'יפס":"🍫","סוכר וניל":"🍬","סוכר אבקה":"🍬",
+  "ג'לי אגר אגר":"🫙","ג'לטין":"🫙","קורנפלור":"🌾",
+  "שקדים טחונים":"🌰","אגוזי לוז טחונים":"🌰","קוקוס טחון":"🥥","שומשום":"🌰",
+  "פירות יבשים לאפייה":"🍇","צימוקים לאפייה":"🍇","תמרים מגולענים":"🌴",
+  "ריבת חלב":"🍮","קרם פטיסייר":"🍮","קרם שנטי":"🍮",
+  "תבנית אפייה":"🫙","כוסות נייר":"🥤","שקיות קינוח":"🛍️","שקיות זילוף":"🛍️",
+  // בריאות
+  "יוגורט סויה":"🥛","גבינת טופו":"🧀","טופו רגיל":"🤍","טופו מוצק":"🤍","טמפה":"🤍",
+  "חטיף חלבון":"💪","אבקת חלבון":"💪","שייק חלבון":"💪","אנרגיה ירוקה":"🌿",
+  "ספירולינה":"🌿","כלורלה":"🌿","אבקת מאקה":"🌿","אבקת קאמו קאמו":"🌿",
+  "שמן MCT":"🫙","שמן שבט":"🫙","אמגה 3":"💊","קולגן":"💊","קריאטין":"💊",
+  "קינואה אדומה":"🌾","אמרנט":"🌾","פרה ביוטיק":"💊","פרוביוטיק":"💊",
+  "לחם כוסמין":"🍞","פסטה ללא גלוטן":"🍝","קרקרים ללא גלוטן":"🍘",
+  "שיבולת שועל ללא גלוטן":"🥣","קמח ללא גלוטן":"🌾","ביסקוויטים ללא גלוטן":"🍪",
+  // ניקיון נוסף
+  "כמוסות כביסה":"🧺","מגבונים לחים":"🧻",
+  "שקיות אשפה קטנות":"🗑️","שקיות אשפה גדולות":"🗑️",
+  "ניילון טרי":"🌀","מכסי סיליקון":"🫙","מטאטא":"🧹","מגב":"🧹",
+  "מבהיק":"🧴","ברקון":"🧴","מדביר":"🌿","כדורי נפטלין":"⚪","פנל":"🌸","מטהר אוויר":"🌸",
+  "סבון ידיים":"🧼","ג'ל אנטי בקטריאלי":"🧴","מגבוני חיטוי":"🧻","כוהל":"🫙",
+  "מנורת חירום":"🔦","סוללות AA":"🔋","סוללות AAA":"🔋","מנורת LED":"💡","פנס":"🔦",
+  // טיפוח נוסף
+  "שמפו לשיער יבש":"🧴","שמפו נגד קשקשים":"🧴","מסכת שיער":"🧴",
+  "קרם מקלחת":"🧴","שמן גוף":"🧴",
+  "מברשת חשמלית":"🪥","אירריגטור":"🦷",
+  "ספריי אנטיפרספירנט":"🧴",
+  "קרם לחות לפנים":"🧴","קרם לילה":"🧴","סרום פנים":"🧴",
+  "חמאת גוף":"🧴","קרם ידיים":"🧴","קרם רגליים":"🧴",
+  "קרם שמש SPF30":"☀️","קרם שמש SPF50":"☀️",
+  "מסכת פנים":"🧖","מסיר איפור":"🧴","מיסלר":"🧴","טונר":"🧴","לחות קלה":"🧴",
+  "ויטמין C":"💊","ויטמין D":"💊","ויטמין B12":"💊","מולטי ויטמין":"💊",
+  "אבץ":"💊","מגנזיום":"💊",
+  "כדורי כאב ראש":"💊","פרצטמול":"💊","איבופרופן":"💊","אנטי היסטמין":"💊","ספריי לגרון":"💊",
+  "פלסתרים":"🩹","גזה":"🩹","חוט תפרים":"🩺","חומר חיטוי":"🫙","תרסיס לחרקים":"🌿",
+  "תחבושות היגייניות":"🩹","טמפונים":"🩹","קאפ מחזור":"🩹","ממחטות היגיינה":"🧻",
+  // תינוק נוסף
+  "חיתולים מידה 1":"👶","חיתולים מידה 2":"👶","חיתולים מידה 6":"👶",
+  "מגבונים לחים ללא ריח":"🧻","מגבונים לחים עם לוסיון":"🧻",
+  "שמן לתינוק":"🧴","טלק":"🧴",
+  "פטמות לבקבוק":"🍼","כוס שתייה":"🥤",
+  "אוכל תינוקות ירקות":"🥣","אוכל תינוקות פירות":"🥣",
+  "דייסת תינוקות":"🥣","ביסקוויטים לתינוקות":"🍪",
+  "פורמולה לתינוק":"🍼","פורמולה מועשרת":"🍼","חלב המשך":"🍼","תה לתינוקות":"🍵",
+  "שמיכת תינוק":"🧸","סדין לעריסה":"🛏️","שק שינה":"🛏️","בגדי בית לתינוק":"👶",
+  // חיות מחמד
+  "אוכל כלבים יבש":"🐕","אוכל כלבים רטוב":"🐕","חטיפים לכלב":"🐕","עצמות לעיסה":"🦴",
+  "אוכל חתולים יבש":"🐈","אוכל חתולים רטוב":"🐈","חטיפים לחתול":"🐈","חול לחתולים":"🐈",
+  "אוכל לדגים":"🐠","אוכל לציפורים":"🦜","אוכל לארנבים":"🐇","אוכל לגינאה פיגס":"🐹",
+  "שמפו לכלב":"🐕","מברשת לכלב":"🐕","קולר":"🐕","רצועה":"🐕","מיכל שתייה לכלב":"🐕",
+  "צעצוע לכלב":"🦴","צעצוע לחתול":"🐈","טיפות נגד פרעושים":"💊","טיפות נגד קרציות":"💊",
+  // סלטים ומוכן לאכילה
+  "חומוס":"🫘","טחינה":"🌰","מטבוחה":"🍅","סלט חצילים":"🍆","חציל קלוי":"🍆","בבא גנוש":"🍆",
+  "סלט ירוק":"🥗","סלט עגבניות":"🍅","סלט יווני":"🥗","סלט קיסר":"🥗","סלט קולסלאו":"🥬",
+  "סלט כרוב":"🥬","סלט גזר":"🥕","סלט סלק":"🟣","סלט תפוחי אדמה":"🥔","סלט ביצים":"🥚",
+  "סלט טונה":"🐟","סלט קורנביף":"🥩","סלט ירקות קלויים":"🥗","סלט עדשים":"🫘",
+  "סלט חומוס ירקות":"🫘","טבולה":"🌿","פטוש":"🥗","סלט לובי":"🫘","סלט שעועית":"🫘",
+  "סלט מרוקאי":"🥗","סלט כוסמת":"🌾","סלט קינואה":"🌾","סלט אבוקדו":"🥑",
+  "פלאפל":"🧆","שקשוקה":"🍳","חריימה":"🐟","מרק עדשים":"🍲","מרק עגבניות":"🍲",
+  "מרק ירקות":"🍲","מרק עוף":"🍲","מרק בצל":"🍲","מנות ראשונות מוכנות":"🍱",
+  // נקניקים ומעדניה
+  "נקניק בקר":"🌭","נקניק עוף":"🌭","נקניק הודו":"🌭","נקניק כבש":"🌭",
+  "סלמי":"🥓","פפרוני":"🥓","מורטדלה":"🥓","בולונה":"🥓","פסטרמה":"🥩",
+  "פסטרמה עוף":"🥩","פסטרמה הודו":"🥩","בייקון הודו":"🥓","שינקן עוף":"🥩",
+  "קבנוס":"🌭","כבד קצוץ":"🫀","כבד עוף מטוגן":"🫀","ריבת כבד":"🫙",
+  "נקניקיות הודו":"🌭","נקניקיות עוף":"🌭","נקניקיות בקר":"🌭","מרלינגז":"🌭",
+  "קורנביף":"🥩","חזה עוף מעושן":"🍗","לשון מעושנת":"🥩","פרוסות עוף מוכן":"🍗",
+  "גביניות שמנת":"🧀","גבינת שמנת עם עשבים":"🧀","ממרח גבינה":"🧀"
+};
+
+function prodEmoji(name) { return PROD_EMOJI[name] || ''; }
+
+// Flatten for autocomplete search
+const ALL_PRODUCTS = [];
+Object.entries(DB).forEach(([cat, arr]) => arr.forEach(name => ALL_PRODUCTS.push({ name, cat })));
+
+// ============================================================
+//  STATE
+// ============================================================
+let db = null;
+let auth = null;
+let currentUser = null;
+let listId = '';
+let listToken = '';
+let listName = '';
+let items = {};
+let activeCat = 'all';
+let offlineMode = false;
+let editingId = null;
+let searchResults = [];
+let connectedCount = 0;
+const clientId = Math.random().toString(36).slice(2, 12);
+
+// Browse state
+let browseView = 'cats';   // 'cats' | 'products'
+let browseCat = '';
+let browseFilterVal = '';
+
+// Qty inline edit state
+let editingQtyId = null;
+// Purchased section collapse state
+let purchCollapsed = false;
+
+const UNITS = ["יח'", 'ק"ג', 'גרם', 'ליטר', 'מ"ל', 'חבילה', 'צרור', 'קרטון'];
+
+// ============================================================
+//  INIT
+// ============================================================
+function parseHash() {
+  const raw = location.hash.slice(1);
+  const idx = raw.indexOf('~');
+  if (idx < 0) return { id: raw, token: '' };
+  return { id: raw.slice(0, idx), token: raw.slice(idx + 1) };
+}
+
+function generateToken() {
+  return Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6);
+}
+
+function buildShareUrl() {
+  return location.origin + location.pathname + location.search + '#' + listId + '~' + listToken;
+}
+
+function init() {
+  if (localStorage.getItem('dark') === '1') applyDark(true);
+  populateCatSelects();
+
+  const cfgOk = firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith('YOUR');
+  if (!cfgOk) {
+    document.getElementById('setupScreen').style.display = 'flex';
+    continueWithoutLogin();
+    return;
+  }
+  try {
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.database();
+    auth = firebase.auth();
+
+    // Show login screen while checking auth state
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('app').style.display = 'none';
+
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        currentUser = user;
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('app').style.display = '';
+        updateUserUI(user);
+        initWithFirebase();
+      }
+      // If user is null: login screen stays visible
+    });
+  } catch (e) {
+    console.error(e);
+    document.getElementById('setupScreen').style.display = 'flex';
+    continueWithoutLogin();
+  }
+}
+
+function initWithFirebase() {
+  const parsed = parseHash();
+  listId = parsed.id;
+  listToken = parsed.token;
+
+  if (!listId) {
+    // No list in URL — show list picker home screen
+    document.getElementById('listNameText').textContent = 'SmartShop';
+    document.getElementById('listWm').textContent = '';
+    render(); // render empty state
+    setTimeout(() => openLists(), 200);
+    return;
+  }
+
+  validateAndContinue();
+}
+
+function validateAndContinue() {
+  db.ref('smartshop/' + listId + '/meta').once('value', snap => {
+    const meta = snap.val() || {};
+    const storedToken = meta.token;
+    if (!storedToken) {
+      if (!listToken) listToken = generateToken();
+      db.ref('smartshop/' + listId + '/meta').update({ token: listToken, owner: currentUser.uid });
+      history.replaceState(null, '', '#' + listId + '~' + listToken);
+      continueInit(false);
+    } else if (!listToken || listToken === storedToken) {
+      listToken = storedToken;
+      history.replaceState(null, '', '#' + listId + '~' + listToken);
+      const isShared = !!(meta.owner && meta.owner !== currentUser.uid);
+      continueInit(isShared);
+    } else {
+      showAccessDenied();
+    }
+  });
+}
+
+function continueInit(isShared) {
+  db.ref('smartshop/' + listId + '/items').on('value', snap => {
+    items = snap.val() || {};
+    render();
+  });
+  initMeta(isShared);
+  initPresence();
+}
+
+function showAccessDenied() {
+  document.getElementById('accessDenied').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+}
+
+// ============================================================
+//  AUTH — Google Sign-In / Sign-Out
+// ============================================================
+function signInWithGoogle() {
+  const btn = document.getElementById('googleSignInBtn');
+  btn.disabled = true;
+  btn.textContent = 'מתחבר…';
+  const provider = new firebase.auth.GoogleAuthProvider();
+  auth.signInWithPopup(provider).catch(err => {
+    console.error('Auth error:', err);
+    btn.disabled = false;
+    btn.innerHTML = `<svg class="google-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+    </svg> כניסה עם Google`;
+    toast('שגיאה: ' + (err.message || err.code));
+  });
+}
+
+function mobileUserTap() {
+  if (window.innerWidth > 620) return; // desktop uses the button
+  doSignOut();
+}
+
+function doSignOut() {
+  if (!confirm('להתנתק מהחשבון?')) return;
+  auth.signOut().then(() => {
+    currentUser = null;
+    updateUserUI(null);
+    location.hash = '';
+    location.reload();
+  });
+}
+
+function updateUserUI(user) {
+  const area = document.getElementById('userArea');
+  if (!user) { area.style.display = 'none'; return; }
+  const photo = document.getElementById('userPhoto');
+  if (user.photoURL) { photo.src = user.photoURL; photo.style.display = ''; }
+  else { photo.style.display = 'none'; }
+  const firstName = (user.displayName || user.email || '').split(' ')[0];
+  document.getElementById('userNameShort').textContent = firstName;
+  area.style.display = 'flex';
+}
+
+// ============================================================
+//  WITHOUT LOGIN (offline / no account)
+// ============================================================
+function continueWithoutLogin() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('app').style.display = '';
+  offlineMode = true;
+  const parsed = parseHash();
+  listId = parsed.id;
+  listToken = parsed.token;
+  if (!listId) {
+    listId = 'sl_' + Math.random().toString(36).slice(2, 10);
+    listToken = generateToken();
+    history.replaceState(null, '', '#' + listId + '~' + listToken);
+  }
+  const saved = localStorage.getItem('ss_' + listId);
+  if (saved) try { items = JSON.parse(saved); } catch {}
+  initMeta(false);
+  render();
+}
+
+// Legacy: called from setup screen button
+function startOffline() { continueWithoutLogin(); }
+
+// ============================================================
+//  USER LIST REGISTRY (Firebase)
+// ============================================================
+function saveToUserLists(isShared) {
+  if (!currentUser || !db) return;
+  const data = { name: listName || '', token: listToken, last: Date.now() };
+  if (isShared) data.shared = true;
+  db.ref('smartshop/users/' + currentUser.uid + '/lists/' + listId).update(data);
+}
+
+function persist() {
+  if (offlineMode) localStorage.setItem('ss_' + listId, JSON.stringify(items));
+}
+
+// ============================================================
+//  LIST NAME
+// ============================================================
+function initMeta(isShared) {
+  const local = JSON.parse(localStorage.getItem('ss_meta_' + listId) || 'null') || {};
+  listName = local.name || '';
+  renderListName();
+
+  if (!offlineMode && db) {
+    db.ref('smartshop/' + listId + '/meta/name').on('value', snap => {
+      const n = snap.val() || '';
+      if (n) {
+        listName = n;
+        localStorage.setItem('ss_meta_' + listId, JSON.stringify({ name: n }));
+      }
+      renderListName();
+      saveToUserLists(isShared);
+    });
+  }
+
+  updateRegistry(listId, listName, listToken);
+  saveToUserLists(isShared);
+  document.getElementById('listWm').textContent = 'ID: ' + listId;
+}
+
+function renderListName() {
+  document.getElementById('listNameText').textContent = listName || 'רשימה ללא שם';
+}
+
+function startEditName() {
+  const inp = document.getElementById('listNameInput');
+  const disp = document.getElementById('listNameDisp');
+  inp.value = listName || '';
+  disp.style.display = 'none';
+  inp.style.display = 'inline-block';
+  inp.focus(); inp.select();
+}
+
+function saveEditName() {
+  const inp = document.getElementById('listNameInput');
+  const disp = document.getElementById('listNameDisp');
+  inp.style.display = 'none';
+  disp.style.display = 'flex';
+  const name = inp.value.trim();
+  if (name === listName) return;
+  listName = name;
+  renderListName();
+  localStorage.setItem('ss_meta_' + listId, JSON.stringify({ name: listName }));
+  if (!offlineMode && db) db.ref('smartshop/' + listId + '/meta/name').set(listName);
+  updateRegistry(listId, listName, listToken);
+  saveToUserLists(false);
+  if (name) toast('✅ שם הרשימה נשמר: ' + name);
+}
+
+function nameInputKey(e) {
+  if (e.key === 'Enter') e.target.blur();
+  if (e.key === 'Escape') {
+    document.getElementById('listNameInput').style.display = 'none';
+    document.getElementById('listNameDisp').style.display = 'flex';
+  }
+}
+
+// ============================================================
+//  REGISTRY (saved lists in localStorage)
+// ============================================================
+function getRegistry() {
+  try { return JSON.parse(localStorage.getItem('ss_reg') || '[]'); } catch { return []; }
+}
+function saveRegistry(reg) { localStorage.setItem('ss_reg', JSON.stringify(reg)); }
+
+function updateRegistry(id, name, token) {
+  const reg = getRegistry();
+  const idx = reg.findIndex(r => r.id === id);
+  if (idx >= 0) {
+    reg[idx].name = name || reg[idx].name;
+    reg[idx].last = Date.now();
+    if (token) reg[idx].token = token;
+  } else {
+    reg.unshift({ id, name: name || '', last: Date.now(), token: token || '' });
+  }
+  saveRegistry(reg.slice(0, 20));
+}
+
+// ============================================================
+//  LISTS MODAL
+// ============================================================
+function openLists() {
+  updateRegistry(listId, listName, listToken);
+  renderLists();
+  document.getElementById('listsOverlay').classList.add('open');
+}
+function closeLists() {
+  document.getElementById('listsOverlay').classList.remove('open');
+  // If no list loaded yet (home screen mode), create a new list
+  if (!listId) newList();
+}
+
+function renderLists() {
+  const body = document.getElementById('listsBody');
+  body.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted)">טוען…</div>';
+
+  if (currentUser && db) {
+    db.ref('smartshop/users/' + currentUser.uid + '/lists').once('value', snap => {
+      const val = snap.val();
+      if (!val) { _renderListsHtml(body, []); return; }
+      const lists = Object.entries(val)
+        .map(([id, d]) => ({ id, ...d }))
+        .sort((a, b) => (b.last || 0) - (a.last || 0));
+      _renderListsHtml(body, lists);
+    });
+  } else {
+    _renderListsHtml(body, getRegistry());
+  }
+}
+
+function _renderListsHtml(body, reg) {
+  if (!reg.length) {
+    body.innerHTML = '<div class="lists-empty">אין רשימות שמורות.<br>צור רשימה חדשה למטה.</div>';
+    return;
+  }
+  body.innerHTML = reg.map((r, i) => {
+    const isCurrent = r.id === listId;
+    const d = new Date(r.last || Date.now());
+    const dateStr = d.toLocaleDateString('he-IL', { day: 'numeric', month: 'short', year: '2-digit' });
+    const sharedTag = r.shared ? '<span class="list-shared-tag">שיתוף</span>' : '';
+    return `<div class="list-row${isCurrent ? ' current' : ''}">
+      <div class="list-row-info">
+        <div class="list-row-name">
+          ${hEsc(r.name || 'רשימה ללא שם')}
+          ${isCurrent ? '<span class="list-cur-tag">נוכחית</span>' : ''}
+          ${sharedTag}
+        </div>
+        <div class="list-row-date">${dateStr}</div>
+      </div>
+      ${!isCurrent ? `<button class="list-open-btn" onclick="switchList('${esc(r.id)}','${esc(r.token||'')}')">פתח</button>` : ''}
+      <button class="list-del-btn" onclick="deleteFromReg(${i},'${esc(r.id)}')" title="הסר מהרשימה">🗑️</button>
+    </div>`;
+  }).join('');
+}
+
+function switchList(id, token) {
+  closeLists();
+  location.hash = token ? id + '~' + token : id;
+  location.reload();
+}
+
+function newList() {
+  closeLists();
+  const newId = 'sl_' + Math.random().toString(36).slice(2, 10);
+  const newToken = generateToken();
+  updateRegistry(newId, '', newToken);
+  location.hash = newId + '~' + newToken;
+  location.reload();
+}
+
+function deleteFromReg(idx, id) {
+  if (!confirm('להסיר את הרשימה מהרשימות שלך?\n(הנתונים לא יימחקו מ-Firebase)')) return;
+  if (currentUser && db && id) {
+    db.ref('smartshop/users/' + currentUser.uid + '/lists/' + id).remove()
+      .then(() => renderLists());
+  } else {
+    const reg = getRegistry();
+    if (!reg[idx]) return;
+    reg.splice(idx, 1);
+    saveRegistry(reg);
+    renderLists();
+  }
+}
+
+// ============================================================
+//  BROWSE MODAL
+// ============================================================
+function openBrowse() {
+  browseView = 'cats';
+  browseCat = '';
+  browseFilterVal = '';
+  renderBrowse();
+  document.getElementById('browseOverlay').classList.add('open');
+}
+function closeBrowse() { document.getElementById('browseOverlay').classList.remove('open'); }
+
+function browseCatBack() {
+  browseView = 'cats';
+  browseCat = '';
+  browseFilterVal = '';
+  document.getElementById('bFilter').value = '';
+  renderBrowse();
+}
+
+function selectBrowseCat(cat) {
+  browseView = 'products';
+  browseCat = cat;
+  browseFilterVal = '';
+  document.getElementById('bFilter').value = '';
+  renderBrowse();
+}
+
+function filterBrowseProducts(val) {
+  browseFilterVal = val.trim();
+  renderBrowseProducts();
+}
+
+function renderBrowse() {
+  const backBtn = document.getElementById('bbackBtn');
+  const title = document.getElementById('bTitle');
+  const filterWrap = document.getElementById('bFilterWrap');
+
+  if (browseView === 'cats') {
+    backBtn.style.display = 'none';
+    title.textContent = '📂 עיון מוצרים לפי קטגוריה';
+    filterWrap.style.display = 'none';
+    renderBrowseCats();
+  } else {
+    backBtn.style.display = '';
+    title.textContent = (CAT_ICON[browseCat] || '📦') + ' ' + browseCat;
+    filterWrap.style.display = '';
+    setTimeout(() => document.getElementById('bFilter').focus(), 80);
+    renderBrowseProducts();
+  }
+}
+
+function renderBrowseCats() {
+  const body = document.getElementById('bBody');
+  body.innerHTML = Object.keys(DB).map(cat => `
+    <div class="bcat-item" onclick="selectBrowseCat('${esc(cat)}')">
+      <span class="bcat-icon">${CAT_ICON[cat] || '📦'}</span>
+      <span class="bcat-name">${hEsc(cat)}</span>
+      <span class="bcat-cnt">${DB[cat].length} מוצרים</span>
+      <span class="bcat-arrow">›</span>
+    </div>`).join('');
+}
+
+function renderBrowseProducts() {
+  const body = document.getElementById('bBody');
+  const prods = DB[browseCat] || [];
+  const filtered = browseFilterVal
+    ? prods.filter(p => p.includes(browseFilterVal))
+    : prods;
+
+  if (!filtered.length) {
+    body.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-muted)">לא נמצאו מוצרים</div>';
+    return;
+  }
+
+  const inListNames = new Set(
+    Object.values(items).filter(i => !i.purchased).map(i => i.name)
+  );
+
+  body.innerHTML = filtered.map((name, idx) => {
+    const added = inListNames.has(name);
+    const btn = added
+      ? `<button class="bprod-add added" onclick="browseRemove(${idx})" title="הסר מהרשימה">✓</button>`
+      : `<button class="bprod-add" onclick="browseAdd(${idx})" title="הוסף לרשימה">+</button>`;
+    return `<div class="bprod-item">
+      <span class="bprod-img">${prodImgEl(name, browseCat)}</span>
+      <span class="bprod-name">${hEsc(name)}</span>
+      ${btn}
+    </div>`;
+  }).join('');
+}
+
+function browseRemove(idx) {
+  const prods = DB[browseCat] || [];
+  const filtered = browseFilterVal ? prods.filter(p => p.includes(browseFilterVal)) : prods;
+  const name = filtered[idx];
+  if (!name) return;
+  const id = Object.keys(items).find(k => !items[k].purchased && items[k].name === name);
+  if (!id) return;
+  delete items[id];
+  if (offlineMode) persist();
+  else db.ref('smartshop/' + listId + '/items/' + id).remove();
+  toast('🗑️ ' + name + ' הוסר מהרשימה');
+  render();
+  renderBrowseProducts();
+}
+
+function browseAdd(idx) {
+  const prods = DB[browseCat] || [];
+  const filtered = browseFilterVal ? prods.filter(p => p.includes(browseFilterVal)) : prods;
+  const name = filtered[idx];
+  if (!name) return;
+  // Guard: don't add if already in active list
+  const alreadyIn = Object.values(items).some(i => !i.purchased && i.name === name);
+  if (alreadyIn) { toast('⚠️ ' + name + ' כבר ברשימה'); renderBrowseProducts(); return; }
+  addItem({ name, cat: browseCat, qtyN: '1', qtyU: "יח'" });
+  toast('✅ ' + name + ' נוסף');
+  renderBrowseProducts();
+}
+
+// ============================================================
+//  CRUD
+// ============================================================
+function addItem(item) {
+  const id = 'i' + Date.now() + Math.random().toString(36).slice(2, 5);
+  item = { ...item, purchased: false, addedAt: Date.now() };
+  // Optimistic local update (important for browse modal to reflect ✓ immediately)
+  items[id] = item;
+  if (offlineMode) { persist(); render(); }
+  else { render(); db.ref('smartshop/' + listId + '/items/' + id).set(item); }
+}
+
+function upd(id, patch) {
+  items[id] = { ...items[id], ...patch }; // optimistic local update
+  if (offlineMode) { persist(); render(); }
+  else { render(); db.ref('smartshop/' + listId + '/items/' + id).update(patch); }
+}
+
+function del(id) {
+  if (offlineMode) { delete items[id]; persist(); render(); }
+  else db.ref('smartshop/' + listId + '/items/' + id).remove();
+}
+
+function togglePurch(id) {
+  const it = items[id]; if (!it) return;
+  const p = !it.purchased;
+  if (p) purchCollapsed = false; // auto-expand purchased section
+  upd(id, { purchased: p, purchasedAt: p ? Date.now() : null });
+  toast(p ? '✅ ' + it.name + ' נרכש' : '↩️ ' + it.name + ' הוחזר לרשימה');
+}
+
+function clearPurchased() {
+  const ids = Object.keys(items).filter(id => items[id].purchased);
+  if (!ids.length) return;
+  if (!confirm('למחוק ' + ids.length + ' פריטים שנרכשו?')) return;
+  ids.forEach(del);
+  toast('🗑️ ' + ids.length + ' פריטים נמחקו');
+}
+
+// ============================================================
+//  RENDER
+// ============================================================
+function render() {
+  const all = Object.entries(items);
+  const active = all.filter(([, i]) => !i.purchased);
+  const done   = all.filter(([, i]) =>  i.purchased);
+  const shown  = activeCat === 'all' ? active : active.filter(([, i]) => i.cat === activeCat);
+
+  renderSidebar(active);
+  renderStats(all.length, done.length);
+  renderList(shown);
+  renderPurchased(done);
+  document.getElementById('swipeHint').style.display = shown.length ? '' : 'none';
+
+  // Restore inline qty edit if it was open before re-render
+  if (editingQtyId && items[editingQtyId] && !items[editingQtyId].purchased) {
+    startQtyEdit(editingQtyId);
+  }
+}
+
+function renderStats(total, doneN) {
+  const bar = document.getElementById('statsBar');
+  if (!total) { bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  document.getElementById('sTotal').textContent = total;
+  document.getElementById('sDone').textContent = doneN;
+  document.getElementById('progFill').style.width = (doneN / total * 100).toFixed(0) + '%';
+}
+
+function renderSidebar(active) {
+  const counts = {};
+  active.forEach(([, i]) => { const c = i.cat || 'כללי'; counts[c] = (counts[c] || 0) + 1; });
+  const cats = [{ key: 'all', lbl: 'הכל', n: active.length },
+                ...Object.keys(counts).sort().map(k => ({ key: k, lbl: k, n: counts[k] }))];
+
+  const mkRow = (c) => {
+    const cls = c.key === activeCat ? ' active' : '';
+    return `<div class="cat-row${cls}" onclick="setCat('${esc(c.key)}')">`
+      + `<span>${c.key === 'all' ? '🛒' : (CAT_ICON[c.key] || '📦')}</span>`
+      + `<span style="flex:1">${c.lbl}</span>`
+      + `<span class="badge">${c.n}</span></div>`;
+  };
+
+  const mkChip = (c) => {
+    const cls = c.key === activeCat ? ' active' : '';
+    return `<div class="chip${cls}" onclick="setCat('${esc(c.key)}')">`
+      + `${c.key === 'all' ? '🛒 הכל' : (CAT_ICON[c.key] || '📦') + ' ' + c.lbl} (${c.n})</div>`;
+  };
+
+  document.getElementById('catFilters').innerHTML = cats.map(mkRow).join('');
+  document.getElementById('chipBar').innerHTML    = cats.map(mkChip).join('');
+
+  const has = active.length > 0;
+  document.getElementById('sidebar').style.display  = has ? '' : 'none';
+  document.getElementById('chipBar').style.display  = has ? 'flex' : 'none';
+}
+
+function renderList(shown) {
+  const cont = document.getElementById('listContainer');
+  if (!shown.length) {
+    cont.innerHTML = `<div class="empty">
+      <div class="big">🛒</div>
+      <div class="title">הרשימה ריקה</div>
+      <div style="font-size:.85rem;color:var(--text-muted)">חפש מוצר למעלה, לחץ 📂 לעיון לפי קטגוריה, או:</div>
+      <button class="add-btn-big" onclick="openAdd()">➕ הוסף מוצר</button>
+    </div>`;
+    return;
+  }
+
+  const groups = {};
+  shown.forEach(([id, i]) => {
+    const c = i.cat || 'כללי';
+    if (!groups[c]) groups[c] = [];
+    groups[c].push([id, i]);
+  });
+  Object.values(groups).forEach(g => g.sort((a, b) => (a[1].addedAt || 0) - (b[1].addedAt || 0)));
+
+  cont.innerHTML = Object.keys(groups).sort().map(cat => `
+    <div class="cat-group">
+      <div class="cat-head">
+        <span>${CAT_ICON[cat] || '📦'}</span>
+        <span>${hEsc(cat)}</span>
+        <span class="cnt">(${groups[cat].length})</span>
+      </div>
+      ${groups[cat].map(([id, i]) => itemHTML(id, i, false)).join('')}
+    </div>`).join('');
+
+  if (window.innerWidth <= 620) attachSwipe();
+}
+
+function renderPurchased(done) {
+  const sect = document.getElementById('purchSect');
+  if (!done.length) { sect.style.display = 'none'; return; }
+  sect.style.display = 'block';
+  sect.classList.toggle('collapsed', purchCollapsed);
+  document.getElementById('purchCount').textContent = done.length;
+  document.getElementById('purchBody').innerHTML =
+    done.sort((a, b) => (b[1].purchasedAt || 0) - (a[1].purchasedAt || 0))
+        .map(([id, i]) => itemHTML(id, i, true)).join('');
+}
+
+function itemHTML(id, it, purch) {
+  let qtyStr = '';
+  if (it.qtyN) qtyStr = it.qtyN + ' ' + (it.qtyU || "יח'");
+  else if (it.qty) qtyStr = it.qty; // backward compat
+
+  let qtyArea;
+  if (purch) {
+    qtyArea = qtyStr ? `<span class="qty-tag" style="cursor:default">${hEsc(qtyStr)}</span>` : '';
+  } else {
+    qtyArea = qtyStr
+      ? `<span class="qty-tag" id="qty-wrap-${id}" onclick="startQtyEdit('${id}')" title="לחץ לעריכת כמות">${hEsc(qtyStr)} <span class="edit-hint">✎</span></span>`
+      : `<span class="qty-add-hint" id="qty-wrap-${id}" onclick="startQtyEdit('${id}')" title="הגדר כמות">⚖</span>`;
+  }
+
+  const note = it.note ? `<div class="item-note">${hEsc(it.note)}</div>` : '';
+  const emoji = prodEmoji(it.name);
+  const checkBtn = `<button class="check${purch ? ' done-chk' : ''}" onclick="togglePurch('${id}')" title="${purch ? 'בטל סימון' : 'סמן כנרכש'}">✓</button>`;
+
+  const actions = purch
+    ? `<button class="undo-btn" onclick="togglePurch('${id}')">↩ החזר לרשימה</button>
+       <button class="act del" onclick="askDel('${id}')" title="מחק">🗑️</button>`
+    : `<button class="act" onclick="openEdit('${id}')" title="ערוך">✏️</button>
+       <button class="act del" onclick="askDel('${id}')" title="מחק">🗑️</button>`;
+
+  return `<div class="item" data-id="${id}">
+    ${checkBtn}
+    <div class="item-body">
+      <div class="item-name-row">
+        <span class="item-name">${hEsc(it.name)}${emoji ? `<span class="item-emoji">${emoji}</span>` : ''}</span>
+        ${qtyArea}
+      </div>
+      ${note}
+    </div>
+    <div class="item-actions">${actions}</div>
+  </div>`;
+}
+
+function setCat(cat) { activeCat = (activeCat === cat) ? 'all' : cat; render(); }
+
+// ============================================================
+//  INLINE QTY EDIT
+// ============================================================
+function startQtyEdit(id) {
+  editingQtyId = id;
+  const wrap = document.getElementById('qty-wrap-' + id);
+  if (!wrap) return;
+  const it = items[id] || {};
+  const currN = it.qtyN || '';
+  const currU = it.qtyU || "יח'";
+  const unitOpts = UNITS.map(u => `<option value="${hEsc(u)}"${u === currU ? ' selected' : ''}>${hEsc(u)}</option>`).join('');
+  // Change class + innerHTML (more reliable than outerHTML replacement)
+  wrap.className = 'qty-inline';
+  wrap.removeAttribute('onclick');
+  wrap.removeAttribute('title');
+  wrap.innerHTML = `<input type="number" class="qty-num-in" id="qin-${id}" value="${currN}"
+         min="0" step="0.1" dir="ltr"
+         onkeydown="qtyKey(event,'${id}')" onclick="event.stopPropagation()">
+    <select class="qty-unit-in" id="qun-${id}" onclick="event.stopPropagation()">
+      ${unitOpts}
+    </select>
+    <button class="qty-ok-btn" onclick="event.stopPropagation();saveQtyEdit('${id}')">✓</button>
+    <button class="qty-x-btn"  onclick="event.stopPropagation();cancelQtyEdit('${id}')">✕</button>`;
+  setTimeout(() => {
+    const inp = document.getElementById('qin-' + id);
+    if (inp) { inp.focus(); inp.select(); }
+  }, 20);
+}
+
+function saveQtyEdit(id) {
+  const numEl  = document.getElementById('qin-' + id);
+  const unitEl = document.getElementById('qun-' + id);
+  if (!numEl) { editingQtyId = null; return; }
+  const qtyN = numEl.value.trim();
+  const qtyU = unitEl ? unitEl.value : "יח'";
+  editingQtyId = null;
+  upd(id, { qtyN, qtyU: qtyN ? qtyU : '' });
+}
+
+function cancelQtyEdit(id) {
+  editingQtyId = null;
+  render();
+}
+
+function qtyKey(e, id) {
+  if (e.key === 'Enter')  { e.preventDefault(); saveQtyEdit(id); }
+  if (e.key === 'Escape') { e.preventDefault(); cancelQtyEdit(id); }
+}
+
+// ============================================================
+//  SEARCH / AUTOCOMPLETE
+// ============================================================
+function onSearch(q) {
+  const drop = document.getElementById('searchDrop');
+  q = q.trim();
+  if (!q) { drop.classList.remove('open'); return; }
+
+  const matches = ALL_PRODUCTS.filter(p => p.name.includes(q) || p.cat.includes(q)).slice(0, 6);
+  const exact = matches.some(p => p.name === q);
+  searchResults = [...matches];
+  if (!exact) searchResults.push({ name: q, cat: 'כללי', custom: true });
+
+  let html = searchResults.map((p, i) => `
+    <div class="s-item" onclick="pickSearch(${i})">
+      <span>${p.custom ? '➕' : (CAT_ICON[p.cat] || '📦')}</span>
+      <span>${p.custom ? 'הוסף "<strong>' + hEsc(p.name) + '</strong>"' : hilite(p.name, q)}</span>
+      <span class="s-cat">${hEsc(p.cat)}</span>
+    </div>`).join('');
+
+  html += `<div class="s-item s-browse-link" onclick="openBrowse();closeSearch()">
+    <span>📂</span>
+    <span>עיון לפי קטגוריה</span>
+    <span class="s-cat">כל המוצרים ▶</span>
+  </div>`;
+
+  drop.innerHTML = html;
+  drop.classList.add('open');
+}
+
+function onSearchKey(e) {
+  if (e.key === 'Escape') closeSearch();
+  else if (e.key === 'Enter') {
+    const q = e.target.value.trim();
+    if (q) { addItem({ name: q, cat: 'כללי', qtyN: '1', qtyU: "יח'" }); toast('✅ ' + q + ' נוסף'); closeSearch(); }
+  }
+}
+
+function pickSearch(idx) {
+  const p = searchResults[idx]; if (!p) return;
+  addItem({ name: p.name, cat: p.cat, qtyN: '1', qtyU: "יח'" });
+  toast('✅ ' + p.name + ' נוסף');
+  closeSearch();
+}
+
+function closeSearch() {
+  document.getElementById('searchDrop').classList.remove('open');
+  document.getElementById('searchInput').value = '';
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.search-wrap')) document.getElementById('searchDrop').classList.remove('open');
+});
+
+function hilite(text, q) {
+  const i = text.indexOf(q);
+  if (i < 0) return hEsc(text);
+  return hEsc(text.slice(0, i)) + '<strong>' + hEsc(text.slice(i, i + q.length)) + '</strong>' + hEsc(text.slice(i + q.length));
+}
+
+// ============================================================
+//  ADD MODAL
+// ============================================================
+function populateCatSelects() {
+  const opts = Object.keys(DB).map(c => `<option value="${hEsc(c)}">${c}</option>`).join('');
+  const extra = '<option value="כללי">כללי (ללא קטגוריה)</option>';
+  document.getElementById('mCat').innerHTML = '<option value="">בחר קטגוריה…</option>' + opts + extra;
+  document.getElementById('eCat').innerHTML = opts + extra;
+}
+
+function openAdd(prefill) {
+  document.getElementById('mName').value    = prefill || '';
+  document.getElementById('mQtyNum').value  = '';
+  document.getElementById('mQtyUnit').value = "יח'";
+  document.getElementById('mNote').value    = '';
+  document.getElementById('mCat').value     = '';
+  document.getElementById('addOverlay').classList.add('open');
+  setTimeout(() => document.getElementById('mName').focus(), 80);
+}
+function closeAdd() { document.getElementById('addOverlay').classList.remove('open'); }
+
+function submitAdd() {
+  const name = document.getElementById('mName').value.trim();
+  if (!name) { document.getElementById('mName').focus(); return; }
+  const qtyNum  = document.getElementById('mQtyNum').value.trim();
+  const qtyUnit = document.getElementById('mQtyUnit').value;
+  addItem({
+    name,
+    cat:  document.getElementById('mCat').value || 'כללי',
+    qtyN: qtyNum || '1',
+    qtyU: qtyUnit,
+    note: document.getElementById('mNote').value.trim()
+  });
+  toast('✅ ' + name + ' נוסף לרשימה');
+  closeAdd();
+}
+
+// ============================================================
+//  EDIT MODAL
+// ============================================================
+function openEdit(id) {
+  editingId = id;
+  const it = items[id]; if (!it) return;
+  document.getElementById('eName').value    = it.name || '';
+  document.getElementById('eCat').value     = it.cat  || 'כללי';
+  document.getElementById('eQtyNum').value  = it.qtyN || '';
+  document.getElementById('eQtyUnit').value = it.qtyU || "יח'";
+  document.getElementById('eNote').value    = it.note || '';
+  document.getElementById('editOverlay').classList.add('open');
+  setTimeout(() => document.getElementById('eName').focus(), 80);
+}
+function closeEdit() { document.getElementById('editOverlay').classList.remove('open'); editingId = null; }
+
+function submitEdit() {
+  if (!editingId) return;
+  const name = document.getElementById('eName').value.trim();
+  if (!name) return;
+  const qtyNum  = document.getElementById('eQtyNum').value.trim();
+  const qtyUnit = document.getElementById('eQtyUnit').value;
+  upd(editingId, {
+    name,
+    cat:  document.getElementById('eCat').value || 'כללי',
+    qtyN: qtyNum,
+    qtyU: qtyNum ? qtyUnit : '',
+    note: document.getElementById('eNote').value.trim()
+  });
+  toast('✏️ פריט עודכן');
+  closeEdit();
+}
+
+function askDel(id) {
+  const it = items[id]; if (!it) return;
+  if (confirm('למחוק את "' + it.name + '"?')) { del(id); toast('🗑️ ' + it.name + ' נמחק'); }
+}
+
+function togglePurchSect() {
+  purchCollapsed = !purchCollapsed;
+  document.getElementById('purchSect').classList.toggle('collapsed', purchCollapsed);
+}
+
+// ============================================================
+//  SWIPE TO DELETE (mobile)
+// ============================================================
+function attachSwipe() {
+  document.querySelectorAll('.item[data-id]').forEach(el => {
+    let sx = 0, sy = 0, moving = false;
+    el.addEventListener('touchstart', e => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; moving = false; }, { passive: true });
+    el.addEventListener('touchmove', e => {
+      const dx = e.touches[0].clientX - sx, dy = e.touches[0].clientY - sy;
+      if (!moving && Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 8) moving = true;
+      if (moving && dx < 0) { el.style.transform = `translateX(${Math.max(dx, -80)}px)`; el.style.background = `rgba(229,57,53,${Math.min(-dx / 80 * 0.35, 0.35)})`; }
+    }, { passive: true });
+    el.addEventListener('touchend', e => {
+      const dx = e.changedTouches[0].clientX - sx;
+      if (moving && dx < -55) {
+        const id = el.dataset.id;
+        el.style.cssText += 'transform:translateX(-110%);opacity:0;transition:all .28s';
+        setTimeout(() => { const it = items[id]; if (it) { del(id); toast('🗑️ ' + it.name + ' נמחק'); } }, 280);
+      } else { el.style.transform = ''; el.style.background = ''; }
+    }, { passive: true });
+  });
+}
+
+// ============================================================
+//  DARK MODE
+// ============================================================
+function toggleDark() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  applyDark(!isDark);
+  localStorage.setItem('dark', isDark ? '0' : '1');
+}
+function applyDark(on) {
+  document.documentElement.setAttribute('data-theme', on ? 'dark' : 'light');
+  document.getElementById('darkBtn').textContent = on ? '☀️' : '🌙';
+}
+
+// ============================================================
+//  SHARE / INVITE
+// ============================================================
+function openShare() {
+  const url = buildShareUrl();
+  document.getElementById('shareUrlBox').textContent = url;
+  const qrImg = document.getElementById('shareQrImg');
+  qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=' + encodeURIComponent(url);
+  const msg = encodeURIComponent('הצטרף לרשימת הקניות "' + (listName || 'SmartShop') + '":\n' + url);
+  document.getElementById('shareWaBtn').onclick = () => window.open('https://wa.me/?text=' + msg, '_blank');
+  document.getElementById('shareOverlay').classList.add('open');
+}
+
+function closeShare() { document.getElementById('shareOverlay').classList.remove('open'); }
+
+function copyShareUrl() {
+  const url = buildShareUrl();
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(url).then(() => toast('🔗 קישור ההזמנה הועתק!'));
+  } else {
+    prompt('העתק את קישור ההזמנה:', url);
+  }
+  closeShare();
+}
+
+function buildListText() {
+  const active = Object.values(items).filter(i => !i.purchased);
+  if (!active.length) return null;
+
+  // Group by category
+  const groups = {};
+  active.forEach(i => {
+    const c = i.cat || 'כללי';
+    if (!groups[c]) groups[c] = [];
+    groups[c].push(i);
+  });
+
+  const title = (listName || 'רשימת קניות') + ' 🛒';
+  let text = title + '\n' + '─'.repeat(title.length) + '\n';
+  Object.keys(groups).sort().forEach(cat => {
+    text += '\n' + (CAT_ICON[cat] || '📦') + ' ' + cat + ':\n';
+    groups[cat].forEach(i => {
+      const qty = i.qtyN ? ' (' + i.qtyN + ' ' + (i.qtyU || "יח'") + ')' : '';
+      const note = i.note ? ' — ' + i.note : '';
+      text += '  • ' + i.name + qty + note + '\n';
+    });
+  });
+  return text;
+}
+
+function sendListAsTextWA() {
+  const text = buildListText();
+  if (!text) { toast('הרשימה ריקה'); return; }
+  window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+}
+
+function copyListAsText() {
+  const text = buildListText();
+  if (!text) { toast('הרשימה ריקה'); return; }
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => toast('📋 הרשימה הועתקה כטקסט'));
+  } else {
+    prompt('העתק את הרשימה:', text);
+  }
+}
+
+function revokeAccess() {
+  if (!confirm('לבטל את הקישור הנוכחי?\nמי שיש לו את הקישור הישן לא יוכל יותר לגשת לרשימה.')) return;
+  listToken = generateToken();
+  if (!offlineMode && db) db.ref('smartshop/' + listId + '/meta/token').set(listToken);
+  history.replaceState(null, '', '#' + listId + '~' + listToken);
+  closeShare();
+  setTimeout(openShare, 180);
+  toast('🔄 קישור ההזמנה אופס — שתף את הקישור החדש');
+}
+
+// ============================================================
+//  PRESENCE
+// ============================================================
+function initPresence() {
+  if (offlineMode || !db) return;
+  const presRef = db.ref('smartshop/' + listId + '/presence/' + clientId);
+  db.ref('.info/connected').on('value', snap => {
+    if (!snap.val()) return;
+    presRef.onDisconnect().remove();
+    presRef.set({ ts: Date.now() });
+  });
+  db.ref('smartshop/' + listId + '/presence').on('value', snap => {
+    const val = snap.val();
+    connectedCount = val ? Object.keys(val).length : 0;
+    updatePresenceBadge();
+  });
+}
+
+function updatePresenceBadge() {
+  const badge = document.getElementById('presenceBadge');
+  const text  = document.getElementById('presenceText');
+  if (!badge) return;
+  if (connectedCount > 1) {
+    text.textContent = connectedCount + ' מחוברים';
+    badge.style.display = 'inline-flex';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+// ============================================================
+//  TOAST
+// ============================================================
+let _toastT;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(_toastT); _toastT = setTimeout(() => el.classList.remove('show'), 2600);
+}
+
+// ============================================================
+//  UTILS
+// ============================================================
+function hEsc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function esc(s) { return String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
+
+// ============================================================
+//  KEYBOARD
+// ============================================================
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeAdd(); closeEdit(); closeSearch(); closeBrowse(); closeLists(); closeShare(); }
+});
+document.getElementById('addOverlay').addEventListener('keydown',  e => { if (e.key === 'Enter') submitAdd(); });
+document.getElementById('editOverlay').addEventListener('keydown', e => { if (e.key === 'Enter') submitEdit(); });
+document.getElementById('addOverlay').addEventListener('click',   e => { if (e.target === document.getElementById('addOverlay'))   closeAdd(); });
+document.getElementById('editOverlay').addEventListener('click',  e => { if (e.target === document.getElementById('editOverlay'))  closeEdit(); });
+document.getElementById('browseOverlay').addEventListener('click', e => { if (e.target === document.getElementById('browseOverlay')) closeBrowse(); });
+document.getElementById('listsOverlay').addEventListener('click',  e => { if (e.target === document.getElementById('listsOverlay'))  closeLists(); });
+document.getElementById('shareOverlay').addEventListener('click',  e => { if (e.target === document.getElementById('shareOverlay'))  closeShare(); });
+
+// ============================================================
+//  START
+// ============================================================
+init();
+</script>
+</body>
+</html>

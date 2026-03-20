@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>מי מכיר? — חידון מוזיקלי</title>
+<style>
+  :root {
+    --bg: #0f0f13;
+    --surface: #1a1a24;
+    --surface2: #22222f;
+    --accent: #7c3aed;
+    --accent2: #a855f7;
+    --gold: #f59e0b;
+    --green: #10b981;
+    --red: #ef4444;
+    --text: #f1f5f9;
+    --muted: #64748b;
+    --border: #2d2d3d;
+    --radius: 16px;
+    --shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', 'Arial Hebrew', Arial, sans-serif;
+    min-height: 100dvh;
+    overflow-x: hidden;
+  }
+
+  /* ---- SCREENS ---- */
+  .screen { display: none; min-height: 100dvh; flex-direction: column; align-items: center; padding: 24px 16px; }
+  .screen.active { display: flex; }
+
+  /* ---- HOME ---- */
+  .logo { text-align: center; margin-bottom: 8px; }
+  .logo h1 { font-size: 3rem; font-weight: 900; background: linear-gradient(135deg, var(--accent2), var(--gold)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .logo p { color: var(--muted); font-size: 0.95rem; margin-top: 4px; }
+  .streak-bar { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 40px; padding: 8px 20px; margin: 12px 0; font-size: 0.9rem; }
+  .streak-bar .fire { font-size: 1.2rem; }
+  .section-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); margin-bottom: 12px; text-align: center; }
+  .toggle-row { display: flex; gap: 8px; margin-bottom: 24px; width: 100%; max-width: 420px; }
+  .toggle-btn { flex: 1; padding: 14px; border-radius: var(--radius); border: 2px solid var(--border); background: var(--surface); color: var(--muted); font-size: 1rem; font-weight: 700; cursor: pointer; transition: all .2s; }
+  .toggle-btn.selected { border-color: var(--accent2); background: rgba(124,58,237,.2); color: var(--accent2); }
+  .decade-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; max-width: 420px; margin-bottom: 24px; }
+  .decade-btn { padding: 20px 8px; border-radius: var(--radius); border: 2px solid var(--border); background: var(--surface); color: var(--text); font-size: 1.1rem; font-weight: 800; cursor: pointer; transition: all .2s; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .decade-btn span.sub { font-size: 0.7rem; color: var(--muted); font-weight: 400; }
+  .decade-btn:hover { border-color: var(--accent2); transform: translateY(-2px); }
+  .decade-btn.selected { border-color: var(--accent2); background: rgba(124,58,237,.2); color: var(--accent2); }
+  .primary-btn { padding: 16px 40px; border-radius: 50px; border: none; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; font-size: 1.1rem; font-weight: 800; cursor: pointer; transition: all .2s; box-shadow: 0 4px 20px rgba(124,58,237,.4); width: 100%; max-width: 420px; }
+  .primary-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(124,58,237,.5); }
+  .primary-btn:disabled { opacity: .4; cursor: not-allowed; }
+  .daily-btn { background: linear-gradient(135deg, #b45309, var(--gold)); box-shadow: 0 4px 20px rgba(245,158,11,.3); margin-top: 8px; }
+
+  /* ---- LOADING ---- */
+  #screen-loading { justify-content: center; gap: 20px; }
+  .spinner { width: 60px; height: 60px; border: 4px solid var(--border); border-top-color: var(--accent2); border-radius: 50%; animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { color: var(--muted); font-size: 1rem; text-align: center; }
+
+  /* ---- GAME ---- */
+  #screen-game { gap: 16px; max-width: 480px; margin: 0 auto; width: 100%; }
+  .game-header { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+  .score-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 8px 16px; text-align: center; }
+  .score-box .label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  .score-box .value { font-size: 1.4rem; font-weight: 900; color: var(--gold); }
+  .q-counter { font-size: 0.85rem; color: var(--muted); }
+  .song-card { background: var(--surface); border: 2px solid var(--border); border-radius: 24px; padding: 32px 24px; width: 100%; text-align: center; position: relative; overflow: hidden; }
+  .song-card::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 50% 0%, rgba(124,58,237,.1) 0%, transparent 70%); }
+  .music-icon { font-size: 4rem; margin-bottom: 12px; }
+  .now-playing-label { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+  .audio-progress { background: var(--surface2); border-radius: 8px; height: 8px; width: 100%; margin: 16px 0; overflow: hidden; }
+  .audio-progress-bar { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 8px; transition: width .1s linear; width: 0%; }
+  .attempt-dots { display: flex; justify-content: center; gap: 8px; margin: 8px 0; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--border); transition: all .3s; }
+  .dot.used { background: var(--accent2); border-color: var(--accent2); }
+  .dot.wrong { background: var(--red); border-color: var(--red); }
+  .play-btn { width: 80px; height: 80px; border-radius: 50%; border: none; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; font-size: 2rem; cursor: pointer; transition: all .2s; box-shadow: 0 4px 24px rgba(124,58,237,.5); display: flex; align-items: center; justify-content: center; margin: 0 auto; }
+  .play-btn:hover { transform: scale(1.05); }
+  .play-btn:disabled { opacity: .5; cursor: not-allowed; }
+  .play-label { font-size: 0.8rem; color: var(--muted); margin-top: 8px; text-align: center; }
+  .seconds-badge { display: inline-block; background: rgba(124,58,237,.2); border: 1px solid var(--accent2); color: var(--accent2); border-radius: 20px; padding: 3px 12px; font-size: 0.85rem; font-weight: 700; margin-top: 8px; }
+
+  /* Autocomplete input */
+  .answer-section { width: 100%; position: relative; }
+  .answer-input { width: 100%; padding: 16px 20px; background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius); color: var(--text); font-size: 1.1rem; font-family: inherit; transition: border-color .2s; }
+  .answer-input:focus { outline: none; border-color: var(--accent2); }
+  .answer-input::placeholder { color: var(--muted); }
+  .answer-input.correct { border-color: var(--green); background: rgba(16,185,129,.1); }
+  .answer-input.wrong { border-color: var(--red); animation: shake .3s ease; }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-8px)} 75%{transform:translateX(8px)} }
+  .suggestions { position: absolute; top: calc(100% + 4px); right: 0; left: 0; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; z-index: 100; max-height: 240px; overflow-y: auto; box-shadow: var(--shadow); }
+  .suggestion-item { padding: 12px 20px; cursor: pointer; transition: background .15s; font-size: 0.95rem; }
+  .suggestion-item:hover, .suggestion-item.highlighted { background: rgba(124,58,237,.2); }
+  .suggestion-item mark { background: none; color: var(--accent2); font-weight: 700; }
+  .btn-row { display: flex; gap: 8px; width: 100%; }
+  .submit-btn { flex: 2; padding: 14px; border-radius: var(--radius); border: none; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; font-size: 1rem; font-weight: 700; cursor: pointer; transition: all .2s; }
+  .submit-btn:hover { opacity: .9; }
+  .skip-btn { flex: 1; padding: 14px; border-radius: var(--radius); border: 2px solid var(--border); background: transparent; color: var(--muted); font-size: 0.95rem; cursor: pointer; transition: all .2s; }
+  .skip-btn:hover { border-color: var(--muted); color: var(--text); }
+  .hint-badge { background: rgba(245,158,11,.1); border: 1px solid var(--gold); color: var(--gold); border-radius: 8px; padding: 8px 16px; font-size: 0.85rem; text-align: center; width: 100%; }
+
+  /* ---- RESULT ---- */
+  #screen-result { justify-content: center; gap: 20px; max-width: 480px; margin: 0 auto; width: 100%; }
+  .result-card { background: var(--surface); border: 2px solid var(--border); border-radius: 24px; padding: 32px 24px; width: 100%; text-align: center; }
+  .result-emoji { font-size: 4rem; margin-bottom: 12px; display: block; }
+  .result-title { font-size: 1.5rem; font-weight: 900; margin-bottom: 4px; }
+  .result-artist { color: var(--muted); font-size: 1rem; margin-bottom: 16px; }
+  .result-score { font-size: 2.5rem; font-weight: 900; color: var(--gold); }
+  .result-sub { font-size: 0.85rem; color: var(--muted); }
+  .result-tag { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; margin-top: 8px; }
+  .tag-correct { background: rgba(16,185,129,.15); border: 1px solid var(--green); color: var(--green); }
+  .tag-wrong { background: rgba(239,68,68,.15); border: 1px solid var(--red); color: var(--red); }
+
+  /* ---- END SCREEN ---- */
+  #screen-end { justify-content: center; gap: 20px; max-width: 480px; margin: 0 auto; width: 100%; }
+  .end-card { background: var(--surface); border: 2px solid var(--border); border-radius: 24px; padding: 40px 24px; width: 100%; text-align: center; }
+  .end-score { font-size: 4rem; font-weight: 900; color: var(--gold); line-height: 1; }
+  .end-label { font-size: 1rem; color: var(--muted); margin-bottom: 20px; }
+  .stats-row { display: flex; justify-content: center; gap: 32px; margin: 16px 0; }
+  .stat-item { text-align: center; }
+  .stat-value { font-size: 1.8rem; font-weight: 900; color: var(--accent2); }
+  .stat-label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  .share-btn { background: linear-gradient(135deg, #1DA1F2, #0d8ecf); box-shadow: 0 4px 20px rgba(29,161,242,.3); }
+  .secondary-btn { padding: 14px 40px; border-radius: 50px; border: 2px solid var(--border); background: transparent; color: var(--text); font-size: 1rem; font-weight: 700; cursor: pointer; width: 100%; max-width: 420px; transition: all .2s; }
+  .secondary-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+
+  /* ---- TOAST ---- */
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--surface2); border: 1px solid var(--border); border-radius: 50px; padding: 12px 24px; font-size: 0.9rem; z-index: 9999; transition: transform .3s ease; white-space: nowrap; }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* ---- UTILS ---- */
+  .error-msg { color: var(--red); font-size: 0.85rem; text-align: center; padding: 8px; }
+  .fade-in { animation: fadeIn .4s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  .pulse { animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  @media (max-width: 380px) { .decade-grid { grid-template-columns: repeat(2, 1fr); } .logo h1 { font-size: 2.4rem; } }
+</style>
+</head>
+<body>
+
+<!-- ==================== HOME ==================== -->
+<div id="screen-home" class="screen active fade-in">
+  <div class="logo">
+    <h1>🎵 מי מכיר?</h1>
+    <p>חידון מוזיקלי — זהה שיר תוך 3 שניות</p>
+  </div>
+
+  <div id="streak-display" class="streak-bar" style="display:none">
+    <span class="fire">🔥</span>
+    <span id="streak-text">רצף של <strong id="streak-num">0</strong> ימים</span>
+  </div>
+
+  <div style="margin-top:20px; width:100%; max-width:420px">
+    <div class="section-title">בחר קטגוריה</div>
+    <div class="toggle-row">
+      <button class="toggle-btn selected" id="btn-israeli" onclick="selectMode('israeli')">🇮🇱 ישראלי</button>
+      <button class="toggle-btn" id="btn-international" onclick="selectMode('international')">🌍 לועזי</button>
+    </div>
+
+    <div class="section-title">בחר עשור</div>
+    <div class="decade-grid" id="decade-grid">
+      <button class="decade-btn" onclick="selectDecade('1960')">60s<span class="sub">שנות ה-60</span></button>
+      <button class="decade-btn" onclick="selectDecade('1970')">70s<span class="sub">שנות ה-70</span></button>
+      <button class="decade-btn selected" onclick="selectDecade('1980')">80s<span class="sub">שנות ה-80</span></button>
+      <button class="decade-btn" onclick="selectDecade('1990')">90s<span class="sub">שנות ה-90</span></button>
+      <button class="decade-btn" onclick="selectDecade('2000')">2000s<span class="sub">שנות ה-2000</span></button>
+      <button class="decade-btn" onclick="selectDecade('2010')">2010s<span class="sub">שנות ה-2010</span></button>
+    </div>
+
+    <button class="primary-btn" id="start-btn" onclick="startGame()">התחל משחק ▶</button>
+    <button class="primary-btn daily-btn" onclick="startDailyChallenge()" style="margin-top:10px">⭐ אתגר יומי</button>
+  </div>
+
+  <p style="color:var(--muted);font-size:0.75rem;margin-top:24px;text-align:center;max-width:300px">
+    האפליקציה דורשת חיבור לאינטרנט לטעינת קטעי השמעה מ-Deezer
+  </p>
+</div>
+
+<!-- ==================== LOADING ==================== -->
+<div id="screen-loading" class="screen">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loading-text">טוען שירים...<br><small id="loading-sub" style="color:var(--muted)"></small></div>
+</div>
+
+<!-- ==================== GAME ==================== -->
+<div id="screen-game" class="screen">
+  <div class="game-header">
+    <div class="score-box">
+      <div class="label">ניקוד</div>
+      <div class="value" id="score-display">0</div>
+    </div>
+    <div class="q-counter" id="q-counter">שאלה 1 מתוך 5</div>
+    <div class="score-box">
+      <div class="label">רצף</div>
+      <div class="value" id="streak-game">🔥 0</div>
+    </div>
+  </div>
+
+  <div class="song-card">
+    <div class="music-icon" id="music-icon">🎵</div>
+    <div class="now-playing-label">מנגן עכשיו</div>
+    <div class="audio-progress"><div class="audio-progress-bar" id="progress-bar"></div></div>
+    <div class="attempt-dots" id="attempt-dots">
+      <div class="dot" id="dot1"></div>
+      <div class="dot" id="dot2"></div>
+    </div>
+    <button class="play-btn" id="play-btn" onclick="playCurrentSong()">▶</button>
+    <div class="play-label" id="play-label">לחץ להשמיע 3 שניות</div>
+    <div class="seconds-badge" id="seconds-badge">3 שניות ראשוניות</div>
+  </div>
+
+  <div id="hint-area" style="display:none" class="hint-badge"></div>
+
+  <div class="answer-section">
+    <input type="text" class="answer-input" id="answer-input"
+      placeholder="שם השיר..." autocomplete="off" autocorrect="off"
+      oninput="onAnswerInput(this.value)"
+      onkeydown="onAnswerKeydown(event)"
+      dir="auto">
+    <div class="suggestions" id="suggestions" style="display:none"></div>
+  </div>
+
+  <div class="btn-row">
+    <button class="submit-btn" onclick="submitAnswer()">✓ אישור</button>
+    <button class="skip-btn" onclick="skipQuestion()" id="skip-btn">דלג ←</button>
+  </div>
+
+  <div id="game-error" class="error-msg" style="display:none"></div>
+</div>
+
+<!-- ==================== RESULT ==================== -->
+<div id="screen-result" class="screen">
+  <div class="result-card fade-in">
+    <span class="result-emoji" id="result-emoji">🎉</span>
+    <div class="result-title" id="result-song-title"></div>
+    <div class="result-artist" id="result-artist"></div>
+    <span class="result-tag" id="result-tag"></span>
+    <div style="margin-top:20px">
+      <div class="result-score" id="result-points">+10</div>
+      <div class="result-sub">נקודות</div>
+    </div>
+  </div>
+  <button class="primary-btn" id="next-btn" onclick="nextQuestion()">הבא ▶</button>
+</div>
+
+<!-- ==================== END ==================== -->
+<div id="screen-end" class="screen">
+  <div class="end-card fade-in">
+    <div id="end-emoji" style="font-size:3rem;margin-bottom:8px">🏆</div>
+    <div class="end-score" id="end-score">0</div>
+    <div class="end-label">נקודות סה"כ</div>
+    <div class="stats-row">
+      <div class="stat-item">
+        <div class="stat-value" id="end-correct">0</div>
+        <div class="stat-label">נכון</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="end-streak">0</div>
+        <div class="stat-label">רצף</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="end-fast">0</div>
+        <div class="stat-label">ב-3 שנ'</div>
+      </div>
+    </div>
+  </div>
+  <button class="primary-btn share-btn" onclick="shareResult()">שתף תוצאה 📤</button>
+  <button class="primary-btn" onclick="startGame()" style="margin-top:8px">שחק שוב 🔄</button>
+  <button class="secondary-btn" onclick="showScreen('home')">תפריט ראשי</button>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<audio id="audio-player" preload="none"></audio>
+
+<script>
+// ============================================================
+// SONGS DATABASE
+// ============================================================
+const DB = {
+  international: {
+    '1960': [
+      { title: "Hey Jude", artist: "The Beatles", q: "Hey Jude Beatles" },
+      { title: "Yesterday", artist: "The Beatles", q: "Yesterday Beatles" },
+      { title: "Let It Be", artist: "The Beatles", q: "Let It Be Beatles" },
+      { title: "Satisfaction", artist: "The Rolling Stones", q: "Satisfaction Rolling Stones" },
+      { title: "Purple Haze", artist: "Jimi Hendrix", q: "Purple Haze Jimi Hendrix" },
+      { title: "California Dreamin", artist: "The Mamas & The Papas", q: "California Dreamin Mamas Papas" },
+      { title: "Respect", artist: "Aretha Franklin", q: "Respect Aretha Franklin" },
+      { title: "Good Vibrations", artist: "The Beach Boys", q: "Good Vibrations Beach Boys" },
+      { title: "The Sound of Silence", artist: "Simon & Garfunkel", q: "Sound of Silence Simon Garfunkel" },
+      { title: "Like a Rolling Stone", artist: "Bob Dylan", q: "Like a Rolling Stone Bob Dylan" },
+      { title: "All You Need Is Love", artist: "The Beatles", q: "All You Need Is Love Beatles" },
+      { title: "My Generation", artist: "The Who", q: "My Generation The Who" },
+    ],
+    '1970': [
+      { title: "Hotel California", artist: "Eagles", q: "Hotel California Eagles" },
+      { title: "Bohemian Rhapsody", artist: "Queen", q: "Bohemian Rhapsody Queen" },
+      { title: "Stayin' Alive", artist: "Bee Gees", q: "Stayin Alive Bee Gees" },
+      { title: "Dancing Queen", artist: "ABBA", q: "Dancing Queen ABBA" },
+      { title: "Don't Stop Me Now", artist: "Queen", q: "Don't Stop Me Now Queen" },
+      { title: "Rocket Man", artist: "Elton John", q: "Rocket Man Elton John" },
+      { title: "Superstition", artist: "Stevie Wonder", q: "Superstition Stevie Wonder" },
+      { title: "Wish You Were Here", artist: "Pink Floyd", q: "Wish You Were Here Pink Floyd" },
+      { title: "Go Your Own Way", artist: "Fleetwood Mac", q: "Go Your Own Way Fleetwood Mac" },
+      { title: "Waterloo", artist: "ABBA", q: "Waterloo ABBA" },
+      { title: "Sultans of Swing", artist: "Dire Straits", q: "Sultans of Swing Dire Straits" },
+      { title: "Night Fever", artist: "Bee Gees", q: "Night Fever Bee Gees" },
+    ],
+    '1980': [
+      { title: "Billie Jean", artist: "Michael Jackson", q: "Billie Jean Michael Jackson" },
+      { title: "Like a Virgin", artist: "Madonna", q: "Like a Virgin Madonna" },
+      { title: "Every Breath You Take", artist: "The Police", q: "Every Breath You Take The Police" },
+      { title: "Sweet Child O' Mine", artist: "Guns N' Roses", q: "Sweet Child O Mine Guns Roses" },
+      { title: "Take On Me", artist: "a-ha", q: "Take On Me a-ha" },
+      { title: "Girls Just Want to Have Fun", artist: "Cyndi Lauper", q: "Girls Just Want Fun Cyndi Lauper" },
+      { title: "Living on a Prayer", artist: "Bon Jovi", q: "Living on a Prayer Bon Jovi" },
+      { title: "Africa", artist: "Toto", q: "Africa Toto" },
+      { title: "Don't You Forget About Me", artist: "Simple Minds", q: "Don't You Forget About Me Simple Minds" },
+      { title: "Wake Me Up Before You Go-Go", artist: "Wham!", q: "Wake Me Up Before You Go Go Wham" },
+      { title: "Livin' on a Prayer", artist: "Bon Jovi", q: "Livin on Prayer Bon Jovi" },
+      { title: "Jump", artist: "Van Halen", q: "Jump Van Halen" },
+      { title: "Love Will Tear Us Apart", artist: "Joy Division", q: "Love Will Tear Us Apart Joy Division" },
+    ],
+    '1990': [
+      { title: "Smells Like Teen Spirit", artist: "Nirvana", q: "Smells Like Teen Spirit Nirvana" },
+      { title: "Losing My Religion", artist: "R.E.M.", q: "Losing My Religion REM" },
+      { title: "Wonderwall", artist: "Oasis", q: "Wonderwall Oasis" },
+      { title: "Waterfalls", artist: "TLC", q: "Waterfalls TLC" },
+      { title: "Baby One More Time", artist: "Britney Spears", q: "Baby One More Time Britney Spears" },
+      { title: "Wannabe", artist: "Spice Girls", q: "Wannabe Spice Girls" },
+      { title: "No Scrubs", artist: "TLC", q: "No Scrubs TLC" },
+      { title: "Creep", artist: "Radiohead", q: "Creep Radiohead" },
+      { title: "MMMBop", artist: "Hanson", q: "MMMBop Hanson" },
+      { title: "Killing Me Softly", artist: "Fugees", q: "Killing Me Softly Fugees" },
+      { title: "Gangsta's Paradise", artist: "Coolio", q: "Gangsta Paradise Coolio" },
+      { title: "Black Hole Sun", artist: "Soundgarden", q: "Black Hole Sun Soundgarden" },
+    ],
+    '2000': [
+      { title: "Crazy in Love", artist: "Beyoncé", q: "Crazy in Love Beyonce" },
+      { title: "Mr. Brightside", artist: "The Killers", q: "Mr Brightside The Killers" },
+      { title: "Hey Ya!", artist: "OutKast", q: "Hey Ya OutKast" },
+      { title: "In the End", artist: "Linkin Park", q: "In the End Linkin Park" },
+      { title: "Clocks", artist: "Coldplay", q: "Clocks Coldplay" },
+      { title: "Lose Yourself", artist: "Eminem", q: "Lose Yourself Eminem" },
+      { title: "Numb", artist: "Linkin Park", q: "Numb Linkin Park" },
+      { title: "Beautiful Day", artist: "U2", q: "Beautiful Day U2" },
+      { title: "SexyBack", artist: "Justin Timberlake", q: "SexyBack Justin Timberlake" },
+      { title: "Umbrella", artist: "Rihanna", q: "Umbrella Rihanna" },
+      { title: "Yeah!", artist: "Usher", q: "Yeah Usher Lil Jon" },
+      { title: "Toxic", artist: "Britney Spears", q: "Toxic Britney Spears" },
+    ],
+    '2010': [
+      { title: "Blinding Lights", artist: "The Weeknd", q: "Blinding Lights The Weeknd" },
+      { title: "Shape of You", artist: "Ed Sheeran", q: "Shape of You Ed Sheeran" },
+      { title: "Rolling in the Deep", artist: "Adele", q: "Rolling in the Deep Adele" },
+      { title: "Uptown Funk", artist: "Mark Ronson ft. Bruno Mars", q: "Uptown Funk Mark Ronson Bruno Mars" },
+      { title: "Happy", artist: "Pharrell Williams", q: "Happy Pharrell Williams" },
+      { title: "Someone Like You", artist: "Adele", q: "Someone Like You Adele" },
+      { title: "Get Lucky", artist: "Daft Punk", q: "Get Lucky Daft Punk" },
+      { title: "Royals", artist: "Lorde", q: "Royals Lorde" },
+      { title: "Call Me Maybe", artist: "Carly Rae Jepsen", q: "Call Me Maybe Carly Rae Jepsen" },
+      { title: "Shallow", artist: "Lady Gaga & Bradley Cooper", q: "Shallow Lady Gaga Bradley Cooper" },
+      { title: "Old Town Road", artist: "Lil Nas X", q: "Old Town Road Lil Nas X" },
+      { title: "Dance Monkey", artist: "Tones and I", q: "Dance Monkey Tones and I" },
+    ]
+  },
+  israeli: {
+    '1960': [
+      { title: "ירושלים של זהב", artist: "נעמי שמר", q: "Jerusalem of Gold Naomi Shemer" },
+      { title: "לו יהי", artist: "נעמי שמר", q: "Lu Yehi Naomi Shemer" },
+      { title: "הנה מה טוב", artist: "שלישיית גשר הירדן", q: "Hine Ma Tov Israeli" },
+      { title: "ילדה קטנה", artist: "הדוגמניות", q: "Yalda Ketana Israeli" },
+      { title: "אם תרצו", artist: "חנה", q: "Im Tirtzu Israeli 1960" },
+    ],
+    '1970': [
+      { title: "הנדודים", artist: "שלמה ארצי", q: "Shlomo Artzi Israeli" },
+      { title: "רחוב כנפי נשרים", artist: "שלמה ארצי", q: "Shlomo Artzi Knafei Nesharim" },
+      { title: "אני לא ירד", artist: "שלמה ארצי", q: "Shlomo Artzi Ani Lo Yard" },
+      { title: "עלי גבעות", artist: "איהוד מנור", q: "Ehud Manor Israeli 1970" },
+      { title: "שיר ישראלי", artist: "מאיר אריאל", q: "Meir Ariel Israeli singer" },
+      { title: "שיר לאהבה", artist: "יהודה פוליקר", q: "Yehuda Poliker Israeli" },
+    ],
+    '1980': [
+      { title: "שהיה", artist: "אריק אינשטיין", q: "Arik Einstein Israeli" },
+      { title: "קיץ של 82", artist: "שוש עטרי", q: "Kayitz 82 Shosh Atari Israeli" },
+      { title: "תן לי יד", artist: "אייל גולן", q: "Eyal Golan Ten Li Yad" },
+      { title: "אחת אהבתי", artist: "אריק אינשטיין", q: "Arik Einstein Achat Ahavti" },
+      { title: "לבד", artist: "משינה", q: "Mashina Israeli band" },
+      { title: "מסע", artist: "כוורת", q: "Kaveret Israeli band" },
+      { title: "יצחק", artist: "מייק בורשטיין", q: "Mike Bornstein Israeli" },
+    ],
+    '1990': [
+      { title: "הנה אני בא", artist: "מוקי", q: "Muki Hine Ani Ba Israeli" },
+      { title: "רק אתה", artist: "אייל גולן", q: "Eyal Golan Rak Ata" },
+      { title: "כנף של עיט", artist: "עתניאל", q: "Knaf Shel Ayit Israeli" },
+      { title: "קליפת האגוז", artist: "משינה", q: "Mashina Kelipat Egoz" },
+      { title: "לפני שנגמר", artist: "אתניקס", q: "Ethnix Lifnei Shenigmar" },
+      { title: "מה אתה אומר", artist: "אתניקס", q: "Ethnix Ma Ata Omer" },
+      { title: "טוב לי", artist: "שלמה ארצי", q: "Shlomo Artzi Tov Li" },
+    ],
+    '2000': [
+      { title: "חיים שכאלה", artist: "אייל גולן", q: "Eyal Golan Hayim Shekaele" },
+      { title: "עיניים שלי", artist: "שלמה ארצי", q: "Shlomo Artzi Einayim Sheli" },
+      { title: "ביחד", artist: "אביתר בנאי", q: "Evyatar Banai Beyachad" },
+      { title: "לא מספיק", artist: "הדג נחש", q: "Hadag Nahash Israeli hip hop" },
+      { title: "תן לי ללכת", artist: "שלמה ארצי", q: "Shlomo Artzi Ten Li Lalechet" },
+      { title: "ברקת", artist: "עידן רייכל", q: "Idan Raichel Israeli" },
+    ],
+    '2010': [
+      { title: "אמא", artist: "עידו דוידי", q: "Ido Davidi Ima Israeli" },
+      { title: "מה עם האהבה", artist: "אביתר בנאי", q: "Evyatar Banai Ma Im Ahava" },
+      { title: "כאן", artist: "אביב גפן", q: "Aviv Geffen Khan Israeli" },
+      { title: "צמחי", artist: "שחר חסון", q: "Shahar Hasson Tzmachi" },
+      { title: "ואהבת", artist: "אביתר בנאי", q: "Evyatar Banai Veahavta" },
+      { title: "אל תיתן לאהבה", artist: "עידן יניב", q: "Idan Yaniv Al Titen Israeli" },
+    ]
+  }
+};
+
+// ============================================================
+// FUZZY MATCHING
+// ============================================================
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  const dp = Array.from({ length: m + 1 }, (_, i) => Array.from({ length: n + 1 }, (_, j) => i === 0 ? j : j === 0 ? i : 0));
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+  return dp[m][n];
+}
+
+function similarity(a, b) {
+  a = normalize(a); b = normalize(b);
+  if (!a || !b) return 0;
+  if (a === b) return 1;
+  const dist = levenshtein(a, b);
+  return 1 - dist / Math.max(a.length, b.length);
+}
+
+// Hebrew prefix letters to strip
+const HEB_PREFIXES = /^(ה|ו|כ|ל|ב|מ|ש)/;
+function normalize(s) {
+  if (!s) return '';
+  s = s.toLowerCase().trim();
+  // Remove punctuation
+  s = s.replace(/['"״׳\-,\.!?()]/g, '');
+  // Normalize Hebrew final letters
+  s = s.replace(/ך/g, 'כ').replace(/ם/g, 'מ').replace(/ן/g, 'נ').replace(/ף/g, 'פ').replace(/ץ/g, 'צ');
+  // Remove leading Hebrew prefixes (one pass)
+  s = s.replace(/^(וה|בה|לה|מה|שה|כה|ה)/, '');
+  // Remove double spaces
+  s = s.replace(/\s+/g, ' ').trim();
+  return s;
+}
+
+function isCorrect(userInput, songTitle) {
+  const sim = similarity(userInput, songTitle);
+  if (sim >= 0.72) return true;
+  // Also check if input is a significant substring
+  const nUser = normalize(userInput), nTitle = normalize(songTitle);
+  if (nTitle.includes(nUser) && nUser.length >= 4) return true;
+  return false;
+}
+
+// ============================================================
+// DEEZER API
+// ============================================================
+const DEEZER_BASE = 'https://api.deezer.com';
+const PROXIES = [
+  u => `https://corsproxy.io/?${u}`,
+  u => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
+  u => `https://thingproxy.freeboard.io/fetch/${u}`,
+];
+
+async function fetchWithTimeout(url, ms = 6000) {
+  const ctrl = new AbortController();
+  const id = setTimeout(() => ctrl.abort(), ms);
+  try {
+    const r = await fetch(url, { signal: ctrl.signal });
+    clearTimeout(id);
+    return r;
+  } catch (e) { clearTimeout(id); throw e; }
+}
+
+async function deezerSearch(query, limit = 20) {
+  const target = `${DEEZER_BASE}/search?q=${encodeURIComponent(query)}&limit=${limit}`;
+
+  // Try direct (works if browser/server allows)
+  try {
+    const r = await fetchWithTimeout(target, 4000);
+    if (r.ok) { const d = await r.json(); if (d.data) return d; }
+  } catch (_) {}
+
+  // Try each proxy in sequence
+  for (const makeUrl of PROXIES) {
+    try {
+      const proxyUrl = makeUrl(target);
+      const r = await fetchWithTimeout(proxyUrl, 6000);
+      if (!r.ok) continue;
+      const text = await r.text();
+      // allorigins wraps in {contents: "..."}
+      let parsed;
+      try { parsed = JSON.parse(text); } catch { continue; }
+      const data = parsed.contents ? JSON.parse(parsed.contents) : parsed;
+      if (data && data.data) return data;
+    } catch (_) {}
+  }
+
+  console.warn('Deezer: all fetch attempts failed for', query);
+  return null;
+}
+
+async function getSongPreview(song) {
+  const data = await deezerSearch(song.q || `${song.title} ${song.artist}`, 5);
+  if (!data || !data.data || data.data.length === 0) return null;
+  // Pick best match
+  const tracks = data.data.filter(t => t.preview);
+  if (tracks.length === 0) return null;
+  return tracks[0];
+}
+
+// ============================================================
+// GAME STATE
+// ============================================================
+const TOTAL_QUESTIONS = 5;
+const POINTS_FAST = 10;  // Correct in 3 seconds
+const POINTS_SLOW = 5;   // Correct after extra 2 seconds
+const STREAK_BONUS = 2;
+
+let state = {
+  mode: 'israeli',
+  decade: '1980',
+  questions: [],
+  currentIdx: 0,
+  score: 0,
+  streak: 0,
+  maxStreak: 0,
+  correctCount: 0,
+  fastCount: 0,
+  phase: 1,         // 1 = first 3s, 2 = extra 2s
+  played: false,
+  answered: false,
+  isDaily: false,
+  currentTrack: null,
+  audioTimer: null,
+  progressTimer: null,
+  progressStart: 0,
+  progressDuration: 0,
+};
+
+let globalStreak = parseInt(localStorage.getItem('dayStreak') || '0');
+let lastPlayDate = localStorage.getItem('lastPlayDate') || '';
+
+// ============================================================
+// UI HELPERS
+// ============================================================
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+}
+
+function showToast(msg, duration = 2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), duration);
+}
+
+function updateStreakDisplay() {
+  const el = document.getElementById('streak-display');
+  if (globalStreak > 0) {
+    el.style.display = 'flex';
+    document.getElementById('streak-num').textContent = globalStreak;
+  }
+}
+
+// ============================================================
+// HOME SCREEN LOGIC
+// ============================================================
+function selectMode(mode) {
+  state.mode = mode;
+  document.getElementById('btn-israeli').classList.toggle('selected', mode === 'israeli');
+  document.getElementById('btn-international').classList.toggle('selected', mode === 'international');
+}
+
+function selectDecade(decade) {
+  state.decade = decade;
+  document.querySelectorAll('.decade-btn').forEach(b => {
+    b.classList.toggle('selected', b.textContent.trim().startsWith(decade === '1960' ? '60' : decade === '1970' ? '70' : decade === '1980' ? '80' : decade === '1990' ? '90' : decade === '2000' ? '2000' : '2010'));
+  });
+}
+
+// ============================================================
+// GAME START
+// ============================================================
+function buildQuestionList(mode, decade, isDaily) {
+  const pool = DB[mode][decade] || [];
+  if (pool.length === 0) return [];
+  const shuffled = [...pool];
+  if (isDaily) {
+    // Seed-based shuffle using today's date
+    const seed = parseInt(new Date().toISOString().slice(0,10).replace(/-/g,''));
+    shuffled.sort((a,b) => (Math.sin(seed + shuffled.indexOf(a)) - Math.sin(seed + shuffled.indexOf(b))));
+  } else {
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+  }
+  return shuffled.slice(0, Math.min(TOTAL_QUESTIONS, shuffled.length));
+}
+
+async function startGame(isDaily = false) {
+  const mode = state.mode;
+  const decade = state.decade;
+  state = {
+    ...state, mode, decade,
+    questions: [],
+    currentIdx: 0,
+    score: 0,
+    streak: 0,
+    maxStreak: 0,
+    correctCount: 0,
+    fastCount: 0,
+    phase: 1,
+    played: false,
+    answered: false,
+    isDaily,
+    currentTrack: null,
+    audioTimer: null,
+    progressTimer: null,
+  };
+
+  const questions = buildQuestionList(mode, decade, isDaily);
+  if (questions.length === 0) {
+    showToast('⚠️ אין שירים לקטגוריה זו');
+    return;
+  }
+  state.questions = questions;
+
+  showScreen('loading');
+  document.getElementById('loading-sub').textContent = `${mode === 'israeli' ? '🇮🇱 מוזיקה ישראלית' : '🌍 מוזיקה לועזית'} — שנות ה-${decade.slice(2) || decade}`;
+
+  // Pre-fetch first 2 songs
+  await loadSongTrack(0);
+  if (questions.length > 1) loadSongTrack(1); // background
+
+  showGameScreen();
+}
+
+function startDailyChallenge() {
+  startGame(true);
+}
+
+async function loadSongTrack(idx) {
+  if (idx >= state.questions.length) return;
+  const song = state.questions[idx];
+  if (song._track !== undefined) return; // already loaded (null = failed)
+  song._track = undefined; // mark as in-progress
+  const track = await getSongPreview(song);
+  song._track = track || null;
+  // If this is the current question, update the play button state
+  if (idx === state.currentIdx && document.getElementById('screen-game').classList.contains('active')) {
+    state.currentTrack = song._track;
+    const playBtn = document.getElementById('play-btn');
+    if (song._track && song._track.preview) {
+      playBtn.disabled = false;
+      document.getElementById('play-label').textContent = 'לחץ להשמיע 3 שניות';
+    } else {
+      playBtn.disabled = false; // Allow click to show "no preview" message
+      document.getElementById('play-label').textContent = '⚠️ קטע לא נמצא — לחץ להמשיך';
+    }
+  }
+}
+
+function showGameScreen() {
+  showScreen('game');
+  renderGameState();
+}
+
+// ============================================================
+// GAME RENDERING
+// ============================================================
+function renderGameState() {
+  const q = state.questions[state.currentIdx];
+  const total = state.questions.length;
+
+  document.getElementById('q-counter').textContent = `שאלה ${state.currentIdx + 1} מתוך ${total}`;
+  document.getElementById('score-display').textContent = state.score;
+  document.getElementById('streak-game').textContent = `🔥 ${state.streak}`;
+  document.getElementById('music-icon').textContent = state.mode === 'israeli' ? '🎵' : '🎸';
+
+  // Reset phase
+  state.phase = 1;
+  state.played = false;
+  state.answered = false;
+
+  // Progress bar
+  document.getElementById('progress-bar').style.width = '0%';
+
+  // Attempt dots
+  document.getElementById('dot1').className = 'dot';
+  document.getElementById('dot2').className = 'dot';
+
+  // Play button
+  const playBtn = document.getElementById('play-btn');
+  playBtn.disabled = false;
+  playBtn.textContent = '▶';
+  const hasTrack = !!(q._track && q._track.preview);
+  document.getElementById('play-label').textContent = hasTrack ? 'לחץ להשמיע 3 שניות' : '⏳ טוען שיר...';
+  document.getElementById('seconds-badge').textContent = '3 שניות ראשוניות';
+  document.getElementById('play-btn').disabled = !hasTrack;
+  document.getElementById('seconds-badge').style.display = '';
+
+  // Answer input
+  const inp = document.getElementById('answer-input');
+  inp.value = '';
+  inp.disabled = false;
+  inp.className = 'answer-input';
+  inp.placeholder = 'שם השיר...';
+  inp.focus();
+
+  // Hide hint
+  document.getElementById('hint-area').style.display = 'none';
+
+  // Skip button
+  document.getElementById('skip-btn').textContent = 'דלג →';
+  document.getElementById('skip-btn').disabled = false;
+
+  // Hide suggestions
+  document.getElementById('suggestions').style.display = 'none';
+  document.getElementById('game-error').style.display = 'none';
+
+  // Track info
+  state.currentTrack = q._track || null;
+}
+
+// ============================================================
+// AUDIO PLAYBACK
+// ============================================================
+function playCurrentSong() {
+  if (state.answered) return;
+
+  const duration = state.phase === 1 ? 3 : 5;
+  const track = state.currentTrack;
+
+  if (!track || !track.preview) {
+    showGameError('⚠️ לא נמצא קטע השמעה לשיר זה. אפשר לנחש לפי שם האמן!');
+    markPlayed(duration);
+    return;
+  }
+
+  const audio = document.getElementById('audio-player');
+
+  // Disable button while loading
+  const playBtn = document.getElementById('play-btn');
+  playBtn.disabled = true;
+  playBtn.textContent = '…';
+
+  audio.src = track.preview;
+  audio.load();
+
+  const tryPlay = () => {
+    audio.currentTime = 0;
+    audio.play().then(() => {
+      markPlayed(duration);
+      startProgressBar(duration);
+      state.audioTimer = setTimeout(() => {
+        audio.pause();
+        audio.currentTime = 0;
+        document.getElementById('play-btn').textContent = '↺';
+      }, duration * 1000);
+    }).catch(err => {
+      playBtn.disabled = false;
+      playBtn.textContent = '▶';
+      showGameError('⚠️ שגיאה בהשמעה. ייתכן שה-URL של התצוגה פג תוקף — נסה שיר אחר.');
+      console.error(err);
+    });
+  };
+
+  if (audio.readyState >= 2) {
+    tryPlay();
+  } else {
+    audio.addEventListener('canplay', tryPlay, { once: true });
+    audio.addEventListener('error', () => {
+      playBtn.disabled = false;
+      playBtn.textContent = '▶';
+      showGameError('⚠️ לא ניתן לטעון את קובץ השמע. בדוק חיבור לאינטרנט.');
+    }, { once: true });
+  }
+}
+
+function markPlayed(duration) {
+  state.played = true;
+  const playBtn = document.getElementById('play-btn');
+  playBtn.disabled = true;
+  playBtn.textContent = '⏸';
+
+  if (state.phase === 1) {
+    document.getElementById('dot1').classList.add('used');
+    document.getElementById('play-label').textContent = `מנגן ${duration} שניות...`;
+  } else {
+    document.getElementById('dot2').classList.add('used');
+    document.getElementById('play-label').textContent = `מנגן ${duration} שניות (סה"כ)...`;
+  }
+
+  setTimeout(() => {
+    playBtn.disabled = false;
+    playBtn.textContent = '▶';
+    document.getElementById('play-label').textContent = 'נגן שוב';
+  }, duration * 1000 + 200);
+}
+
+function startProgressBar(duration) {
+  clearInterval(state.progressTimer);
+  const bar = document.getElementById('progress-bar');
+  const start = Date.now();
+  state.progressTimer = setInterval(() => {
+    const elapsed = (Date.now() - start) / 1000;
+    const pct = Math.min(100, (elapsed / duration) * 100);
+    bar.style.width = pct + '%';
+    if (pct >= 100) clearInterval(state.progressTimer);
+  }, 50);
+}
+
+function showGameError(msg) {
+  const el = document.getElementById('game-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+// ============================================================
+// AUTOCOMPLETE
+// ============================================================
+let debounceTimer = null;
+let highlightedIdx = -1;
+
+function onAnswerInput(val) {
+  clearTimeout(debounceTimer);
+  highlightedIdx = -1;
+  debounceTimer = setTimeout(() => buildSuggestions(val), 220);
+}
+
+function buildSuggestions(query) {
+  const container = document.getElementById('suggestions');
+  if (!query || query.length < 1) {
+    container.style.display = 'none';
+    return;
+  }
+
+  const pool = DB[state.mode][state.decade] || [];
+  const nQuery = normalize(query);
+  const currentSong = state.questions[state.currentIdx];
+
+  // Score each song
+  const scored = pool
+    .filter(s => s !== currentSong || pool.length <= 1) // Include current song among many options
+    .map(s => {
+      const nTitle = normalize(s.title);
+      let score = 0;
+      if (nTitle.startsWith(nQuery)) score = 100;
+      else if (nTitle.includes(nQuery)) score = 80;
+      else score = similarity(query, s.title) * 60;
+      return { ...s, score };
+    })
+    .filter(s => s.score > 25)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 6);
+
+  // Always add current song in list to not be "cheat-proof" but let user search it
+  if (!scored.find(s => s.title === currentSong.title) && pool.length > 1) {
+    // Insert current song at a random position to not make it obvious
+    scored.splice(Math.floor(Math.random() * Math.max(1, scored.length)), 0, { ...currentSong, score: 50 });
+  }
+
+  if (scored.length === 0) {
+    container.style.display = 'none';
+    return;
+  }
+
+  container.innerHTML = scored.map((s, i) =>
+    `<div class="suggestion-item" data-idx="${i}" data-title="${s.title}" onclick="pickSuggestion('${s.title.replace(/'/g,"\\'")}')">
+      ${highlightMatch(s.title, query)}
+      <small style="color:var(--muted);margin-right:6px;font-size:0.8rem">${s.artist}</small>
+    </div>`
+  ).join('');
+  container.style.display = 'block';
+}
+
+function highlightMatch(title, query) {
+  const idx = title.toLowerCase().indexOf(query.toLowerCase());
+  if (idx === -1) return title;
+  return title.slice(0, idx) + '<mark>' + title.slice(idx, idx + query.length) + '</mark>' + title.slice(idx + query.length);
+}
+
+function pickSuggestion(title) {
+  document.getElementById('answer-input').value = title;
+  document.getElementById('suggestions').style.display = 'none';
+  submitAnswer();
+}
+
+function onAnswerKeydown(e) {
+  const sugg = document.getElementById('suggestions');
+  const items = sugg.querySelectorAll('.suggestion-item');
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    highlightedIdx = Math.min(highlightedIdx + 1, items.length - 1);
+    items.forEach((el, i) => el.classList.toggle('highlighted', i === highlightedIdx));
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    highlightedIdx = Math.max(highlightedIdx - 1, -1);
+    items.forEach((el, i) => el.classList.toggle('highlighted', i === highlightedIdx));
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (highlightedIdx >= 0 && items[highlightedIdx]) {
+      items[highlightedIdx].click();
+    } else {
+      submitAnswer();
+    }
+  } else if (e.key === 'Escape') {
+    sugg.style.display = 'none';
+    highlightedIdx = -1;
+  }
+}
+
+// Close suggestions on outside click
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.answer-section')) {
+    document.getElementById('suggestions').style.display = 'none';
+  }
+});
+
+// ============================================================
+// ANSWER CHECKING
+// ============================================================
+function submitAnswer() {
+  if (state.answered) return;
+  const input = document.getElementById('answer-input');
+  const userAnswer = input.value.trim();
+  if (!userAnswer) { showToast('הזן תשובה תחילה'); return; }
+
+  document.getElementById('suggestions').style.display = 'none';
+  const song = state.questions[state.currentIdx];
+  const correct = isCorrect(userAnswer, song.title);
+
+  if (correct) {
+    handleCorrect(song);
+  } else if (state.phase === 1) {
+    // Wrong on first attempt — give hint
+    state.phase = 2;
+    input.className = 'answer-input wrong';
+    document.getElementById('dot1').classList.add('wrong');
+    setTimeout(() => {
+      input.className = 'answer-input';
+      input.value = '';
+      input.placeholder = 'נסה שוב עם קטע ארוך יותר...';
+    }, 500);
+    document.getElementById('play-label').textContent = 'לחץ לשמוע 5 שניות';
+    document.getElementById('seconds-badge').textContent = '+ 2 שניות נוספות';
+    document.getElementById('skip-btn').textContent = 'ויתור ✗';
+    showHint(song);
+  } else {
+    // Wrong on second attempt — game over for this song
+    handleWrong(song);
+  }
+}
+
+function showHint(song) {
+  const hintEl = document.getElementById('hint-area');
+  // Show first letter as hint
+  const firstLetter = song.title[0];
+  hintEl.textContent = `💡 רמז: השיר מתחיל באות "${firstLetter}" — האמן: ${song.artist}`;
+  hintEl.style.display = 'block';
+}
+
+function skipQuestion() {
+  if (state.answered) return;
+  if (state.phase === 1) {
+    state.phase = 2;
+    document.getElementById('skip-btn').textContent = 'ויתור ✗';
+    document.getElementById('play-label').textContent = 'לחץ לשמוע 5 שניות';
+    document.getElementById('seconds-badge').textContent = '+ 2 שניות נוספות';
+    showHint(state.questions[state.currentIdx]);
+  } else {
+    handleWrong(state.questions[state.currentIdx]);
+  }
+}
+
+function handleCorrect(song) {
+  state.answered = true;
+  const points = state.phase === 1 ? POINTS_FAST : POINTS_SLOW;
+  const streakBonus = state.streak >= 2 ? STREAK_BONUS : 0;
+  const totalPoints = points + streakBonus;
+
+  state.score += totalPoints;
+  state.streak++;
+  state.correctCount++;
+  if (state.phase === 1) state.fastCount++;
+  state.maxStreak = Math.max(state.maxStreak, state.streak);
+
+  const input = document.getElementById('answer-input');
+  input.className = 'answer-input correct';
+  input.disabled = true;
+
+  stopAudio();
+  showResult(song, true, totalPoints, streakBonus);
+}
+
+function handleWrong(song) {
+  state.answered = true;
+  state.streak = 0;
+
+  const input = document.getElementById('answer-input');
+  input.className = 'answer-input wrong';
+  input.disabled = true;
+  setTimeout(() => { input.className = 'answer-input'; }, 400);
+
+  stopAudio();
+  showResult(song, false, 0, 0);
+}
+
+function stopAudio() {
+  clearTimeout(state.audioTimer);
+  clearInterval(state.progressTimer);
+  const audio = document.getElementById('audio-player');
+  audio.pause();
+  audio.currentTime = 0;
+  document.getElementById('progress-bar').style.width = '0%';
+}
+
+// ============================================================
+// RESULT SCREEN
+// ============================================================
+function showResult(song, correct, points, streakBonus) {
+  setTimeout(() => {
+    showScreen('result');
+    document.getElementById('result-song-title').textContent = song.title;
+    document.getElementById('result-artist').textContent = song.artist;
+    document.getElementById('result-points').textContent = `+${points}`;
+
+    const tag = document.getElementById('result-tag');
+    if (correct) {
+      document.getElementById('result-emoji').textContent = state.phase === 1 ? '🎯' : '✅';
+      tag.className = 'result-tag tag-correct';
+      tag.textContent = state.phase === 1 ? '⚡ זיהוי מהיר ב-3 שניות!' : '✓ נכון עם עזרה';
+      if (streakBonus > 0) {
+        tag.textContent += ` 🔥 +${streakBonus} בונוס רצף`;
+      }
+    } else {
+      document.getElementById('result-emoji').textContent = '😔';
+      document.getElementById('result-points').textContent = '0';
+      tag.className = 'result-tag tag-wrong';
+      tag.textContent = '✗ לא נכון';
+    }
+
+    const isLast = state.currentIdx >= state.questions.length - 1;
+    document.getElementById('next-btn').textContent = isLast ? 'סיום 🏆' : 'הבא ▶';
+  }, 300);
+}
+
+// ============================================================
+// NEXT QUESTION / END
+// ============================================================
+async function nextQuestion() {
+  state.currentIdx++;
+  if (state.currentIdx >= state.questions.length) {
+    endGame();
+    return;
+  }
+
+  // Pre-load next+1 song
+  if (state.currentIdx + 1 < state.questions.length) {
+    loadSongTrack(state.currentIdx + 1);
+  }
+
+  // If current track not loaded yet, show loading briefly
+  const q = state.questions[state.currentIdx];
+  if (!q._track) {
+    showScreen('loading');
+    document.getElementById('loading-text').textContent = 'טוען שיר...';
+    await loadSongTrack(state.currentIdx);
+  }
+
+  showGameScreen();
+}
+
+function endGame() {
+  // Update daily streak
+  const today = new Date().toISOString().slice(0, 10);
+  if (lastPlayDate !== today) {
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    if (lastPlayDate === yesterday) {
+      globalStreak++;
+    } else if (lastPlayDate !== today) {
+      globalStreak = 1;
+    }
+    lastPlayDate = today;
+    localStorage.setItem('lastPlayDate', today);
+    localStorage.setItem('dayStreak', String(globalStreak));
+  }
+
+  showScreen('end');
+  document.getElementById('end-score').textContent = state.score;
+  document.getElementById('end-correct').textContent = state.correctCount;
+  document.getElementById('end-streak').textContent = state.maxStreak;
+  document.getElementById('end-fast').textContent = state.fastCount;
+
+  const emoji = state.correctCount === state.questions.length ? '🏆' :
+    state.correctCount >= state.questions.length * 0.7 ? '🌟' :
+    state.correctCount >= state.questions.length * 0.4 ? '👏' : '🎵';
+  document.getElementById('end-emoji').textContent = emoji;
+
+  updateStreakDisplay();
+}
+
+// ============================================================
+// SHARE
+// ============================================================
+function shareResult() {
+  const decade = state.decade;
+  const mode = state.mode === 'israeli' ? 'ישראלי 🇮🇱' : 'לועזי 🌍';
+  const total = state.questions.length;
+  const correct = state.correctCount;
+  const dots = Array.from({ length: total }, (_, i) =>
+    i < correct ? '🟩' : '⬛'
+  ).join('');
+  const text = `🎵 מי מכיר? — חידון מוזיקלי\n${mode} — שנות ה-${decade.slice(2)}\n${dots}\nניקוד: ${state.score} | ${correct}/${total} נכון\n🔥 רצף: ${state.maxStreak}`;
+
+  if (navigator.share) {
+    navigator.share({ text }).catch(() => copyToClipboard(text));
+  } else {
+    copyToClipboard(text);
+  }
+}
+
+function copyToClipboard(text) {
+  navigator.clipboard.writeText(text).then(() => showToast('📋 הועתק ללוח!')).catch(() => showToast('לא ניתן להעתיק'));
+}
+
+// ============================================================
+// INIT
+// ============================================================
+function init() {
+  // Set default selections
+  selectMode('israeli');
+  selectDecade('1980');
+  updateStreakDisplay();
+
+  // Mark default decade button
+  document.querySelectorAll('.decade-btn').forEach(b => {
+    if (b.textContent.trim().startsWith('80')) b.classList.add('selected');
+  });
+}
+
+init();
+</script>
+</body>
+</html>
