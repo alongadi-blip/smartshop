@@ -4,6 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <meta name="theme-color" content="#2E7D32">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="SmartShop">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icon.svg">
   <title>SmartShop List</title>
   <style>
     :root {
@@ -278,8 +284,11 @@
     .lists-footer { padding: 12px 16px; border-top: 1px solid var(--border); flex-shrink: 0; }
 
     /* TOAST */
-    .toast { position: fixed; bottom: 88px; left: 50%; transform: translateX(-50%) translateY(16px); background: #222; color: #fff; padding: 9px 20px; border-radius: 24px; font-size: 0.88rem; z-index: 500; opacity: 0; transition: all 0.28s; pointer-events: none; white-space: nowrap; }
+    .toast { position: fixed; bottom: 88px; left: 50%; transform: translateX(-50%) translateY(16px); background: #222; color: #fff; padding: 9px 20px; border-radius: 24px; font-size: 0.88rem; z-index: 500; opacity: 0; transition: all 0.28s; pointer-events: none; white-space: nowrap; display: flex; align-items: center; gap: 10px; }
     .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.interactive { pointer-events: auto; }
+    .toast-undo-btn { background: none; border: 1px solid rgba(255,255,255,0.55); color: #fff; border-radius: 8px; padding: 3px 10px; cursor: pointer; font-size: 0.82rem; font-family: inherit; white-space: nowrap; transition: background 0.15s; flex-shrink: 0; }
+    .toast-undo-btn:hover { background: rgba(255,255,255,0.2); }
 
     .list-wm { font-size: 0.68rem; opacity: 0.5; font-family: monospace; text-align: center; padding: 6px; color: var(--text-muted); }
 
@@ -354,7 +363,17 @@
       .user-name-short { display: none; }
       .signout-btn { display: none; }
       .list-name-area { display: none; }
-      .user-photo { cursor: pointer; width: 30px; height: 30px; }
+      .user-photo { cursor: pointer; width: 28px; height: 28px; }
+      /* כפתורי header — קטנים יותר במובייל */
+      .icon-btn { width: 28px; height: 28px; font-size: 0.8rem; }
+      .header-right { gap: 2px; }
+      .header-top { gap: 4px; padding: 0; }
+      header { padding: 8px 10px; }
+      /* הסתר dark mode מה-header במובייל (פחות קריטי) */
+      #darkBtn { display: none; }
+      /* presence badge קומפקטי */
+      .presence-badge { font-size: 0.62rem; padding: 2px 5px; gap: 3px; }
+      .presence-dot { width: 6px; height: 6px; }
     }
     .list-shared-tag { font-size: 0.68rem; background: #E3F2FD; color: #1565C0; border-radius: 8px; padding: 1px 6px; font-weight: 700; }
     [data-theme="dark"] .list-shared-tag { background: #1A2A3A; color: #90CAF9; }
@@ -445,6 +464,8 @@
         <button class="icon-btn" onclick="openLists()" title="הרשימות שלי">📋</button>
         <button class="icon-btn" id="darkBtn" onclick="toggleDark()" title="מצב כהה/בהיר">🌙</button>
         <button class="icon-btn" onclick="openShare()" title="הזמן לרשימה">🔗</button>
+        <button class="icon-btn" onclick="openScan()" title="סרוק ברקוד"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M3 3h7v7H3zm1 1v5h5V4zm1 1h3v3H5zm8-2h7v7h-7zm1 1v5h5V4zm1 1h3v3h-3zM3 13h7v7H3zm1 1v5h5v-5zm1 1h3v3H5zm8 0h2v2h-2zm0 4h2v2h-2zm4-4h2v2h-2zm-2 2h2v2h-2zm2 2h2v2h-2z"/></svg></button>
+        <button class="icon-btn" id="adminBtn" onclick="openAdmin()" title="ניהול קטלוג מוצרים" style="display:none">🔧</button>
       </div>
     </div>
 
@@ -642,10 +663,76 @@
   </div>
 </div>
 
+<!-- SCAN MODAL -->
+<div class="overlay" id="scanOverlay">
+  <div class="modal" role="dialog" style="width:min(95vw,440px)">
+    <div class="modal-title">📷 סריקת ברקוד</div>
+
+    <!-- live camera viewport -->
+    <div style="position:relative;width:100%;border-radius:10px;overflow:hidden;background:#000;min-height:220px">
+      <video id="scanVideo" autoplay playsinline muted
+             style="width:100%;display:block;max-height:280px;object-fit:cover"></video>
+      <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+                  width:70%;height:80px;border:3px solid rgba(255,255,255,0.8);
+                  border-radius:8px;pointer-events:none"></div>
+    </div>
+
+    <div id="scanStatus" style="font-size:0.85rem;color:var(--text-muted);text-align:center;padding:6px 0;min-height:22px"></div>
+
+    <div id="scanResult" style="display:none;margin-top:4px">
+      <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:8px" id="scanFoundBarcode"></div>
+      <div class="fg">
+        <label>שם המוצר</label>
+        <input class="fc" id="scanFoundName" placeholder="הכנס שם מוצר…" maxlength="80">
+      </div>
+      <div class="fg">
+        <label>קטגוריה</label>
+        <select class="fc" id="scanCat"></select>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <button class="btn btn-ghost" onclick="restartScan()" style="flex:1">📷 סרוק שוב</button>
+        <button class="btn btn-primary" onclick="addScannedProduct()" style="flex:1">➕ הוסף לרשימה</button>
+      </div>
+    </div>
+
+    <div class="modal-actions" style="margin-top:10px">
+      <button class="btn btn-ghost btn-full" onclick="closeScan()">סגור</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN MODAL -->
+<div class="overlay" id="adminOverlay">
+  <div class="modal" role="dialog" style="max-height:90vh;overflow-y:auto">
+    <div class="modal-title">🔧 ניהול קטלוג מוצרים</div>
+    <div style="font-size:0.84rem;color:var(--text-muted);margin-bottom:12px">
+      מוצרים שתוסיף יופיעו בחיפוש ובעיון הקטגוריות לכל המשתמשים ולכל הרשימות.
+    </div>
+    <div class="fg">
+      <label>שם המוצר החדש</label>
+      <input class="fc" id="adminProdName" placeholder="למשל: ביסקוויט כוסמין…" maxlength="80"
+             onkeydown="if(event.key==='Enter') submitAdminProduct()">
+    </div>
+    <div class="fg">
+      <label>קטגוריה</label>
+      <select class="fc" id="adminCat"></select>
+    </div>
+    <button class="btn btn-primary btn-full" onclick="submitAdminProduct()">➕ הוסף לקטלוג</button>
+    <div style="margin-top:18px;border-top:1px solid var(--border);padding-top:12px">
+      <div style="font-size:0.82rem;font-weight:600;color:var(--text-muted);margin-bottom:8px">מוצרים שנוספו ידנית:</div>
+      <div id="adminProductList"></div>
+    </div>
+    <div class="modal-actions" style="margin-top:14px">
+      <button class="btn btn-ghost btn-full" onclick="closeAdmin()">סגור</button>
+    </div>
+  </div>
+</div>
+
 <!-- FIREBASE -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
 <script>
 // ============================================================
@@ -865,121 +952,181 @@ const CAT_ICON = {
 };
 
 // ============================================================
+//  ADMIN CONFIG — הוסף כאן את כתובות המייל של המנהלים
+// ============================================================
+const ADMIN_EMAILS = [
+  'alon.gadi@gmail.com',
+];
+
+// ============================================================
 //  PRODUCT IMAGES (real photos from Spoonacular ingredient CDN)
 // ============================================================
-const IMG_BASE = 'https://www.themealdb.com/images/ingredients/';
+const IMG_BASE = 'https://spoonacular.com/cdn/ingredients_100x100/';
 const PROD_IMAGE = {
   // ירקות
-  "עגבניות":"Tomato","מלפפונים":"Cucumber","פלפל אדום":"Red_Pepper",
-  "פלפל ירוק":"Green_Pepper","פלפל צהוב":"Yellow_Pepper",
-  "בצל":"Onion","שום":"Garlic","תפוחי אדמה":"Potato",
-  "בטטה":"Sweet_Potato","גזר":"Carrots","סלרי":"Celery",
-  "חסה":"Lettuce","כרוב":"Cabbage","כרובית":"Cauliflower",
-  "ברוקולי":"Broccoli","תירס":"Corn","אבוקדו":"Avocado",
-  "כרישה":"Leek","זוקיני":"Courgette","חציל":"Aubergine",
-  "שעועית ירוקה":"Green_Beans","אפונה":"Peas","תרד":"Spinach",
-  "אספרגוס":"Asparagus","ארטישוק":"Artichoke","שומר":"Fennel",
-  "עגבניות שרי":"Cherry_Tomatoes","כרוב סגול":"Red_Cabbage",
-  "פטריות שמפיניון":"Mushrooms","פטריות שיטאקי":"Shiitake_Mushrooms",
-  "בזיליקום":"Basil","נענע":"Mint","פטרוזיליה":"Parsley",
-  "כוסברה":"Coriander","שמיר":"Dill","רוקט":"Rocket",
+  "עגבניות":"tomato.jpg","מלפפונים":"cucumber.jpg",
+  "פלפל אדום":"red-pepper.jpg","פלפל ירוק":"green-pepper.jpg","פלפל צהוב":"yellow-pepper.jpg",
+  "בצל":"onion.jpg","שום":"garlic.jpg","תפוחי אדמה":"potato.jpg",
+  "בטטה":"sweet-potato.jpg","גזר":"carrots.jpg","סלרי":"celery.jpg",
+  "חסה":"lettuce.jpg","כרוב":"cabbage.jpg","כרובית":"cauliflower.jpg",
+  "ברוקולי":"broccoli.jpg","תירס":"corn.jpg","אבוקדו":"avocado.jpg",
+  "כרישה":"leek.jpg","זוקיני":"zucchini.jpg","חציל":"eggplant.jpg",
+  "שעועית ירוקה":"green-beans.jpg","אפונה":"peas.jpg","תרד":"spinach.jpg",
+  "אספרגוס":"asparagus.jpg","ארטישוק":"artichoke.jpg","שומר":"fennel.jpg",
+  "עגבניות שרי":"cherry-tomatoes.jpg","כרוב סגול":"red-cabbage.jpg",
+  "פטריות שמפיניון":"mushrooms.jpg","פטריות שיטאקי":"shiitake-mushrooms.jpg",
+  "פטריות פורטובלו":"portobello-mushrooms.jpg",
+  "בזיליקום":"basil.jpg","נענע":"mint.jpg","פטרוזיליה":"parsley.jpg",
+  "כוסברה":"cilantro.jpg","שמיר":"dill.jpg","רוקט":"arugula.jpg",
+  "כרוב ניצנים":"brussels-sprouts.jpg","מנגולד":"swiss-chard.jpg",
+  "צנונית":"radishes.jpg","אורגנו":"oregano.jpg","רוזמרין":"rosemary.jpg",
+  "טימין":"thyme.jpg","עירית":"chives.jpg",
   // פירות
-  "תפוחים":"Apple","בננות":"Banana","תפוזים":"Oranges",
-  "לימונים":"Lemon","מנגו":"Mango","ענבים":"Grapes",
-  "תותים":"Strawberries","אוכמניות":"Blueberries","אפרסקים":"Peaches",
-  "נקטרינות":"Nectarine","מלון":"Melon","אבטיח":"Watermelon",
-  "אננס":"Pineapple","קיווי":"Kiwi","אגס":"Pears",
-  "דובדבן":"Cherries","שזיפים":"Plums","תמרים":"Dates",
-  "רימון":"Pomegranate","צימוקים":"Raisins","גרייפפרוט":"Grapefruit",
+  "תפוחים":"apple.jpg","בננות":"banana.jpg","תפוזים":"orange.jpg",
+  "לימונים":"lemon.jpg","מנגו":"mango.jpg","ענבים":"grapes.jpg",
+  "תותים":"strawberries.jpg","אוכמניות":"blueberries.jpg","אפרסקים":"peaches.jpg",
+  "נקטרינות":"nectarine.jpg","מלון":"cantaloupe.jpg","אבטיח":"watermelon.jpg",
+  "אננס":"pineapple.jpg","קיווי":"kiwi.jpg","אגס":"pear.jpg",
+  "דובדבן":"cherries.jpg","שזיפים":"plums.jpg","תמרים":"dates.jpg",
+  "רימון":"pomegranate.jpg","צימוקים":"raisins.jpg","גרייפפרוט":"grapefruit.jpg",
+  "קלמנטינות":"clementine.jpg","פומלה":"grapefruit.jpg",
+  "אפרסמון":"persimmon.jpg","תאנים":"figs.jpg",
   // חלב וביצים
-  "חלב 3%":"Milk","חלב 1%":"Milk","חלב דל לקטוז":"Milk",
-  "חלב שקדים":"Almond_Milk","חלב שיבולת שועל":"Oat_Milk","חלב סויה":"Soy_Milk",
-  "שמנת מתוקה":"Double_Cream","שמנת חמוצה":"Sour_Cream","שמנת לקפה":"Single_Cream",
-  "יוגורט טבעי":"Yogurt","יוגורט יווני":"Greek_Yoghurt",
-  "גבינה בולגרית":"Feta","גבינה צהובה":"Cheddar_Cheese",
-  "גבינת מוצרלה":"Mozzarella","גבינת פרמזן":"Parmesan",
-  "גבינת פטה":"Feta","גבינת ריקוטה":"Ricotta",
-  "קוטג' 5%":"Cottage_Cheese","קוטג' 9%":"Cottage_Cheese",
-  "חמאה":"Butter","חמאה מלוחה":"Butter","מרגרינה":"Butter",
-  "ביצים גדולות":"Eggs","ביצים בינוניות":"Eggs","ביצי חופש":"Eggs",
+  "חלב 3%":"milk.jpg","חלב 1%":"milk.jpg","חלב דל לקטוז":"milk.jpg",
+  "חלב שקדים":"almond-milk.jpg","חלב שיבולת שועל":"oat-milk.jpg",
+  "חלב סויה":"soy-milk.jpg","חלב קוקוס":"coconut-milk.jpg",
+  "שמנת מתוקה":"heavy-cream.jpg","שמנת חמוצה":"sour-cream.jpg",
+  "שמנת לקפה":"cream.jpg",
+  "שמנת בישול 15%":"heavy-cream.jpg","שמנת בישול 38%":"heavy-cream.jpg",
+  "יוגורט טבעי":"yogurt.jpg","יוגורט יווני":"greek-yogurt.jpg",
+  "יוגורט פירות":"fruit-yogurt.jpg","לבן":"buttermilk.jpg","קפיר":"kefir.jpg",
+  "גבינה לבנה 5%":"cream-cheese.jpg","גבינה לבנה 9%":"cream-cheese.jpg",
+  "גבינה בולגרית":"feta.jpg","גבינה צהובה":"cheddar-cheese.jpg",
+  "גבינת מוצרלה":"mozzarella.jpg","גבינת פרמזן":"parmesan.jpg",
+  "גבינת קממבר":"brie.jpg","גבינת ברי":"brie.jpg","גבינת גאודה":"gouda.jpg",
+  "גבינת עמק":"cheddar-cheese.jpg","גבינת צפתית":"feta.jpg",
+  "גבינת פטה":"feta.jpg","גבינת ריקוטה":"ricotta.jpg",
+  "גבינת מסקרפונה":"mascarpone.jpg",
+  "קוטג' 5%":"cottage-cheese.jpg","קוטג' 9%":"cottage-cheese.jpg",
+  "ממרח שמנת":"cream-cheese.jpg",
+  "חמאה":"butter.jpg","חמאה מלוחה":"butter.jpg","מרגרינה":"margarine.jpg",
+  "ביצים גדולות":"egg.jpg","ביצים בינוניות":"egg.jpg",
+  "ביצי חופש":"egg.jpg","ביצים אורגניות":"egg.jpg",
   // לחם
-  "לחם אחיד":"White_Bread","לחם מלא":"Wholemeal_Bread",
-  "פיתות":"Pita_Bread","בגט":"French_Baguette",
-  "קרואסון":"Croissant","בייגל":"Bagels",
+  "לחם אחיד":"white-bread.jpg","לחם מלא":"whole-wheat-bread.jpg",
+  "לחם שיפון":"rye-bread.jpg","לחם כוסמין":"whole-wheat-bread.jpg",
+  "פיתות":"pita-bread.jpg","בגט":"french-baguette.jpg",
+  "לחמניות":"bread-rolls.jpg","קרואסון":"croissant.jpg","בייגל":"bagel.jpg",
+  "טורטיות":"flour-tortilla.jpg","לאפה":"pita-bread.jpg",
   // בשר
-  "חזה עוף":"Chicken_Breast","שוקיים עוף":"Chicken_Thighs",
-  "כנפיים עוף":"Chicken_Wings","פרגיות":"Chicken_Thighs",
-  "בשר טחון":"Minced_Beef","אנטריקוט":"Ribeye_Steak",
-  "נקניקיות":"Sausages","כבד עוף":"Chicken_Liver",
-  "שניצל עוף":"Chicken_Breast","קציצות עוף":"Chicken_Breast",
-  "נקניק":"Salami","סלמי":"Salami",
+  "חזה עוף":"chicken-breast.jpg","שוקיים עוף":"chicken-thigh.jpg",
+  "כנפיים עוף":"chicken-wings.jpg","פרגיות":"chicken-thigh.jpg",
+  "עוף שלם":"whole-chicken.jpg","עוף מפורק":"whole-chicken.jpg",
+  "בשר טחון":"ground-beef.jpg","אנטריקוט":"ribeye-steak.jpg",
+  "פילה בקר":"beef-tenderloin.jpg","ורד ירך":"beef.jpg",
+  "שניצל עוף":"chicken-breast.jpg","קציצות עוף":"chicken-breast.jpg",
+  "נקניקיות":"pork-sausage.jpg","כבד עוף":"chicken-liver.jpg",
+  "נקניק":"salami.jpg","סלמי":"salami.jpg","פפרוני":"pepperoni.jpg",
+  "פסטרמה":"corned-beef.jpg","פסטרמה עוף":"chicken-breast.jpg",
+  "קורנביף":"corned-beef.jpg","קבנוס":"sausage.jpg",
+  "המבורגר":"beef-patty.jpg","קבב":"ground-beef.jpg",
   // דגים
-  "סלמון טרי":"Salmon","סלמון מעושן":"Smoked_Salmon",
-  "טונה בשמן":"Tuna","טונה במים":"Tuna",
-  "שרימפס":"Tiger_Prawns","קלמרי":"Squid","סרדינים":"Sardines",
-  "פילה סלמון":"Salmon","דניס":"Sea_Bass",
+  "סלמון טרי":"salmon.jpg","סלמון מעושן":"smoked-salmon.jpg",
+  "טונה בשמן":"tuna.jpg","טונה במים":"tuna.jpg",
+  "שרימפס":"shrimp.jpg","קלמרי":"squid.jpg","סרדינים":"sardines.jpg",
+  "פילה סלמון":"salmon.jpg","דניס":"sea-bass.jpg","לוקוס":"sea-bass.jpg",
+  "מקרל":"mackerel.jpg","הרינג":"herring.jpg","אמנון":"tilapia.jpg",
+  "בסה":"tilapia.jpg","מולים":"mussels.jpg","צדפות":"oysters.jpg",
+  "תמנון":"octopus.jpg","סרטן":"crab.jpg",
   // מזון יבש
-  "אורז לבן":"Rice","אורז מלא":"Brown_Rice","אורז בסמטי":"Basmati_Rice",
-  "פסטה ספגטי":"Spaghetti","פסטה פנה":"Penne",
-  "פסטה פרפרים":"Farfalle","פסטה ריגטוני":"Rigatoni",
-  "קוסקוס":"Couscous","קינואה":"Quinoa","בורגול":"Bulgur_Wheat",
-  "עדשים כתומות":"Red_Lentils","עדשים ירוקות":"Lentils",
-  "חומוס יבש":"Chickpeas","שעועית יבשה":"Cannellini_Beans",
-  "שעועית אדומה":"Red_Kidney_Beans","שעועית שחורה":"Black_Beans",
-  "קמח לבן":"Plain_Flour","קמח מלא":"Wholemeal_Flour",
-  "שיבולת שועל":"Oats","גרנולה":"Granola",
-  "סוכר לבן":"Sugar","סוכר חום":"Brown_Sugar",
-  "מלח":"Salt","פלפל שחור":"Black_Pepper",
-  "כמון":"Cumin","פפריקה":"Paprika","כורכום":"Turmeric",
-  "קינמון":"Cinnamon","שמן זית":"Olive_Oil","שמן חמניות":"Sunflower_Oil",
-  "חומץ":"White_Wine_Vinegar","חומץ בלסמי":"Balsamic_Vinegar",
-  "רוטב סויה":"Soy_Sauce","ממרח עגבניות":"Tomato_Puree",
-  "עגבניות מרוסקות":"Chopped_Tomatoes",
-  "חרדל":"Dijon_Mustard","קטשופ":"Tomato_Ketchup",
-  "מיונז":"Mayonnaise","דבש":"Honey",
-  "טחינה":"Tahini","חומוס מוכן":"Hummus",
-  "פנוט בטר":"Peanut_Butter","ממרח שוקולד":"Chocolate_Spread",
+  "אורז לבן":"white-rice.jpg","אורז מלא":"brown-rice.jpg",
+  "אורז בסמטי":"basmati-rice.jpg","אורז יסמין":"jasmine-rice.jpg",
+  "פסטה ספגטי":"spaghetti.jpg","פסטה פנה":"penne.jpg",
+  "פסטה פרפרים":"farfalle.jpg","פסטה ריגטוני":"rigatoni.jpg",
+  "פסטה לזניה":"lasagne-sheets.jpg","אטריות אורז":"rice-noodles.jpg",
+  "קוסקוס":"couscous.jpg","קינואה":"quinoa.jpg",
+  "בורגול":"bulgur.jpg","כוסמת":"buckwheat-flour.jpg",
+  "עדשים כתומות":"red-lentils.jpg","עדשים ירוקות":"green-lentils.jpg",
+  "עדשים שחורות":"black-lentils.jpg",
+  "חומוס יבש":"chickpeas.jpg","שעועית יבשה":"white-beans.jpg",
+  "שעועית אדומה":"kidney-beans.jpg","שעועית שחורה":"black-beans.jpg",
+  "פול":"fava-beans.jpg","תורמוס":"lupin-beans.jpg",
+  "קמח לבן":"flour.jpg","קמח מלא":"whole-wheat-flour.jpg",
+  "קמח כוסמין":"spelt-flour.jpg","קמח שקדים":"almond-flour.jpg",
+  "שיבולת שועל":"rolled-oats.jpg","גרנולה":"granola.jpg",
+  "קורנפלקס":"corn-flakes.jpg","מוסלי":"muesli.jpg",
+  "סוכר לבן":"sugar.jpg","סוכר חום":"brown-sugar.jpg",
+  "מלח":"salt.jpg","פלפל שחור":"black-pepper.jpg",
+  "כמון":"cumin.jpg","פפריקה":"paprika.jpg","כורכום":"turmeric.jpg",
+  "קינמון":"cinnamon.jpg","שמן זית":"olive-oil.jpg",
+  "שמן חמניות":"sunflower-oil.jpg","שמן קוקוס":"coconut-oil.jpg",
+  "שמן שומשום":"sesame-oil.jpg",
+  "חומץ תפוחים":"apple-cider-vinegar.jpg","חומץ בלסמי":"balsamic-vinegar.jpg",
+  "רוטב סויה":"soy-sauce.jpg","ממרח עגבניות":"tomato-paste.jpg",
+  "עגבניות מרוסקות":"crushed-tomatoes.jpg",
+  "חרדל":"dijon-mustard.jpg","קטשופ":"ketchup.jpg",
+  "מיונז":"mayonnaise.jpg","דבש":"honey.jpg",
+  "טחינה":"tahini.jpg","חומוס מוכן":"hummus.jpg",
+  "פנוט בטר":"peanut-butter.jpg","ממרח שוקולד":"nutella.jpg",
+  "ריבה תות":"strawberry-jam.jpg","ריבה משמש":"apricot-jam.jpg",
   // שתיות
-  "מיץ תפוזים":"Orange_Juice","קפה טחון":"Coffee",
-  "קפה נמס":"Instant_Coffee","תה ירוק":"Green_Tea",
-  "תה שחור":"Black_Tea","יין אדום":"Red_Wine","יין לבן":"White_Wine",
+  "מים מינרלים 0.5L":"water.jpg","מים מינרלים 1.5L":"water.jpg",
+  "מים מינרלים 5L":"water.jpg","מים מוגזים":"sparkling-water.jpg",
+  "מיץ תפוזים":"orange-juice.jpg","מיץ תפוחים":"apple-juice.jpg",
+  "מיץ גזר":"carrot-juice.jpg","מיץ ענבים":"concord-grape-juice.jpg",
+  "מיץ רימונים":"pomegranate-juice.jpg",
+  "קפה טחון":"coffee.jpg","קפה נמס":"instant-coffee.jpg",
+  "קפה שחור":"espresso.jpg","אספרסו":"espresso.jpg",
+  "קפה קפסולות":"coffee.jpg",
+  "תה ירוק":"green-tea.jpg","תה שחור":"black-tea.jpg",
+  "תה מנטה":"peppermint-tea-bags.jpg","קמומיל":"chamomile-tea.jpg",
+  "יין אדום":"red-wine.jpg","יין לבן":"white-wine.jpg","יין רוזה":"rose-wine.jpg",
+  "בירה":"beer-can.jpg","בירה קלה":"beer-can.jpg",
+  "קוקה קולה":"coca-cola.jpg","לימונדה":"lemonade.jpg",
   // חטיפים
-  "שוקולד מריר 70%":"Dark_Chocolate","שוקולד מריר 85%":"Dark_Chocolate",
-  "שוקולד חלב":"Milk_Chocolate","שוקולד לבן":"White_Chocolate",
-  "שקדים":"Almonds","אגוזי מלך":"Walnuts",
-  "קשיו":"Cashew_Nuts","פיסטוק":"Pistachios","בוטנים":"Peanuts",
-  "גרעיני חמניות":"Sunflower_Seeds","פופקורן":"Popcorn",
-  "גרעיני דלעת":"Pumpkin_Seeds",
+  "שוקולד מריר 70%":"dark-chocolate.jpg","שוקולד מריר 85%":"dark-chocolate.jpg",
+  "שוקולד חלב":"milk-chocolate.jpg","שוקולד לבן":"white-chocolate.jpg",
+  "שוקולד עם אגוזים":"chocolate-bar.jpg",
+  "שקדים":"almonds.jpg","אגוזי מלך":"walnuts.jpg",
+  "קשיו":"cashews.jpg","פיסטוק":"pistachios.jpg","בוטנים":"peanuts.jpg",
+  "גרעיני חמניות":"sunflower-seeds.jpg","פופקורן":"popcorn.jpg",
+  "גרעיני דלעת":"pepitas.jpg","מיקס אגוזים":"mixed-nuts.jpg",
+  "ביסקוויטים":"shortbread-cookies.jpg","צ'יפס":"potato-chips.jpg",
   // אפייה
-  "קמח לתפיחה":"Self-raising_Flour","שמרים יבשים":"Dried_Yeast",
-  "אבקת קקאו":"Cocoa_Powder","שוקולד לאפייה":"Dark_Chocolate",
-  "שוקולד צ'יפס":"Chocolate_Chips","שמן קוקוס":"Coconut_Oil",
-  "שומשום":"Sesame_Seeds","צימוקים לאפייה":"Raisins",
-  "אבקת שקדים":"Ground_Almonds",
+  "קמח לתפיחה":"self-rising-flour.jpg","שמרים יבשים":"active-dry-yeast.jpg",
+  "אבקת אפייה":"baking-powder.jpg","סודה לשתייה":"baking-soda.jpg",
+  "אבקת קקאו":"cocoa-powder.jpg","שוקולד לאפייה":"dark-chocolate.jpg",
+  "שוקולד צ'יפס":"chocolate-chips.jpg",
+  "שומשום":"sesame-seeds.jpg","צימוקים לאפייה":"raisins.jpg",
+  "אבקת שקדים":"almond-flour.jpg","קוקוס טחון":"coconut-flakes.jpg",
+  "סוכר אבקה":"powdered-sugar.jpg","סוכר וניל":"vanilla-sugar.jpg",
+  "וניל":"vanilla.jpg","תמצית וניל":"vanilla-extract.jpg",
+  "קורנפלור":"cornstarch.jpg","ג'לטין":"gelatin-powder.jpg",
   // בריאות
-  "טופו רגיל":"Tofu","טופו מוצק":"Tofu","גבינת טופו":"Tofu",
+  "טופו רגיל":"tofu.jpg","טופו מוצק":"extra-firm-tofu.jpg",
+  "גבינת טופו":"tofu.jpg","טמפה":"tempeh.jpg",
   // סלטים
-  "חומוס":"Hummus","טחינה":"Tahini","סלט ירוק":"Lettuce",
-  "סלט עגבניות":"Tomato","סלט יווני":"Feta","סלט קיסר":"Lettuce",
-  "סלט כרוב":"Cabbage","סלט גזר":"Carrots","סלט סלק":"Beetroot",
-  "סלט טונה":"Tuna","טבולה":"Parsley","סלט אבוקדו":"Avocado",
-  "פלאפל":"Chickpeas","סלט עדשים":"Lentils","סלט קינואה":"Quinoa",
-  "מרק עדשים":"Red_Lentils","מרק עגבניות":"Tomato",
-  "מרק ירקות":"Mixed_Vegetables","מרק עוף":"Chicken_Breast",
+  "חומוס":"hummus.jpg","טחינה":"tahini.jpg",
+  "סלט עגבניות":"tomato.jpg","סלט יווני":"feta.jpg",
+  "סלט כרוב":"cabbage.jpg","סלט גזר":"carrots.jpg","סלט סלק":"beets.jpg",
+  "סלט טונה":"tuna.jpg","טבולה":"parsley.jpg",
+  "סלט אבוקדו":"avocado.jpg","פלאפל":"falafel.jpg",
+  "מרק עדשים":"red-lentils.jpg","מרק עגבניות":"tomato.jpg",
+  "מרק עוף":"chicken-broth.jpg",
   // נקניקים
-  "סלמי":"Salami","פפרוני":"Pepperoni","נקניקיות עוף":"Sausages",
-  "נקניקיות בקר":"Sausages","נקניקיות הודו":"Sausages",
-  "נקניק בקר":"Salami","נקניק עוף":"Salami","נקניק הודו":"Salami",
-  "פסטרמה עוף":"Chicken_Breast","פסטרמה הודו":"Chicken_Breast",
-  "קורנביף":"Minced_Beef","כבד קצוץ":"Chicken_Liver",
-  "בייקון הודו":"Salami","קבנוס":"Sausages"
+  "פפרוני":"pepperoni.jpg","נקניקיות עוף":"chicken-sausage.jpg",
+  "נקניקיות בקר":"pork-sausage.jpg","נקניקיות הודו":"turkey-sausage.jpg",
+  "נקניק בקר":"beef-bratwurst.jpg",
+  "כבד קצוץ":"chicken-liver.jpg","בייקון הודו":"turkey-bacon.jpg",
+  "מורטדלה":"bologna-sausage.jpg","פסטרמה הודו":"turkey-breast.jpg",
+  "חזה עוף מעושן":"smoked-chicken-breast.jpg",
 };
 
 function prodImgEl(name, catKey) {
   const ingr = PROD_IMAGE[name];
   const emoji = prodEmoji(name) || (CAT_ICON[catKey] || '📦');
   if (ingr) {
-    const url = IMG_BASE + encodeURIComponent(ingr) + '-Small.png';
+    const url = IMG_BASE + ingr;
     return `<img src="${url}" alt="" loading="lazy"` +
       ` onerror="this.style.display='none';this.nextSibling.style.display=''">` +
       `<span style="display:none;font-size:1.55rem">${emoji}</span>`;
@@ -1241,7 +1388,10 @@ let listId = '';
 let listToken = '';
 let listName = '';
 let items = {};
+let extraProducts = {};
 let activeCat = 'all';
+let _undoId = null;
+let _undoItem = null;
 let offlineMode = false;
 let editingId = null;
 let searchResults = [];
@@ -1315,11 +1465,23 @@ function init() {
 }
 
 function initWithFirebase() {
+  loadExtraProducts();
   const parsed = parseHash();
   listId = parsed.id;
   listToken = parsed.token;
 
+  // If no hash in URL, try to restore last active list (handles TWA camera restart)
   if (!listId) {
+    const saved = localStorage.getItem('ss_last_list');
+    if (saved) {
+      try {
+        const { id, token } = JSON.parse(saved);
+        if (id) {
+          location.replace('#' + id + (token ? '~' + token : ''));
+          return;
+        }
+      } catch {}
+    }
     // No list in URL — show list picker home screen
     document.getElementById('listNameText').textContent = 'SmartShop';
     document.getElementById('listWm').textContent = '';
@@ -1352,6 +1514,9 @@ function validateAndContinue() {
 }
 
 function continueInit(isShared) {
+  // Save current list so TWA can restore after camera intent restarts the app
+  localStorage.setItem('ss_last_list', JSON.stringify({ id: listId, token: listToken }));
+
   db.ref('smartshop/' + listId + '/items').on('value', snap => {
     items = snap.val() || {};
     render();
@@ -1410,6 +1575,8 @@ function updateUserUI(user) {
   const firstName = (user.displayName || user.email || '').split(' ')[0];
   document.getElementById('userNameShort').textContent = firstName;
   area.style.display = 'flex';
+  const adminBtn = document.getElementById('adminBtn');
+  if (adminBtn) adminBtn.style.display = ADMIN_EMAILS.includes(user.email) ? '' : 'none';
 }
 
 // ============================================================
@@ -1591,6 +1758,7 @@ function _renderListsHtml(body, reg) {
 }
 
 function switchList(id, token) {
+  listId = id; // prevent closeLists() from creating a new list
   closeLists();
   location.hash = token ? id + '~' + token : id;
   location.reload();
@@ -1758,8 +1926,21 @@ function upd(id, patch) {
 }
 
 function del(id) {
+  const it = items[id];
+  if (!it) return;
+  _undoId = id;
+  _undoItem = { ...it };
   if (offlineMode) { delete items[id]; persist(); render(); }
   else db.ref('smartshop/' + listId + '/items/' + id).remove();
+}
+
+function undoDelete() {
+  if (!_undoId || !_undoItem) return;
+  const id = _undoId, item = _undoItem;
+  _undoId = null; _undoItem = null;
+  if (offlineMode) { items[id] = item; persist(); render(); }
+  else db.ref('smartshop/' + listId + '/items/' + id).set(item);
+  toast('↩️ ' + item.name + ' שוחזר');
 }
 
 function togglePurch(id) {
@@ -2036,6 +2217,10 @@ function populateCatSelects() {
   const extra = '<option value="כללי">כללי (ללא קטגוריה)</option>';
   document.getElementById('mCat').innerHTML = '<option value="">בחר קטגוריה…</option>' + opts + extra;
   document.getElementById('eCat').innerHTML = opts + extra;
+  const sc = document.getElementById('scanCat');
+  if (sc) sc.innerHTML = opts + extra;
+  const ac = document.getElementById('adminCat');
+  if (ac) ac.innerHTML = opts + extra;
 }
 
 function openAdd(prefill) {
@@ -2100,7 +2285,8 @@ function submitEdit() {
 
 function askDel(id) {
   const it = items[id]; if (!it) return;
-  if (confirm('למחוק את "' + it.name + '"?')) { del(id); toast('🗑️ ' + it.name + ' נמחק'); }
+  del(id);
+  toastUndo('🗑️ ' + it.name + ' נמחק');
 }
 
 function togglePurchSect() {
@@ -2125,7 +2311,7 @@ function attachSwipe() {
       if (moving && dx < -55) {
         const id = el.dataset.id;
         el.style.cssText += 'transform:translateX(-110%);opacity:0;transition:all .28s';
-        setTimeout(() => { const it = items[id]; if (it) { del(id); toast('🗑️ ' + it.name + ' נמחק'); } }, 280);
+        setTimeout(() => { const it = items[id]; if (it) { const name = it.name; del(id); toastUndo('🗑️ ' + name + ' נמחק'); } }, 280);
       } else { el.style.transform = ''; el.style.background = ''; }
     }, { passive: true });
   });
@@ -2256,8 +2442,18 @@ function updatePresenceBadge() {
 let _toastT;
 function toast(msg) {
   const el = document.getElementById('toast');
-  el.textContent = msg; el.classList.add('show');
-  clearTimeout(_toastT); _toastT = setTimeout(() => el.classList.remove('show'), 2600);
+  el.classList.remove('interactive');
+  el.innerHTML = '<span>' + hEsc(msg) + '</span>';
+  el.classList.add('show');
+  clearTimeout(_toastT);
+  _toastT = setTimeout(() => el.classList.remove('show'), 2600);
+}
+function toastUndo(msg) {
+  const el = document.getElementById('toast');
+  el.innerHTML = '<span>' + hEsc(msg) + '</span><button class="toast-undo-btn" onclick="undoDelete()">↩️ בטל</button>';
+  el.classList.add('show', 'interactive');
+  clearTimeout(_toastT);
+  _toastT = setTimeout(() => { el.classList.remove('show', 'interactive'); _undoId = null; _undoItem = null; }, 5000);
 }
 
 // ============================================================
@@ -2273,7 +2469,7 @@ function esc(s) { return String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\
 //  KEYBOARD
 // ============================================================
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closeAdd(); closeEdit(); closeSearch(); closeBrowse(); closeLists(); closeShare(); }
+  if (e.key === 'Escape') { closeAdd(); closeEdit(); closeSearch(); closeBrowse(); closeLists(); closeShare(); closeScan(); closeAdmin(); }
 });
 document.getElementById('addOverlay').addEventListener('keydown',  e => { if (e.key === 'Enter') submitAdd(); });
 document.getElementById('editOverlay').addEventListener('keydown', e => { if (e.key === 'Enter') submitEdit(); });
@@ -2282,11 +2478,222 @@ document.getElementById('editOverlay').addEventListener('click',  e => { if (e.t
 document.getElementById('browseOverlay').addEventListener('click', e => { if (e.target === document.getElementById('browseOverlay')) closeBrowse(); });
 document.getElementById('listsOverlay').addEventListener('click',  e => { if (e.target === document.getElementById('listsOverlay'))  closeLists(); });
 document.getElementById('shareOverlay').addEventListener('click',  e => { if (e.target === document.getElementById('shareOverlay'))  closeShare(); });
+document.getElementById('scanOverlay').addEventListener('click',   e => { if (e.target === document.getElementById('scanOverlay'))   closeScan(); });
+document.getElementById('adminOverlay').addEventListener('click',  e => { if (e.target === document.getElementById('adminOverlay'))  closeAdmin(); });
+
+// ============================================================
+//  EXTRA PRODUCTS — load global catalog additions from Firebase
+// ============================================================
+function loadExtraProducts() {
+  if (!db) return;
+  db.ref('smartshop/global/products').on('value', snap => {
+    extraProducts = snap.val() || {};
+    Object.entries(extraProducts).forEach(([, p]) => {
+      if (!p || !p.name || !p.cat) return;
+      if (!DB[p.cat]) DB[p.cat] = [];
+      if (!DB[p.cat].includes(p.name)) DB[p.cat].push(p.name);
+      if (!ALL_PRODUCTS.some(x => x.name === p.name)) ALL_PRODUCTS.push({ name: p.name, cat: p.cat });
+    });
+    populateCatSelects();
+  });
+}
+
+// ============================================================
+//  ADMIN PANEL
+// ============================================================
+function isAdmin() { return currentUser && ADMIN_EMAILS.includes(currentUser.email); }
+
+function openAdmin() {
+  if (!isAdmin()) return;
+  populateCatSelects();
+  renderAdminProductList();
+  document.getElementById('adminProdName').value = '';
+  document.getElementById('adminOverlay').classList.add('open');
+  setTimeout(() => document.getElementById('adminProdName').focus(), 80);
+}
+function closeAdmin() { document.getElementById('adminOverlay').classList.remove('open'); }
+
+function renderAdminProductList() {
+  const container = document.getElementById('adminProductList');
+  const entries = Object.entries(extraProducts);
+  if (!entries.length) {
+    container.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;padding:6px 0">אין מוצרים מותאמים אישית עדיין.</div>';
+    return;
+  }
+  container.innerHTML = entries.map(([key, p]) =>
+    `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">
+      <span style="flex:1;font-size:0.9rem">${hEsc(p.name)}</span>
+      <span style="font-size:0.76rem;color:var(--text-muted)">${hEsc(p.cat)}</span>
+      <button onclick="deleteAdminProduct('${esc(key)}')" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:0.95rem;padding:2px 6px;border-radius:6px" title="מחק">✕</button>
+    </div>`
+  ).join('');
+}
+
+function submitAdminProduct() {
+  const name = document.getElementById('adminProdName').value.trim();
+  const cat  = document.getElementById('adminCat').value || 'כללי';
+  if (!name) { document.getElementById('adminProdName').focus(); return; }
+  if (!db) { toast('אין חיבור ל-Firebase'); return; }
+  const key = 'p_' + Date.now();
+  db.ref('smartshop/global/products/' + key).set({ name, cat, addedBy: currentUser.uid, ts: Date.now() })
+    .then(() => { document.getElementById('adminProdName').value = ''; toast('✅ "' + name + '" נוסף לקטלוג'); })
+    .catch(e => toast('שגיאה: ' + e.message));
+}
+
+function deleteAdminProduct(key) {
+  if (!db || !confirm('למחוק מוצר זה מהקטלוג?')) return;
+  db.ref('smartshop/global/products/' + key).remove()
+    .then(() => toast('🗑️ מוצר נמחק מהקטלוג'))
+    .catch(e => toast('שגיאה: ' + e.message));
+}
+
+// ============================================================
+//  BARCODE SCAN — photo capture mode (works on all mobile browsers)
+// ============================================================
+let html5QrCode = null;
+
+let _scanStream = null;
+let _scanTimer = null;
+let _scanDetector = null;
+
+function openScan() {
+  document.getElementById('scanOverlay').classList.add('open');
+  document.getElementById('scanStatus').textContent = 'מכוון מצלמה…';
+  document.getElementById('scanResult').style.display = 'none';
+  populateCatSelects();
+  startScanCamera();
+}
+
+function closeScan() {
+  stopScanCamera();
+  document.getElementById('scanOverlay').classList.remove('open');
+}
+
+async function startScanCamera() {
+  stopScanCamera();
+  const video = document.getElementById('scanVideo');
+  try {
+    _scanStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    video.srcObject = _scanStream;
+    await video.play();
+    document.getElementById('scanStatus').textContent = 'כוון את המצלמה לברקוד';
+    if (window.BarcodeDetector) {
+      _scanDetector = new BarcodeDetector({ formats: ['ean_13','ean_8','upc_a','upc_e','code_128','code_39'] });
+      scanLoop(video);
+    } else if (window.Html5Qrcode) {
+      scanLoopHtml5(video);
+    } else {
+      document.getElementById('scanStatus').textContent = '⚠️ הדפדפן לא תומך בסריקה';
+    }
+  } catch {
+    document.getElementById('scanStatus').textContent = '⚠️ לא ניתן לגשת למצלמה — בדוק הרשאות';
+  }
+}
+
+function scanLoop(video) {
+  if (!_scanStream) return;
+  _scanDetector.detect(video).then(codes => {
+    if (codes && codes.length) { onScanSuccess(codes[0].rawValue); return; }
+    _scanTimer = setTimeout(() => scanLoop(video), 250);
+  }).catch(() => { _scanTimer = setTimeout(() => scanLoop(video), 400); });
+}
+
+function scanLoopHtml5(video) {
+  if (!_scanStream) return;
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth || 640;
+  canvas.height = video.videoHeight || 480;
+  const ctx = canvas.getContext('2d');
+  function tick() {
+    if (!_scanStream) return;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob(blob => {
+      if (!blob || !_scanStream) return;
+      const qr = new Html5Qrcode('scanVideo');
+      qr.scanFile(new File([blob], 'f.jpg', { type: 'image/jpeg' }), false)
+        .then(code => onScanSuccess(code))
+        .catch(() => { _scanTimer = setTimeout(tick, 400); });
+    }, 'image/jpeg', 0.8);
+  }
+  tick();
+}
+
+function stopScanCamera() {
+  if (_scanTimer) { clearTimeout(_scanTimer); _scanTimer = null; }
+  if (_scanStream) { _scanStream.getTracks().forEach(t => t.stop()); _scanStream = null; }
+  const v = document.getElementById('scanVideo');
+  if (v) v.srcObject = null;
+}
+
+function restartScan() {
+  document.getElementById('scanResult').style.display = 'none';
+  document.getElementById('scanStatus').textContent = 'מכוון מצלמה…';
+  startScanCamera();
+}
+
+async function fetchWithTimeout(url, ms) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  try { const r = await fetch(url, { signal: ctrl.signal }); return r; }
+  finally { clearTimeout(t); }
+}
+
+async function onScanSuccess(barcode) {
+  stopScanCamera();
+  document.getElementById('scanStatus').textContent = 'ברקוד זוהה — מחפש מוצר…';
+  document.getElementById('scanResult').style.display = 'none';
+  let name = '';
+  try {
+    const urls = [
+      'https://il.openfoodfacts.org/api/v2/product/' + barcode + '.json?fields=product_name,product_name_he',
+      'https://world.openfoodfacts.net/api/v2/product/' + barcode + '.json?fields=product_name,product_name_he'
+    ];
+    for (const url of urls) {
+      try {
+        const res = await fetchWithTimeout(url, 5000);
+        const data = await res.json();
+        if (data.status === 1 && data.product) {
+          const p = data.product;
+          name = p.product_name_he || p.product_name || '';
+          if (name) break;
+        }
+      } catch {}
+    }
+  } catch {}
+
+  if (name) {
+    document.getElementById('scanFoundName').value = name;
+    document.getElementById('scanFoundBarcode').textContent = 'ברקוד: ' + barcode + ' ✓';
+    document.getElementById('scanStatus').textContent = 'מוצר זוהה! בדוק את הפרטים ולחץ הוסף';
+  } else {
+    document.getElementById('scanFoundName').value = '';
+    document.getElementById('scanFoundBarcode').textContent = 'ברקוד: ' + barcode + ' — מוצר לא נמצא במאגר';
+    document.getElementById('scanStatus').textContent = '✏️ הכנס שם המוצר ידנית ובחר קטגוריה';
+  }
+  document.getElementById('scanResult').style.display = 'block';
+  setTimeout(() => document.getElementById('scanFoundName').focus(), 80);
+}
+
+function addScannedProduct() {
+  const name = document.getElementById('scanFoundName').value.trim();
+  const cat  = document.getElementById('scanCat').value || 'כללי';
+  if (!name) { document.getElementById('scanFoundName').focus(); return; }
+  addItem({ name, cat, qtyN: '1', qtyU: "יח'" });
+  toast('✅ ' + name + ' נוסף לרשימה');
+  closeScan();
+}
 
 // ============================================================
 //  START
 // ============================================================
 init();
+
+// Register service worker for PWA
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
 </script>
 </body>
 </html>

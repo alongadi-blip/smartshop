@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background with rounded corners -->
+  <rect width="512" height="512" rx="100" fill="#1B5E20"/>
+  <!-- Gradient overlay -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2E7D32"/>
+      <stop offset="100%" stop-color="#1B5E20"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="100" fill="url(#bg)"/>
+
+  <!-- Cart body -->
+  <path d="M100 140 L168 140 L230 340 L400 340 L440 200 L196 200"
+        stroke="white" stroke-width="32" fill="none"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Cart items lines -->
+  <line x1="210" y1="240" x2="420" y2="240" stroke="white" stroke-width="18" stroke-linecap="round" opacity="0.6"/>
+  <line x1="222" y1="280" x2="410" y2="280" stroke="white" stroke-width="18" stroke-linecap="round" opacity="0.6"/>
+  <!-- Wheels -->
+  <circle cx="252" cy="390" r="34" fill="none" stroke="white" stroke-width="26"/>
+  <circle cx="252" cy="390" r="10" fill="white"/>
+  <circle cx="378" cy="390" r="34" fill="none" stroke="white" stroke-width="26"/>
+  <circle cx="378" cy="390" r="10" fill="white"/>
+  <!-- Checkmark badge -->
+  <circle cx="390" cy="135" r="62" fill="#66BB6A"/>
+  <polyline points="360,135 382,158 422,112" stroke="white" stroke-width="20" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
