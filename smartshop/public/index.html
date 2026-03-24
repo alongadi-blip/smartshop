@@ -1993,6 +1993,7 @@ function browseAdd(idx) {
 //  CRUD
 // ============================================================
 function addItem(item) {
+  if (Object.values(items).some(i => !i.purchased && i.name === item.name)) return;
   const id = 'i' + Date.now() + Math.random().toString(36).slice(2, 5);
   item = { ...item, purchased: false, addedAt: Date.now() };
   // Optimistic local update (important for browse modal to reflect ✓ immediately)
