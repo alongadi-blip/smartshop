@@ -381,6 +381,13 @@
 </head>
 <body>
 
+<!-- LOADING SCREEN -->
+<div id="loadingScreen" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg,#fff);z-index:9999;flex-direction:column;gap:16px">
+  <div style="font-size:2.5rem">🛒</div>
+  <div style="width:40px;height:40px;border:4px solid #e0e0e0;border-top-color:#4CAF50;border-radius:50%;animation:spin .8s linear infinite"></div>
+</div>
+<style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+
 <!-- LOGIN SCREEN -->
 <div id="loginScreen" class="login-screen" style="display:none">
   <div class="login-card">
@@ -433,7 +440,7 @@
 </div>
 
 <!-- APP -->
-<div id="app">
+<div id="app" style="display:none">
   <header>
     <div class="header-top">
       <div class="logo">🛒</div>
@@ -1496,12 +1503,18 @@ function buildShareUrl() {
   return location.origin + location.pathname + location.search + '#' + listId + '~' + listToken;
 }
 
+function hideLoading() {
+  const s = document.getElementById('loadingScreen');
+  if (s) s.style.display = 'none';
+}
+
 function init() {
   if (localStorage.getItem('dark') === '1') applyDark(true);
   populateCatSelects();
 
   const cfgOk = firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith('YOUR');
   if (!cfgOk) {
+    hideLoading();
     document.getElementById('setupScreen').style.display = 'flex';
     continueWithoutLogin();
     return;
@@ -1511,19 +1524,17 @@ function init() {
     db = firebase.database();
     auth = firebase.auth();
 
-    // Show login screen while checking auth state
-    document.getElementById('loginScreen').style.display = 'flex';
-    document.getElementById('app').style.display = 'none';
-
     auth.onAuthStateChanged(user => {
+      hideLoading();
       if (user) {
         currentUser = user;
         document.getElementById('loginScreen').style.display = 'none';
         document.getElementById('app').style.display = '';
         updateUserUI(user);
         initWithFirebase();
+      } else {
+        document.getElementById('loginScreen').style.display = 'flex';
       }
-      // If user is null: login screen stays visible
     });
   } catch (e) {
     console.error(e);
