@@ -1140,7 +1140,7 @@ function prodImgEl(name, catKey) {
   const ingr = PROD_IMAGE[name];
   const emoji = prodEmoji(name) || (CAT_ICON[catKey] || '📦');
   if (ingr) {
-    const url = IMG_BASE + ingr;
+    const url = ingr.startsWith('http') ? ingr : IMG_BASE + ingr;
     return `<img src="${url}" alt="" loading="lazy"` +
       ` onerror="this.style.display='none';this.nextSibling.style.display=''">` +
       `<span style="display:none;font-size:1.55rem">${emoji}</span>`;
@@ -1383,21 +1383,47 @@ const PROD_EMOJI = {
   "קבנוס":"🌭","כבד קצוץ":"🫀","כבד עוף מטוגן":"🫀","ריבת כבד":"🫙",
   "נקניקיות הודו":"🌭","נקניקיות עוף":"🌭","נקניקיות בקר":"🌭","מרלינגז":"🌭",
   "קורנביף":"🥩","חזה עוף מעושן":"🍗","לשון מעושנת":"🥩","פרוסות עוף מוכן":"🍗",
-  "גביניות שמנת":"🧀","גבינת שמנת עם עשבים":"🧀","ממרח גבינה":"🧀",
-  // חד פעמי
-  "צלחות נייר":"🍽️","צלחות פלסטיק":"🍽️","קערות נייר":"🥣","קערות פלסטיק":"🥣",
-  "כוסות נייר":"🥤","כוסות פלסטיק":"🥤","כוסות יין פלסטיק":"🍷","כוסות שוט":"🥃",
-  "כפיות פלסטיק":"🥄","מזלגות פלסטיק":"🍴","סכינים פלסטיק":"🍴","סט כלי אכילה":"🍴",
-  "קופסאות אלומיניום קטנות":"🫙","קופסאות אלומיניום גדולות":"🫙","קופסאות אלומיניום עגולות":"🫙",
-  "מגשי אלומיניום":"🍱","מכסים לקופסאות אלומיניום":"🫙",
-  "קופסאות פלסטיק שקופות":"🫙","קופסאות מנה אחת":"🍱","קופסאות עם מחיצות":"🍱",
-  "שקיות ניילון":"🛍️","שקיות ניילון עם זיפ":"🛍️","שקיות הקפאה":"🧊",
-  "שקיות נייר":"🛍️","שקיות נשיאה":"🛍️","שקיות מתכלות":"♻️",
-  "מפיות נייר":"🧻","מפיות לשולחן":"🧻","פלייסמנט נייר":"📄",
-  "מקלות שיפוד":"🍢","מקלות גריל":"🍢","מחצלת נייר לגריל":"📄",
-  "כפפות ניילון":"🧤","כפפות לטקס":"🧤","מגן שרוול":"🧤",
-  "מגשי קייטרינג":"🍱","מגשי הגשה":"🍱","כיסוי שולחן פלסטיק":"🎪"
+  "גביניות שמנת":"🧀","גבינת שמנת עם עשבים":"🧀","ממרח גבינה":"🧀"
 };
+
+// תמונות לקטגוריית חד פעמי — Wikimedia Commons
+const PROD_IMAGE_EXTRA = {
+  "צלחות נייר":"https://upload.wikimedia.org/wikipedia/commons/thumb/4/41/Paper_Plate.jpg/100px-Paper_Plate.jpg",
+  "צלחות פלסטיק":"https://upload.wikimedia.org/wikipedia/commons/thumb/0/07/Food_wm_2016_-_2.jpg/100px-Food_wm_2016_-_2.jpg",
+  "קערות נייר":"https://upload.wikimedia.org/wikipedia/commons/thumb/0/06/Beef_yakiniku_don_for_takeout_by_jetalone.jpg/100px-Beef_yakiniku_don_for_takeout_by_jetalone.jpg",
+  "קערות פלסטיק":"https://upload.wikimedia.org/wikipedia/commons/thumb/0/06/Beef_yakiniku_don_for_takeout_by_jetalone.jpg/100px-Beef_yakiniku_don_for_takeout_by_jetalone.jpg",
+  "כוסות נייר":"https://upload.wikimedia.org/wikipedia/commons/thumb/e/e8/Cups-disposable-paper-government-Tamil_Nadu.JPG/100px-Cups-disposable-paper-government-Tamil_Nadu.JPG",
+  "כוסות פלסטיק":"https://upload.wikimedia.org/wikipedia/commons/thumb/e/e8/Cups-disposable-paper-government-Tamil_Nadu.JPG/100px-Cups-disposable-paper-government-Tamil_Nadu.JPG",
+  "כוסות יין פלסטיק":"https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/White_Zin_in_plastic_cups.jpg/100px-White_Zin_in_plastic_cups.jpg",
+  "כפיות פלסטיק":"https://upload.wikimedia.org/wikipedia/commons/thumb/2/25/CPLA_Cutlery.jpg/100px-CPLA_Cutlery.jpg",
+  "מזלגות פלסטיק":"https://upload.wikimedia.org/wikipedia/commons/thumb/2/25/CPLA_Cutlery.jpg/100px-CPLA_Cutlery.jpg",
+  "סכינים פלסטיק":"https://upload.wikimedia.org/wikipedia/commons/thumb/2/25/CPLA_Cutlery.jpg/100px-CPLA_Cutlery.jpg",
+  "סט כלי אכילה":"https://upload.wikimedia.org/wikipedia/commons/thumb/2/25/CPLA_Cutlery.jpg/100px-CPLA_Cutlery.jpg",
+  "קופסאות אלומיניום קטנות":"https://upload.wikimedia.org/wikipedia/commons/thumb/c/c4/Aluminium_take-out_food_tray_with_cover.jpg/100px-Aluminium_take-out_food_tray_with_cover.jpg",
+  "קופסאות אלומיניום גדולות":"https://upload.wikimedia.org/wikipedia/commons/thumb/c/c4/Aluminium_take-out_food_tray_with_cover.jpg/100px-Aluminium_take-out_food_tray_with_cover.jpg",
+  "קופסאות אלומיניום עגולות":"https://upload.wikimedia.org/wikipedia/commons/thumb/c/c4/Aluminium_take-out_food_tray_with_cover.jpg/100px-Aluminium_take-out_food_tray_with_cover.jpg",
+  "מגשי אלומיניום":"https://upload.wikimedia.org/wikipedia/commons/thumb/5/51/Aluminium_take-out_tray.jpg/100px-Aluminium_take-out_tray.jpg",
+  "מכסים לקופסאות אלומיניום":"https://upload.wikimedia.org/wikipedia/commons/thumb/c/c4/Aluminium_take-out_food_tray_with_cover.jpg/100px-Aluminium_take-out_food_tray_with_cover.jpg",
+  "קופסאות פלסטיק שקופות":"https://upload.wikimedia.org/wikipedia/commons/thumb/c/c4/Aluminium_take-out_food_tray_with_cover.jpg/100px-Aluminium_take-out_food_tray_with_cover.jpg",
+  "קופסאות מנה אחת":"https://upload.wikimedia.org/wikipedia/commons/thumb/5/51/Aluminium_take-out_tray.jpg/100px-Aluminium_take-out_tray.jpg",
+  "קופסאות עם מחיצות":"https://upload.wikimedia.org/wikipedia/commons/thumb/5/51/Aluminium_take-out_tray.jpg/100px-Aluminium_take-out_tray.jpg",
+  "שקיות ניילון":"https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Plastic_shopping_bag_of_Sakae.JPG/100px-Plastic_shopping_bag_of_Sakae.JPG",
+  "שקיות ניילון עם זיפ":"https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/A_ziplock_bag_of_plantain_chips.jpg/100px-A_ziplock_bag_of_plantain_chips.jpg",
+  "שקיות הקפאה":"https://upload.wikimedia.org/wikipedia/commons/thumb/8/8d/AH_Basic_large_freezer_bag%2C_Oude_Pekela_%282019%29_01.jpg/100px-AH_Basic_large_freezer_bag%2C_Oude_Pekela_%282019%29_01.jpg",
+  "שקיות נייר":"https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Plastic_shopping_bag_of_Sakae.JPG/100px-Plastic_shopping_bag_of_Sakae.JPG",
+  "שקיות נשיאה":"https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Plastic_shopping_bag_of_Sakae.JPG/100px-Plastic_shopping_bag_of_Sakae.JPG",
+  "מפיות נייר":"https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/Table_utensils_wrapped_in_a_paper_napkin_2.jpg/100px-Table_utensils_wrapped_in_a_paper_napkin_2.jpg",
+  "מפיות לשולחן":"https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/Table_utensils_wrapped_in_a_paper_napkin_2.jpg/100px-Table_utensils_wrapped_in_a_paper_napkin_2.jpg",
+  "כפפות ניילון":"https://upload.wikimedia.org/wikipedia/commons/thumb/6/64/Nitrile_Gloves_holder_20230316_110111.jpg/100px-Nitrile_Gloves_holder_20230316_110111.jpg",
+  "כפפות לטקס":"https://upload.wikimedia.org/wikipedia/commons/thumb/6/64/Nitrile_Gloves_holder_20230316_110111.jpg/100px-Nitrile_Gloves_holder_20230316_110111.jpg",
+  "מקלות שיפוד":"https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/A_bundle_of_bamboo_skewers.jpg/100px-A_bundle_of_bamboo_skewers.jpg",
+  "מקלות גריל":"https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/A_bundle_of_bamboo_skewers.jpg/100px-A_bundle_of_bamboo_skewers.jpg",
+  "מגשי קייטרינג":"https://upload.wikimedia.org/wikipedia/commons/thumb/5/51/Aluminium_take-out_tray.jpg/100px-Aluminium_take-out_tray.jpg",
+  "מגשי הגשה":"https://upload.wikimedia.org/wikipedia/commons/thumb/5/51/Aluminium_take-out_tray.jpg/100px-Aluminium_take-out_tray.jpg",
+  "כיסוי שולחן פלסטיק":"https://upload.wikimedia.org/wikipedia/commons/thumb/f/fb/2018_04_Wachstuch_IMG_0845.jpg/100px-2018_04_Wachstuch_IMG_0845.jpg"
+};
+Object.assign(PROD_IMAGE, PROD_IMAGE_EXTRA);
+
 
 function prodEmoji(name) { return PROD_EMOJI[name] || ''; }
 
