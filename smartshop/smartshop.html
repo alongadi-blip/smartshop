@@ -856,7 +856,7 @@
 
     </div>
     <div style="padding:12px 20px;border-top:1px solid var(--border);text-align:center;display:flex;flex-direction:column;gap:8px;align-items:center">
-      <div style="font-size:0.78rem;color:var(--text-muted)">נבנה ע"י <b>גדי אלון</b> &nbsp;|&nbsp; גרסה <b>1.0</b></div>
+      <div style="font-size:0.78rem;color:var(--text-muted)">נבנה ע"י <b>גדי אלון</b> &nbsp;|&nbsp; גרסה <b>1.0.1</b></div>
       <button class="btn btn-ghost" onclick="closeHelp()">סגור</button>
     </div>
   </div>
@@ -2344,7 +2344,8 @@ function itemHTML(id, it, purch) {
     ${checkBtn}
     <div class="item-body">
       <div class="item-name-row">
-        <span class="item-name">${hEsc(it.name)}${emoji ? `<span class="item-emoji">${emoji}</span>` : ''}</span>
+        <span class="item-name">${hEsc(it.name)}</span>
+        ${emoji ? `<span class="item-emoji">${emoji}</span>` : ''}
         ${qtyArea}
       </div>
       ${note}
