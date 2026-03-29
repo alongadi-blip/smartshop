@@ -370,7 +370,7 @@
       .header-top { gap: 4px; padding: 0; }
       header { padding: 8px 10px; }
       /* הסתר dark mode מה-header במובייל (פחות קריטי) */
-      #darkBtn { display: none; }
+      /* darkBtn visible on mobile */
       /* presence badge קומפקטי */
       .presence-badge { font-size: 0.62rem; padding: 2px 5px; gap: 3px; }
       .presence-dot { width: 6px; height: 6px; }
@@ -512,6 +512,7 @@
         <button class="icon-btn" id="darkBtn" onclick="toggleDark()" title="מצב כהה/בהיר">🌙</button>
         <button class="icon-btn" onclick="openShare()" title="הזמן לרשימה">🔗</button>
         <button class="icon-btn" onclick="openScan()" title="סרוק ברקוד"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M3 3h7v7H3zm1 1v5h5V4zm1 1h3v3H5zm8-2h7v7h-7zm1 1v5h5V4zm1 1h3v3h-3zM3 13h7v7H3zm1 1v5h5v-5zm1 1h3v3H5zm8 0h2v2h-2zm0 4h2v2h-2zm4-4h2v2h-2zm-2 2h2v2h-2zm2 2h2v2h-2z"/></svg></button>
+        <button class="icon-btn" id="installBtn" onclick="installPwa()" title="התקן אפליקציה" style="display:none">📲</button>
         <button class="icon-btn" onclick="openHelp()" title="עזרה">❓</button>
         <button class="icon-btn" id="adminBtn" onclick="openAdmin()" title="ניהול קטלוג מוצרים" style="display:none">🔧</button>
       </div>
@@ -793,67 +794,69 @@
 
       <div class="help-section">
         <div class="help-sec-title">➕ הוספת מוצרים</div>
-        <div class="help-item"><span class="help-icon">➕</span><div><b>הוספה ידנית</b> — לחץ על ➕ בכותרת או על הכפתור הירוק בתחתית. הזן שם מוצר, קטגוריה, כמות והערה אופציונלית.</div></div>
-        <div class="help-item"><span class="help-icon">🔍</span><div><b>חיפוש מהיר</b> — הקלד בשדה החיפוש בכותרת. המערכת תציע מוצרים מהקטלוג. לחץ על הצעה להוסיפה מיד, או Enter להוספה ידנית.</div></div>
-        <div class="help-item"><span class="help-icon">📂</span><div><b>עיון לפי קטגוריה</b> — לחץ על 📂 לפתיחת קטלוג מוצרים מלא. בחר קטגוריה, חפש מוצר ולחץ + להוספה.</div></div>
-        <div class="help-item"><span class="help-icon">📷</span><div><b>סריקת ברקוד</b> — לחץ על אייקון הברקוד, כוון את המצלמה למוצר. המוצר יזוהה ויוצג לאישור לפני הוספה.</div></div>
+        <div class="help-item"><span class="help-icon">➕</span><div><b>הוספה ידנית</b> — לחץ על ➕ בכותרת או על הכפתור הירוק (+) בפינה הימנית התחתונה. הזן שם מוצר, קטגוריה, כמות והערה אופציונלית.</div></div>
+        <div class="help-item"><span class="help-icon">🔍</span><div><b>חיפוש מהיר</b> — הקלד בשדה החיפוש שבכותרת. המערכת תציע מוצרים מהקטלוג — לחץ על הצעה להוספה מיידית, או Enter להוספת טקסט חופשי.</div></div>
+        <div class="help-item"><span class="help-icon">📂</span><div><b>עיון לפי קטגוריה</b> — לחץ על 📂 לפתיחת קטלוג מוצרים. בחר קטגוריה, חפש מוצר ולחץ + להוספה.</div></div>
+        <div class="help-item"><span class="help-icon">📷</span><div><b>סריקת ברקוד</b> — לחץ על אייקון הברקוד בכותרת, כוון את המצלמה למוצר. המוצר יזוהה ויוצג לאישור לפני הוספה.</div></div>
       </div>
 
       <div class="help-section">
         <div class="help-sec-title">✅ ניהול הרשימה</div>
-        <div class="help-item"><span class="help-icon">⭕</span><div><b>סימון כנרכש</b> — לחץ על העיגול משמאל לפריט. הפריט יעבור לקטע "נרכשו" בתחתית.</div></div>
-        <div class="help-item"><span class="help-icon">↩️</span><div><b>ביטול רכישה</b> — לחץ "בטל" ליד פריט נרכש, או על כפתור הביטול בהודעת הטוסט מיד לאחר הסימון.</div></div>
-        <div class="help-item"><span class="help-icon">✏️</span><div><b>עריכת פריט</b> — לחץ על אייקון העיפרון ✏️ ליד הפריט לעריכת שם, כמות, קטגוריה והערה.</div></div>
-        <div class="help-item"><span class="help-icon">🔢</span><div><b>עריכת כמות מהירה</b> — לחץ על תג הכמות (כגון "1 יח'") ישירות ברשימה לעריכה מהירה.</div></div>
-        <div class="help-item"><span class="help-icon">🗑️</span><div><b>מחיקת פריט</b> — לחץ על 🗑️ ליד הפריט. תוכל לבטל בתוך כמה שניות.</div></div>
-        <div class="help-item"><span class="help-icon">🧹</span><div><b>מחיקת כל הנרכשים</b> — לחץ "נקה" בפס הסטטיסטיקה לניקוי כל הפריטים שסומנו כנרכשו.</div></div>
+        <div class="help-item"><span class="help-icon">⭕</span><div><b>סימון כנרכש</b> — לחץ על העיגול משמאל לפריט. הפריט יועבר לקטע "נרכשו" בתחתית.</div></div>
+        <div class="help-item"><span class="help-icon">↩️</span><div><b>ביטול רכישה</b> — לחץ "↩ החזר לרשימה" ליד פריט נרכש, או "בטל" בהודעת הטוסט מיד לאחר הסימון.</div></div>
+        <div class="help-item"><span class="help-icon">✏️</span><div><b>עריכת פריט</b> — לחץ על ✏️ ליד הפריט לעריכת שם, כמות, קטגוריה והערה.</div></div>
+        <div class="help-item"><span class="help-icon">🔢</span><div><b>עריכת כמות מהירה</b> — לחץ על תג הכמות (כגון "1 יח'") ישירות ברשימה לעריכה במקום.</div></div>
+        <div class="help-item"><span class="help-icon">🗑️</span><div><b>מחיקת פריט</b> — לחץ על 🗑️ ליד הפריט. ניתן לבטל מיד בהודעת הטוסט.</div></div>
+        <div class="help-item"><span class="help-icon">👆</span><div><b>החלקה למחיקה (נייד)</b> — החלק פריט שמאלה למחיקה מהירה.</div></div>
+        <div class="help-item"><span class="help-icon">🧹</span><div><b>ניקוי נרכשים</b> — לחץ "נקה נרכשו" בפס הסטטיסטיקה לניקוי כל הפריטים שסומנו.</div></div>
       </div>
 
       <div class="help-section">
         <div class="help-sec-title">📋 רשימות מרובות</div>
-        <div class="help-item"><span class="help-icon">📋</span><div><b>המעבר בין רשימות</b> — לחץ על 📋 לפתיחת מנהל הרשימות. ניתן לראות את כל הרשימות השמורות ולעבור ביניהן.</div></div>
-        <div class="help-item"><span class="help-icon">🆕</span><div><b>רשימה חדשה</b> — לחץ "רשימה חדשה" בתחתית מנהל הרשימות.</div></div>
-        <div class="help-item"><span class="help-icon">✏️</span><div><b>שינוי שם רשימה</b> — לחץ על שם הרשימה בכותרת (ליד הלוגו) לעריכתו.</div></div>
+        <div class="help-item"><span class="help-icon">📋</span><div><b>מעבר בין רשימות</b> — לחץ על 📋 לפתיחת מנהל הרשימות. ניתן לראות את כל הרשימות ולעבור ביניהן.</div></div>
+        <div class="help-item"><span class="help-icon">🆕</span><div><b>רשימה חדשה</b> — לחץ "רשימה חדשה" בתחתית מנהל הרשימות. תתבקש להזין שם.</div></div>
+        <div class="help-item"><span class="help-icon">✏️</span><div><b>שינוי שם רשימה</b> — לחץ על ✏️ ליד הרשימה במנהל הרשימות (📋).</div></div>
       </div>
 
       <div class="help-section">
         <div class="help-sec-title">🔗 שיתוף רשימה</div>
-        <div class="help-item"><span class="help-icon">🔗</span><div><b>שיתוף קישור</b> — לחץ על 🔗 לפתיחת מסך השיתוף. קבל קישור ייחודי ושלח לבן המשפחה.</div></div>
-        <div class="help-item"><span class="help-icon">📱</span><div><b>שיתוף ב-WhatsApp</b> — לחץ "שלח ב-WhatsApp" לשליחה ישירה.</div></div>
-        <div class="help-item"><span class="help-icon">📷</span><div><b>QR Code</b> — סרוק את הקוד QR במסך השיתוף ממכשיר אחר לפתיחה מיידית.</div></div>
-        <div class="help-item"><span class="help-icon">🔴</span><div><b>ביטול גישה</b> — לחץ "אפס קישור" כדי לבטל את הקישור הישן ולייצר קישור חדש.</div></div>
+        <div class="help-item"><span class="help-icon">🔗</span><div><b>פתיחת שיתוף</b> — לחץ על 🔗 בכותרת.</div></div>
+        <div class="help-item"><span class="help-icon">💬</span><div><b>שיתוף ב-WhatsApp</b> — לחץ "שלח בוואטסאפ" לשליחת קישור להצטרפות לרשימה.</div></div>
+        <div class="help-item"><span class="help-icon">📝</span><div><b>שליחת הרשימה כטקסט</b> — לחץ "שלח רשימה כטקסט בוואטסאפ" — הצד השני לא צריך להיכנס לאפליקציה.</div></div>
+        <div class="help-item"><span class="help-icon">📋</span><div><b>העתק קישור</b> — לחץ "העתק קישור" להעתקת קישור ההצטרפות ללוח.</div></div>
+        <div class="help-item"><span class="help-icon">🔄</span><div><b>ביטול גישה</b> — לחץ "בטל את הקישור הנוכחי ובצור חדש" כדי לנתק גישה לקישור הישן.</div></div>
         <div class="help-item"><span class="help-icon">🟢</span><div><b>מחוברים עכשיו</b> — הנקודה הירוקה בכותרת מציגה כמה אנשים צופים ברשימה כרגע.</div></div>
       </div>
 
       <div class="help-section">
         <div class="help-sec-title">🔍 סינון לפי קטגוריה</div>
-        <div class="help-item"><span class="help-icon">📂</span><div><b>סרגל קטגוריות (מחשב)</b> — בצד שמאל מוצגות הקטגוריות הפעילות ברשימה. לחץ לסינון.</div></div>
-        <div class="help-item"><span class="help-icon">🏷️</span><div><b>Chips (נייד)</b> — בראש הרשימה מוצגים chips של קטגוריות. החלק ולחץ לסינון.</div></div>
+        <div class="help-item"><span class="help-icon">📂</span><div><b>סרגל קטגוריות (מחשב)</b> — בצד ימין מוצגות הקטגוריות הפעילות ברשימה. לחץ לסינון.</div></div>
+        <div class="help-item"><span class="help-icon">🏷️</span><div><b>Chips (נייד)</b> — מתחת לכותרת מוצגים chips של קטגוריות. לחץ לסינון.</div></div>
         <div class="help-item"><span class="help-icon">📦</span><div><b>הכל</b> — לחץ "הכל" לביטול הסינון וצפייה בכל הפריטים.</div></div>
       </div>
 
       <div class="help-section">
-        <div class="help-sec-title">⚙️ הגדרות נוספות</div>
-        <div class="help-item"><span class="help-icon">🌙</span><div><b>מצב כהה/בהיר</b> — לחץ על 🌙 למעבר בין ערכות נושא. ההגדרה נשמרת אוטומטית.</div></div>
-        <div class="help-item"><span class="help-icon">👤</span><div><b>כניסה עם Google</b> — כניסה עם חשבון Google מאפשרת גישה לרשימות שלך מכל מכשיר.</div></div>
-        <div class="help-item"><span class="help-icon">💾</span><div><b>שמירה מקומית</b> — ניתן להשתמש ללא חשבון — הרשימות נשמרות במכשיר בלבד.</div></div>
-        <div class="help-item"><span class="help-icon">📲</span><div><b>התקנה כאפליקציה (PWA)</b> — לחץ "הוסף למסך הבית" בדפדפן לשימוש כאפליקציה מקומית.</div></div>
+        <div class="help-sec-title">⚙️ הגדרות</div>
+        <div class="help-item"><span class="help-icon">🌙</span><div><b>מצב כהה/בהיר</b> — לחץ על 🌙 בכותרת. ההגדרה נשמרת אוטומטית.</div></div>
+        <div class="help-item"><span class="help-icon">👤</span><div><b>כניסה עם Google</b> — כניסה עם חשבון Google מאפשרת גישה לרשימות מכל מכשיר ושיתוף בזמן אמת.</div></div>
+        <div class="help-item"><span class="help-icon">💾</span><div><b>ללא חשבון</b> — ניתן להשתמש ללא כניסה — הרשימות נשמרות במכשיר הנוכחי בלבד.</div></div>
+        <div class="help-item"><span class="help-icon">📲</span><div><b>התקנה כאפליקציה (PWA)</b> — לחץ "הוסף למסך הבית" בדפדפן לשימוש כאפליקציה.</div></div>
       </div>
 
       <div class="help-section">
-        <div class="help-sec-title">💡 טיפים מהירים</div>
+        <div class="help-sec-title">💡 טיפים</div>
         <div class="help-tips">
           <div class="help-tip">לחץ <b>Enter</b> בחיפוש להוספת מוצר שאינו בקטלוג</div>
           <div class="help-tip">לחץ <b>Escape</b> לסגירת כל חלון פתוח</div>
           <div class="help-tip">הרשימה מתעדכנת בזמן אמת לכל המשתתפים</div>
-          <div class="help-tip">ניתן לנהל עד 20 רשימות שמורות בו-זמנית</div>
           <div class="help-tip">קטגוריות מוצגות בסרגל רק אם יש פריטים פעילים</div>
+          <div class="help-tip">ניתן לנהל עד 20 רשימות שמורות</div>
         </div>
       </div>
 
     </div>
     <div style="padding:12px 20px;border-top:1px solid var(--border);text-align:center;display:flex;flex-direction:column;gap:8px;align-items:center">
-      <div style="font-size:0.78rem;color:var(--text-muted)">נבנה ע"י <b>גדי אלון</b></div>
+      <div style="font-size:0.78rem;color:var(--text-muted)">נבנה ע"י <b>גדי אלון</b> &nbsp;|&nbsp; גרסה <b>1.0</b></div>
       <button class="btn btn-ghost" onclick="closeHelp()">סגור</button>
     </div>
   </div>
@@ -1639,7 +1642,8 @@ function hideLoading() {
 }
 
 function init() {
-  if (localStorage.getItem('dark') === '1') applyDark(true);
+  const darkPref = localStorage.getItem('dark');
+  applyDark(darkPref === null || darkPref === '1'); // default: dark
   populateCatSelects();
 
   const cfgOk = firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith('YOUR');
@@ -1973,6 +1977,7 @@ function _renderListsHtml(body, reg) {
         <div class="list-row-date">${dateStr}</div>
       </div>
       ${!isCurrent ? `<button class="list-open-btn" data-lid="${hEsc(r.id)}" data-ltoken="${hEsc(r.token||'')}" onclick="switchListBtn(this)">פתח</button>` : ''}
+      <button class="list-del-btn" data-lid="${hEsc(r.id)}" data-name="${hEsc(r.name||'')}" onclick="renameListBtn(this)" title="שנה שם">✏️</button>
       <button class="list-del-btn" data-idx="${i}" data-lid="${hEsc(r.id)}" onclick="deleteFromRegBtn(this)" title="הסר מהרשימה">🗑️</button>
     </div>`;
   }).join('');
@@ -1980,6 +1985,25 @@ function _renderListsHtml(body, reg) {
 
 function switchListBtn(btn) { switchList(btn.dataset.lid, btn.dataset.ltoken); }
 function deleteFromRegBtn(btn) { deleteFromReg(parseInt(btn.dataset.idx, 10), btn.dataset.lid); }
+function renameListBtn(btn) {
+  const id = btn.dataset.lid;
+  const current = btn.dataset.name || '';
+  const newName = prompt('שם הרשימה:', current);
+  if (newName === null) return; // cancelled
+  const trimmed = newName.trim().slice(0, 40);
+  if (id === listId) {
+    listName = trimmed;
+    renderListName();
+    localStorage.setItem('ss_meta_' + id, JSON.stringify({ name: trimmed }));
+    if (!offlineMode && db) db.ref('smartshop/' + id + '/meta/name').set(trimmed);
+  } else {
+    localStorage.setItem('ss_meta_' + id, JSON.stringify({ name: trimmed }));
+    if (!offlineMode && db) db.ref('smartshop/' + id + '/meta/name').set(trimmed);
+  }
+  updateRegistry(id, trimmed, '');
+  if (currentUser && db) db.ref('smartshop/users/' + currentUser.uid + '/lists/' + id + '/name').set(trimmed);
+  renderLists();
+}
 
 function switchList(id, token) {
   listId = id; // prevent closeLists() from creating a new list
@@ -1989,10 +2013,14 @@ function switchList(id, token) {
 }
 
 function newList() {
+  const name = prompt('שם הרשימה החדשה (אפשר לדלג):') ;
+  if (name === null) return; // cancelled
+  const trimmed = (name || '').trim().slice(0, 40);
   closeLists();
   const newId = 'sl_' + secureRandHex(6);
   const newToken = generateToken();
-  updateRegistry(newId, '', newToken);
+  if (trimmed) localStorage.setItem('ss_meta_' + newId, JSON.stringify({ name: trimmed }));
+  updateRegistry(newId, trimmed, newToken);
   location.hash = newId + '~' + newToken;
   location.reload();
 }
@@ -2553,6 +2581,27 @@ function attachSwipe() {
 // ============================================================
 //  DARK MODE
 // ============================================================
+// ============================================================
+//  PWA INSTALL
+// ============================================================
+let _pwaPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  _pwaPrompt = e;
+  const btn = document.getElementById('installBtn');
+  if (btn) btn.style.display = '';
+});
+window.addEventListener('appinstalled', () => {
+  _pwaPrompt = null;
+  const btn = document.getElementById('installBtn');
+  if (btn) btn.style.display = 'none';
+});
+function installPwa() {
+  if (!_pwaPrompt) { toast('האפליקציה כבר מותקנת או שהדפדפן אינו תומך בהתקנה'); return; }
+  _pwaPrompt.prompt();
+  _pwaPrompt.userChoice.then(() => { _pwaPrompt = null; });
+}
+
 function toggleDark() {
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
   applyDark(!isDark);
