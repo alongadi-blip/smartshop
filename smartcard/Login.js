@@ -1,85 +1,83 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Box, TextField, Button, Typography, Tabs, Tab } from '@mui/material';
 import { login, register } from '../api';
 
-const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap');
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  .lg-root {
-    min-height: 100vh; background: #0F0F14;
-    font-family: 'DM Sans', sans-serif; direction: rtl; color: #fff;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px;
-  }
-  .lg-logo { font-family: 'Syne', sans-serif; font-size: 36px; font-weight: 800; letter-spacing: -1px; margin-bottom: 6px; }
-  .lg-tagline { font-size: 14px; color: rgba(255,255,255,0.4); margin-bottom: 36px; }
-  .lg-card { width: 100%; max-width: 360px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; padding: 28px; }
-  .lg-tabs { display: flex; gap: 8px; margin-bottom: 24px; }
-  .lg-tab { flex: 1; padding: 10px; border-radius: 12px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.2s; }
-  .lg-tab-active { background: rgba(255,255,255,0.14); color: #fff; }
-  .lg-tab-inactive { background: transparent; color: rgba(255,255,255,0.35); }
-  .lg-input { width: 100%; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 13px 16px; color: #fff; font-size: 15px; font-family: 'DM Sans', sans-serif; outline: none; margin-bottom: 12px; direction: ltr; }
-  .lg-input:focus { border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.09); }
-  .lg-input::placeholder { color: rgba(255,255,255,0.25); }
-  .lg-submit { width: 100%; padding: 15px; background: linear-gradient(135deg, #fff 0%, #e0e0e0 100%); color: #0F0F14; font-size: 16px; font-weight: 700; border: none; border-radius: 14px; cursor: pointer; font-family: 'Syne', sans-serif; margin-top: 4px; transition: transform 0.15s; }
-  .lg-submit:hover { transform: translateY(-1px); }
-  .lg-error { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); border-radius: 10px; padding: 10px 14px; font-size: 13px; color: #FCA5A5; text-align: center; margin-bottom: 12px; }
-  .lg-dots { display: flex; gap: 6px; justify-content: center; margin-top: 24px; }
-  .lg-dot { width: 6px; height: 6px; border-radius: 50%; }
-`;
-
 export default function Login({ onLogin }) {
-  const [mode, setMode] = useState('login');
+  const isInvite = sessionStorage.getItem('redirectAfterLogin')?.startsWith('/join/');
+  const [tab, setTab] = useState(isInvite ? 1 : 0); // default to register tab when joining
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
 
-  const handle = async () => {
-    setError(''); setLoading(true);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     try {
-      if (mode === 'login') {
-        const res = await login(email, password);
-        onLogin(res.data.access_token);
-      } else {
-        await register(email, password);
-        const res = await login(email, password);
-        onLogin(res.data.access_token);
-      }
+      setError('');
+      const fn = tab === 0 ? login : register;
+      const res = await fn(email, password);
+      sessionStorage.removeItem('redirectAfterLogin');
+      onLogin(res.data.access_token);
     } catch (e) {
       setError(e.response?.data?.detail || 'שגיאה, נסה שוב');
     }
-    setLoading(false);
   };
 
   return (
-    <>
-      <style>{styles}</style>
-      <div className="lg-root">
-        <div className="lg-logo">SmartCard</div>
-        <div className="lg-tagline">ניהול חכם של שוברים</div>
+    <Box sx={{
+      minHeight: '100vh',
+      background: 'linear-gradient(160deg, #00ACC1 0%, #00897B 100%)',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 2
+    }}>
+      <Box sx={{ mb: 4, textAlign: 'center' }}>
+        <Typography variant='h4' fontWeight='800' color='white' letterSpacing={1}>
+          SmartCard
+        </Typography>
+        {isInvite ? (
+          <Typography variant='body1' fontWeight='500' color='rgba(255,255,255,0.9)' mt={0.5}>
+            הוזמנת לקבוצת שיתוף — הירשם להצטרף
+          </Typography>
+        ) : (
+          <Typography variant='h6' fontWeight='400' color='rgba(255,255,255,0.8)'>
+            האינדקס החכם לשוברים שלך
+          </Typography>
+        )}
+      </Box>
 
-        <div className="lg-card">
-          <div className="lg-tabs">
-            <button className={`lg-tab ${mode === 'login' ? 'lg-tab-active' : 'lg-tab-inactive'}`} onClick={() => setMode('login')}>כניסה</button>
-            <button className={`lg-tab ${mode === 'register' ? 'lg-tab-active' : 'lg-tab-inactive'}`} onClick={() => setMode('register')}>הרשמה</button>
-          </div>
+      <Box sx={{
+        bgcolor: 'white', borderRadius: 4, p: 4, width: '100%', maxWidth: 380,
+        boxShadow: '0 20px 60px rgba(0,0,0,0.2)'
+      }}>
+        <Tabs value={tab} onChange={(_, v) => setTab(v)} centered
+          sx={{ mb: 3, '& .MuiTab-root': { fontWeight: 700, fontSize: 15 } }}>
+          <Tab label='התחברות' />
+          <Tab label='הרשמה' />
+        </Tabs>
 
-          {error && <div className="lg-error">{error}</div>}
+        <form onSubmit={handleSubmit} autoComplete='on'>
+          <TextField fullWidth label='אימייל' type='email' name='email' value={email}
+            onChange={e => setEmail(e.target.value)} sx={{ mb: 2 }}
+            autoComplete='email' inputProps={{ dir: 'ltr' }} />
+          <TextField fullWidth label='סיסמה' type='password' name='password' value={password}
+            onChange={e => setPassword(e.target.value)} sx={{ mb: 2 }}
+            autoComplete='current-password' inputProps={{ dir: 'ltr' }} />
+          {error && (
+            <Typography color='error' mb={2} textAlign='center' fontSize={14}>{error}</Typography>
+          )}
+          <Button fullWidth variant='contained' size='large' type='submit' sx={{ py: 1.5 }}>
+            {tab === 0 ? 'התחבר' : 'הירשם'}
+          </Button>
+        </form>
 
-          <input className="lg-input" type="email" placeholder="כתובת אימייל" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === 'Enter' && handle()} />
-          <input className="lg-input" type="password" placeholder="סיסמה" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && handle()} />
-
-          <button className="lg-submit" onClick={handle} disabled={loading}>
-            {loading ? '...' : mode === 'login' ? 'כניסה' : 'צור חשבון'}
-          </button>
-        </div>
-
-        <div className="lg-dots" style={{ marginTop: 24 }}>
-          {['#5B5EF4', '#22C55E', '#EC4899', '#F59E0B'].map(c => (
-            <div key={c} className="lg-dot" style={{ background: c }} />
-          ))}
-        </div>
-      </div>
-    </>
+        {tab === 0 && (
+          <Typography textAlign='center' fontSize={13} color='#9196A6' mt={2}>
+            משתמש חדש?{' '}
+            <Box component='span' onClick={() => setTab(1)}
+              sx={{ color: '#00897B', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}>
+              הירשם כאן
+            </Box>
+          </Typography>
+        )}
+      </Box>
+    </Box>
   );
 }

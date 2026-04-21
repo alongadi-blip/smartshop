@@ -1,74 +1,28 @@
 import { useState, useEffect } from 'react';
+import { Box, Typography, Card, IconButton, TextField, Button, Chip, Avatar, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import AddIcon from '@mui/icons-material/Add';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import DeleteIcon from '@mui/icons-material/Delete';
+import GroupIcon from '@mui/icons-material/Group';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import LinkIcon from '@mui/icons-material/Link';
 import { useNavigate } from 'react-router-dom';
 import { getGroups, createGroup, getGroup, createInvite, deleteGroup, removeMember, getGroupVouchers } from '../api';
 
 const getDaysLeft = (expiry) => {
   if (!expiry) return null;
-  return Math.ceil((new Date(expiry) - new Date()) / 86400000);
+  return Math.ceil((new Date(expiry) - new Date()) / (1000 * 60 * 60 * 24));
 };
 
-const GROUP_COLORS = ['#5B5EF4', '#22C55E', '#EC4899', '#F59E0B', '#06B6D4', '#8B5CF6'];
-
-const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap');
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  .gr-root { min-height: 100vh; background: #0F0F14; font-family: 'DM Sans', sans-serif; direction: rtl; color: #fff; padding-bottom: 40px; }
-  .gr-header { padding: 52px 20px 20px; border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; gap: 12px; }
-  .gr-back { width: 36px; height: 36px; border-radius: 50%; background: rgba(255,255,255,0.08); border: none; color: rgba(255,255,255,0.7); font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-  .gr-back:hover { background: rgba(255,255,255,0.14); }
-  .gr-header-title { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 800; letter-spacing: -0.5px; }
-  .gr-content { padding: 20px; display: flex; flex-direction: column; gap: 12px; }
-  .gr-group-card { border-radius: 18px; padding: 18px; cursor: pointer; transition: transform 0.2s; position: relative; overflow: hidden; }
-  .gr-group-card:hover { transform: scale(1.01); }
-  .gr-group-card::after { content: ''; position: absolute; top: -20px; right: -20px; width: 80px; height: 80px; border-radius: 50%; background: rgba(255,255,255,0.08); pointer-events: none; }
-  .gr-group-name { font-family: 'Syne', sans-serif; font-size: 17px; font-weight: 800; margin-bottom: 6px; }
-  .gr-group-meta { display: flex; gap: 8px; align-items: center; }
-  .gr-badge { font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 20px; background: rgba(0,0,0,0.25); }
-  .gr-create-btn { width: 100%; padding: 14px; border-radius: 16px; border: 2px dashed rgba(255,255,255,0.15); background: transparent; color: rgba(255,255,255,0.5); font-size: 14px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.2s; }
-  .gr-create-btn:hover { border-color: rgba(255,255,255,0.3); color: rgba(255,255,255,0.8); background: rgba(255,255,255,0.04); }
-  .gr-block { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09); border-radius: 18px; padding: 18px; }
-  .gr-block-label { font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.4); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 12px; }
-  .gr-input { width: 100%; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 12px 14px; color: #fff; font-size: 15px; font-family: 'DM Sans', sans-serif; outline: none; direction: rtl; }
-  .gr-input:focus { border-color: rgba(255,255,255,0.3); }
-  .gr-input::placeholder { color: rgba(255,255,255,0.25); }
-  .gr-btn-row { display: flex; gap: 10px; margin-top: 10px; }
-  .gr-btn { flex: 1; padding: 12px; border-radius: 12px; border: none; cursor: pointer; font-size: 14px; font-weight: 600; font-family: 'DM Sans', sans-serif; transition: opacity 0.2s; }
-  .gr-btn:hover { opacity: 0.85; }
-  .gr-btn-primary { background: linear-gradient(135deg, #fff, #e0e0e0); color: #0F0F14; }
-  .gr-btn-ghost { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.7); }
-  .gr-invite-code { background: rgba(255,255,255,0.07); border-radius: 12px; padding: 12px 16px; font-family: monospace; font-size: 15px; text-align: center; color: #fff; letter-spacing: 3px; font-weight: 700; margin-bottom: 10px; }
-  .gr-copy-btn { width: 100%; padding: 12px; border-radius: 12px; border: none; cursor: pointer; font-size: 14px; font-weight: 600; font-family: 'DM Sans', sans-serif; transition: all 0.2s; }
-  .gr-copy-btn-default { background: #5B5EF4; color: #fff; }
-  .gr-copy-btn-success { background: #22C55E; color: #fff; }
-  .gr-gen-invite-btn { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.15); background: transparent; color: rgba(255,255,255,0.6); font-size: 14px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; }
-  .gr-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
-  .gr-tab { flex: 1; padding: 10px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); background: transparent; color: rgba(255,255,255,0.45); font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.2s; }
-  .gr-tab.active { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.25); color: #fff; }
-  .gr-voucher-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09); border-radius: 14px; padding: 14px; display: flex; justify-content: space-between; align-items: flex-start; }
-  .gr-voucher-name { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
-  .gr-voucher-amount { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 800; color: #22C55E; }
-  .gr-voucher-note { font-size: 13px; color: rgba(255,255,255,0.6); }
-  .gr-voucher-by { font-size: 11px; color: rgba(255,255,255,0.35); margin-top: 4px; }
-  .gr-expiry { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 20px; }
-  .gr-expiry-ok { background: rgba(34,197,94,0.15); color: #4ADE80; }
-  .gr-expiry-warn { background: rgba(245,158,11,0.15); color: #FCD34D; }
-  .gr-expiry-dead { background: rgba(239,68,68,0.15); color: #FCA5A5; }
-  .gr-member-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
-  .gr-member-email { font-size: 13px; color: rgba(255,255,255,0.7); }
-  .gr-role-badge { font-size: 10px; padding: 3px 8px; border-radius: 20px; font-weight: 600; }
-  .gr-role-owner { background: rgba(91,94,244,0.2); color: #8B8EF8; }
-  .gr-role-member { background: rgba(139,92,246,0.2); color: #C084FC; }
-  .gr-remove-btn { width: 26px; height: 26px; border-radius: 50%; background: rgba(239,68,68,0.15); border: none; color: #FCA5A5; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-  .gr-actions-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
-  .gr-delete-btn { padding: 8px 14px; border-radius: 10px; background: rgba(239,68,68,0.15); border: none; color: #FCA5A5; font-size: 12px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; }
-  .gr-add-voucher-btn { padding: 8px 14px; border-radius: 10px; background: #5B5EF4; border: none; color: #fff; font-size: 12px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; }
-  .gr-empty { text-align: center; padding: 40px 20px; color: rgba(255,255,255,0.3); font-size: 13px; }
-  .gr-dialog-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 300; display: flex; align-items: center; justify-content: center; padding: 20px; }
-  .gr-dialog { background: #1A1A2E; border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; padding: 24px; max-width: 320px; width: 100%; }
-  .gr-dialog-title { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 800; margin-bottom: 10px; }
-  .gr-dialog-text { font-size: 14px; color: rgba(255,255,255,0.6); margin-bottom: 20px; }
-  .gr-dialog-btns { display: flex; gap: 10px; }
-`;
+const getExpiryInfo = (days) => {
+  if (days === null) return null;
+  if (days <= 0)  return { color: '#E53935', bg: '#FFEBEE', label: 'פג תוקף' };
+  if (days <= 7)  return { color: '#E53935', bg: '#FFEBEE', label: `עוד ${days} ימים` };
+  if (days <= 30) return { color: '#F57C00', bg: '#FFF3E0', label: `עוד ${days} ימים` };
+  return { color: '#00897B', bg: '#E0F2F1', label: `עוד ${days} ימים` };
+};
 
 export default function Groups() {
   const [groups, setGroups] = useState([]);
@@ -79,186 +33,280 @@ export default function Groups() {
   const [creating, setCreating] = useState(false);
   const [copied, setCopied] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
-  const [tab, setTab] = useState('vouchers');
+  const [tab, setTab] = useState('vouchers'); // 'vouchers' | 'members'
   const navigate = useNavigate();
 
   useEffect(() => { loadGroups(); }, []);
 
-  const loadGroups = async () => { const res = await getGroups(); setGroups(res.data); };
+  const loadGroups = async () => {
+    const res = await getGroups();
+    setGroups(res.data);
+  };
 
   const openGroup = async (g) => {
-    setSelected(g); setTab('vouchers');
-    const [detailRes, vouchersRes] = await Promise.all([getGroup(g.id), getGroupVouchers(g.id)]);
-    setDetail(detailRes.data); setGroupVouchers(vouchersRes.data);
+    setSelected(g);
+    setTab('vouchers');
+    const [detailRes, vouchersRes] = await Promise.all([
+      getGroup(g.id),
+      getGroupVouchers(g.id)
+    ]);
+    setDetail(detailRes.data);
+    setGroupVouchers(vouchersRes.data);
   };
 
   const handleCreate = async () => {
     if (!newName.trim()) return;
-    await createGroup(newName.trim()); setNewName(''); setCreating(false); loadGroups();
+    await createGroup(newName.trim());
+    setNewName('');
+    setCreating(false);
+    loadGroups();
   };
 
   const handleInvite = async () => {
     await createInvite(selected.id);
-    const res2 = await getGroup(selected.id); setDetail(res2.data);
+    const res2 = await getGroup(selected.id);
+    setDetail(res2.data);
   };
 
   const handleCopy = (code) => {
-    navigator.clipboard.writeText(`${window.location.origin}/join/${code}`);
-    setCopied(true); setTimeout(() => setCopied(false), 2000);
+    const link = `${window.location.origin}/join/${code}`;
+    navigator.clipboard.writeText(link);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const handleDelete = async () => {
     await deleteGroup(confirmDelete);
-    setConfirmDelete(null); setSelected(null); setDetail(null); setGroupVouchers([]); loadGroups();
+    setConfirmDelete(null);
+    setSelected(null);
+    setDetail(null);
+    setGroupVouchers([]);
+    loadGroups();
   };
 
   const handleRemoveMember = async (userId) => {
     await removeMember(selected.id, userId);
-    const res = await getGroup(selected.id); setDetail(res.data);
+    const res = await getGroup(selected.id);
+    setDetail(res.data);
   };
 
   const myEmail = (() => {
-    try { const t = localStorage.getItem('token'); return JSON.parse(atob(t.split('.')[1])).sub; } catch { return ''; }
+    try {
+      const token = localStorage.getItem('token');
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.sub;
+    } catch { return ''; }
   })();
+
   const isOwner = detail?.owner_id === detail?.members?.find(m => m.email === myEmail)?.user_id;
 
-  const ExpiryChip = ({ expiry_date }) => {
-    const days = getDaysLeft(expiry_date);
-    if (days === null) return null;
-    const cls = days <= 0 ? 'gr-expiry gr-expiry-dead' : days <= 14 ? 'gr-expiry gr-expiry-warn' : 'gr-expiry gr-expiry-ok';
-    return <span className={cls}>⏱ {days <= 0 ? 'פג תוקף' : `עוד ${days} ימים`}</span>;
-  };
-
   return (
-    <>
-      <style>{styles}</style>
-      <div className="gr-root">
-        <div className="gr-header">
-          <button className="gr-back" onClick={() => selected ? (setSelected(null), setDetail(null), setGroupVouchers([])) : navigate('/')}>→</button>
-          <div className="gr-header-title">{selected ? selected.name : 'קבוצות שיתוף'}</div>
-        </div>
+    <Box sx={{ minHeight: '100vh', bgcolor: '#F5F6FA', pb: 8 }}>
+      {/* Header */}
+      <Box sx={{ bgcolor: 'white', boxShadow: '0 1px 0 #E8E8EE, 0 2px 12px rgba(0,0,0,0.06)', px: 3, pt: 5, pb: 2.5 }}>
+        <Box display='flex' alignItems='center' gap={1} mb={1}>
+          <IconButton onClick={() => selected ? (setSelected(null), setDetail(null), setGroupVouchers([])) : navigate('/')} sx={{ color: '#9196A6' }}>
+            <ArrowForwardIcon />
+          </IconButton>
+          <Typography variant='h6' fontWeight='800' color='#1A1D23'>
+            {selected ? selected.name : 'קבוצות שיתוף'}
+          </Typography>
+        </Box>
+      </Box>
 
-        <div className="gr-content">
-          {!selected ? (
-            <>
-              {groups.length === 0 && !creating && (
-                <div style={{ textAlign: 'center', padding: '48px 20px', color: 'rgba(255,255,255,0.3)' }}>
-                  <div style={{ fontSize: 40, marginBottom: 12 }}>👥</div>
-                  <div style={{ fontSize: 14 }}>אין קבוצות עדיין</div>
-                </div>
-              )}
+      <Box sx={{ px: 2, pt: 2.5 }}>
+        {!selected ? (
+          <>
+            {groups.length === 0 && !creating && (
+              <Box textAlign='center' mt={6}>
+                <GroupIcon sx={{ fontSize: 56, color: '#DADEEA', mb: 1 }} />
+                <Typography color='#9196A6' fontSize={14}>אין קבוצות עדיין</Typography>
+              </Box>
+            )}
 
-              {groups.map((g, i) => (
-                <div key={g.id} className="gr-group-card" style={{ background: GROUP_COLORS[i % GROUP_COLORS.length] }} onClick={() => openGroup(g)}>
-                  <div className="gr-group-name">{g.name}</div>
-                  <div className="gr-group-meta">
-                    <span className="gr-badge">{g.my_role === 'owner' ? '👑 בעלים' : '👤 חבר'}</span>
-                    <span className="gr-badge">{g.member_count} חברים</span>
-                  </div>
-                </div>
-              ))}
+            {groups.map(g => (
+              <Card key={g.id} onClick={() => openGroup(g)} sx={{
+                mb: 1.5, borderRadius: 2, border: '1px solid #ECEDF5',
+                boxShadow: '0 1px 6px rgba(0,0,0,0.06)', cursor: 'pointer', p: 2,
+                '&:hover': { boxShadow: '0 4px 16px rgba(0,0,0,0.1)' }
+              }}>
+                <Box display='flex' justifyContent='space-between' alignItems='center'>
+                  <Box display='flex' alignItems='center' gap={1}>
+                    <Chip size='small' label={g.my_role === 'owner' ? 'בעלים' : 'חבר'}
+                      sx={{ bgcolor: g.my_role === 'owner' ? '#E3F2FD' : '#E0F2F1', color: g.my_role === 'owner' ? '#1565C0' : '#00695C', fontSize: 11 }} />
+                    <Typography fontSize={13} color='#9196A6'>{g.member_count} חברים</Typography>
+                  </Box>
+                  <Typography fontWeight='700' fontSize={16} color='#1A1D23'>{g.name}</Typography>
+                </Box>
+              </Card>
+            ))}
 
-              {creating ? (
-                <div className="gr-block">
-                  <div className="gr-block-label">קבוצה חדשה</div>
-                  <input className="gr-input" placeholder="שם הקבוצה" value={newName} onChange={e => setNewName(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleCreate()} autoFocus />
-                  <div className="gr-btn-row">
-                    <button className="gr-btn gr-btn-ghost" onClick={() => setCreating(false)}>ביטול</button>
-                    <button className="gr-btn gr-btn-primary" onClick={handleCreate}>צור קבוצה</button>
-                  </div>
-                </div>
+            {creating ? (
+              <Card sx={{ p: 2.5, borderRadius: 2, border: '2px solid #1565C0', mt: 1 }}>
+                <TextField fullWidth label='שם הקבוצה' value={newName}
+                  onChange={e => setNewName(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleCreate()}
+                  autoFocus inputProps={{ dir: 'rtl' }}
+                  sx={{ mb: 2, '& .MuiOutlinedInput-root': { borderRadius: 2 } }} />
+                <Box display='flex' gap={1}>
+                  <Button variant='outlined' fullWidth onClick={() => setCreating(false)}
+                    sx={{ borderRadius: 2 }}>ביטול</Button>
+                  <Button variant='contained' fullWidth onClick={handleCreate}
+                    sx={{ borderRadius: 2, background: 'linear-gradient(145deg,#00ACC1,#00897B)' }}>
+                    צור קבוצה
+                  </Button>
+                </Box>
+              </Card>
+            ) : (
+              <Button fullWidth startIcon={<AddIcon />} onClick={() => setCreating(true)}
+                sx={{ mt: 1, borderRadius: 2, border: '2px dashed #B2EBF2', color: '#00897B', py: 1.5,
+                  '&:hover': { bgcolor: '#E0F7FA' } }}>
+                צור קבוצה חדשה
+              </Button>
+            )}
+          </>
+        ) : (
+          <>
+            {/* Group actions row */}
+            <Box display='flex' justifyContent='space-between' alignItems='center' mb={2}>
+              {isOwner ? (
+                <IconButton size='small' onClick={() => setConfirmDelete(selected.id)}
+                  sx={{ color: '#E53935', bgcolor: '#FFEBEE' }}>
+                  <DeleteIcon fontSize='small' />
+                </IconButton>
+              ) : <Box />}
+              <Chip size='small' label={`${detail?.members?.length || 0} חברים`}
+                icon={<GroupIcon sx={{ fontSize: '14px !important' }} />}
+                sx={{ bgcolor: '#F0F4FF', color: '#1565C0', fontWeight: 600 }}
+                onClick={() => setTab(tab === 'members' ? 'vouchers' : 'members')}
+              />
+            </Box>
+
+            {/* Invite card */}
+            <Card sx={{ p: 2, borderRadius: 2, border: '1px solid #ECEDF5', mb: 2 }}>
+              <Typography fontWeight='700' fontSize={13} color='#1A1D23' textAlign='right' mb={1}>
+                קישור הזמנה
+              </Typography>
+              {detail?.invite_code ? (
+                <Box>
+                  <Box sx={{ bgcolor: '#F5F6FA', borderRadius: 1.5, p: 1.25, mb: 1, fontFamily: 'monospace', fontSize: 13, textAlign: 'center', color: '#1565C0', letterSpacing: 2, fontWeight: 700 }}>
+                    {detail.invite_code}
+                  </Box>
+                  <Button fullWidth startIcon={<ContentCopyIcon />} variant='contained' size='small'
+                    onClick={() => handleCopy(detail.invite_code)}
+                    sx={{ borderRadius: 2, background: copied ? '#43A047' : 'linear-gradient(145deg,#00ACC1,#00897B)' }}>
+                    {copied ? 'הועתק!' : 'העתק קישור'}
+                  </Button>
+                </Box>
               ) : (
-                <button className="gr-create-btn" onClick={() => setCreating(true)}>+ צור קבוצה חדשה</button>
+                <Button fullWidth startIcon={<RefreshIcon />} variant='outlined' size='small'
+                  onClick={handleInvite}
+                  sx={{ borderRadius: 2, borderColor: '#00897B', color: '#00897B' }}>
+                  צור קישור הזמנה
+                </Button>
               )}
-            </>
-          ) : (
-            <>
-              {/* actions row */}
-              <div className="gr-actions-row">
-                {isOwner
-                  ? <button className="gr-delete-btn" onClick={() => setConfirmDelete(selected.id)}>🗑 מחק קבוצה</button>
-                  : <div />}
-                <button className="gr-add-voucher-btn" onClick={() => navigate('/add', { state: { groupId: selected.id, groupName: selected.name } })}>+ הוסף שובר</button>
-              </div>
+            </Card>
 
-              {/* invite */}
-              <div className="gr-block">
-                <div className="gr-block-label">קישור הזמנה</div>
-                {detail?.invite_code ? (
-                  <>
-                    <div className="gr-invite-code">{detail.invite_code}</div>
-                    <button className={`gr-copy-btn ${copied ? 'gr-copy-btn-success' : 'gr-copy-btn-default'}`} onClick={() => handleCopy(detail.invite_code)}>
-                      {copied ? '✅ הועתק!' : '📋 העתק קישור'}
-                    </button>
-                  </>
+            {/* Members tab */}
+            {tab === 'members' && (
+              <Card sx={{ p: 2, borderRadius: 2, border: '1px solid #ECEDF5', mb: 2 }}>
+                <Typography fontWeight='700' fontSize={13} color='#1A1D23' textAlign='right' mb={1}>
+                  חברים
+                </Typography>
+                {detail?.members?.map(m => (
+                  <Box key={m.user_id} display='flex' justifyContent='space-between' alignItems='center'
+                    sx={{ py: 1, borderBottom: '1px solid #F5F6FA' }}>
+                    <Box display='flex' alignItems='center' gap={1}>
+                      {m.role !== 'owner' && m.email !== myEmail && isOwner && (
+                        <IconButton size='small' onClick={() => handleRemoveMember(m.user_id)}
+                          sx={{ color: '#E53935', width: 26, height: 26 }}>
+                          <DeleteIcon sx={{ fontSize: 14 }} />
+                        </IconButton>
+                      )}
+                      <Chip size='small' label={m.role === 'owner' ? 'בעלים' : 'עורך'}
+                        sx={{ bgcolor: m.role === 'owner' ? '#E3F2FD' : '#F3E5F5', fontSize: 10,
+                          color: m.role === 'owner' ? '#1565C0' : '#7B1FA2' }} />
+                    </Box>
+                    <Box display='flex' alignItems='center' gap={1}>
+                      <Typography fontSize={13} color='#5C6678'>{m.email}</Typography>
+                      <Avatar sx={{ width: 28, height: 28, bgcolor: '#E0F2F1', color: '#00695C', fontSize: 12, fontWeight: 700 }}>
+                        {m.email[0].toUpperCase()}
+                      </Avatar>
+                    </Box>
+                  </Box>
+                ))}
+              </Card>
+            )}
+
+            {/* Vouchers tab */}
+            {tab === 'vouchers' && (
+              <>
+                <Box display='flex' justifyContent='space-between' alignItems='center' mb={1.5}>
+                  <Button startIcon={<AddIcon />} size='small' variant='contained'
+                    onClick={() => navigate('/add', { state: { groupId: selected.id, groupName: selected.name } })}
+                    sx={{ borderRadius: 2, background: 'linear-gradient(145deg,#00ACC1,#00897B)', fontSize: 12 }}>
+                    הוסף שובר לקבוצה
+                  </Button>
+                  <Typography fontWeight='700' fontSize={14} color='#1A1D23'>
+                    שוברים ({groupVouchers.length})
+                  </Typography>
+                </Box>
+
+                {groupVouchers.length === 0 ? (
+                  <Box textAlign='center' py={4}>
+                    <Typography color='#9196A6' fontSize={14}>אין שוברים בקבוצה עדיין</Typography>
+                  </Box>
                 ) : (
-                  <button className="gr-gen-invite-btn" onClick={handleInvite}>🔗 צור קישור הזמנה</button>
+                  groupVouchers.map(v => {
+                    const days = getDaysLeft(v.expiry_date);
+                    const expiry = getExpiryInfo(days);
+                    return (
+                      <Card key={v.id} sx={{ mb: 1.5, borderRadius: 2, border: '1px solid #ECEDF5', p: 2 }}>
+                        <Box display='flex' justifyContent='space-between' alignItems='flex-start'>
+                          <Box>
+                            {expiry && (
+                              <Chip icon={<AccessTimeIcon sx={{ fontSize: '11px !important', color: `${expiry.color} !important` }} />}
+                                label={expiry.label} size='small'
+                                sx={{ bgcolor: expiry.bg, color: expiry.color, fontWeight: 600, fontSize: 10, height: 20 }} />
+                            )}
+                            {v.media_value && v.media_type === 'link' && (
+                              <IconButton size='small' onClick={() => window.open(v.media_value, '_blank')}
+                                sx={{ color: '#00897B', width: 26, height: 26 }}>
+                                <LinkIcon sx={{ fontSize: 14 }} />
+                              </IconButton>
+                            )}
+                          </Box>
+                          <Box textAlign='right'>
+                            <Typography fontWeight='700' fontSize={14} color='#1A1D23'>{v.brand_name}</Typography>
+                            {v.notes ? (
+                              <Typography fontSize={13} color='#5C6678'>{v.notes}</Typography>
+                            ) : (
+                              <Typography fontSize={22} fontWeight='800' color='#00897B'>₪{Number(v.balance).toLocaleString()}</Typography>
+                            )}
+                            <Typography fontSize={11} color='#9196A6'>נוסף ע"י {v.added_by}</Typography>
+                          </Box>
+                        </Box>
+                      </Card>
+                    );
+                  })
                 )}
-              </div>
-
-              {/* tabs */}
-              <div className="gr-tabs">
-                <button className={`gr-tab${tab === 'vouchers' ? ' active' : ''}`} onClick={() => setTab('vouchers')}>🎫 שוברים ({groupVouchers.length})</button>
-                <button className={`gr-tab${tab === 'members' ? ' active' : ''}`} onClick={() => setTab('members')}>👥 חברים ({detail?.members?.length || 0})</button>
-              </div>
-
-              {tab === 'vouchers' && (
-                groupVouchers.length === 0
-                  ? <div className="gr-empty">אין שוברים בקבוצה עדיין</div>
-                  : groupVouchers.map(v => (
-                    <div key={v.id} className="gr-voucher-card">
-                      <div style={{ display: 'flex', gap: 6, flexDirection: 'column' }}>
-                        <ExpiryChip expiry_date={v.expiry_date} />
-                        {v.media_value && v.media_type === 'link' && (
-                          <button style={{ background: 'rgba(91,94,244,0.2)', border: 'none', color: '#8B8EF8', fontSize: 11, padding: '3px 8px', borderRadius: 20, cursor: 'pointer' }} onClick={() => window.open(v.media_value, '_blank')}>🔗 פתח</button>
-                        )}
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <div className="gr-voucher-name">{v.brand_name}</div>
-                        {v.notes
-                          ? <div className="gr-voucher-note">{v.notes}</div>
-                          : <div className="gr-voucher-amount">₪{Number(v.balance).toLocaleString()}</div>}
-                        <div className="gr-voucher-by">נוסף ע״י {v.added_by}</div>
-                      </div>
-                    </div>
-                  ))
-              )}
-
-              {tab === 'members' && (
-                <div className="gr-block">
-                  {detail?.members?.map(m => (
-                    <div key={m.user_id} className="gr-member-row">
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                        {m.role !== 'owner' && m.email !== myEmail && isOwner && (
-                          <button className="gr-remove-btn" onClick={() => handleRemoveMember(m.user_id)}>✕</button>
-                        )}
-                        <span className={`gr-role-badge ${m.role === 'owner' ? 'gr-role-owner' : 'gr-role-member'}`}>
-                          {m.role === 'owner' ? 'בעלים' : 'עורך'}
-                        </span>
-                      </div>
-                      <span className="gr-member-email">{m.email}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-        </div>
-
-        {/* Confirm delete dialog */}
-        {confirmDelete && (
-          <div className="gr-dialog-overlay" onClick={() => setConfirmDelete(null)}>
-            <div className="gr-dialog" onClick={e => e.stopPropagation()}>
-              <div className="gr-dialog-title">מחיקת קבוצה</div>
-              <div className="gr-dialog-text">האם למחוק את הקבוצה? פעולה זו בלתי הפיכה.</div>
-              <div className="gr-dialog-btns">
-                <button className="gr-btn gr-btn-ghost" style={{ flex: 1 }} onClick={() => setConfirmDelete(null)}>ביטול</button>
-                <button style={{ flex: 1, padding: 12, borderRadius: 12, border: 'none', background: 'rgba(239,68,68,0.8)', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }} onClick={handleDelete}>מחק</button>
-              </div>
-            </div>
-          </div>
+              </>
+            )}
+          </>
         )}
-      </div>
-    </>
+      </Box>
+
+      {/* Confirm delete dialog */}
+      <Dialog open={!!confirmDelete} onClose={() => setConfirmDelete(null)}>
+        <DialogTitle>מחיקת קבוצה</DialogTitle>
+        <DialogContent>
+          <Typography>האם למחוק את הקבוצה? פעולה זו בלתי הפיכה.</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmDelete(null)}>ביטול</Button>
+          <Button onClick={handleDelete} color='error'>מחק</Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 }

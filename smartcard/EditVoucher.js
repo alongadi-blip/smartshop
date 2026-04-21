@@ -1,35 +1,13 @@
 import { useState } from 'react';
+import { Box, Typography, Button, TextField, Card, IconButton } from '@mui/material';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import CameraAltIcon from '@mui/icons-material/CameraAlt';
+import LinkIcon from '@mui/icons-material/Link';
+import ImageIcon from '@mui/icons-material/Image';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 
 const API = 'http://138.2.162.153:8000';
-
-const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap');
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  .ev-root { min-height: 100vh; background: #0F0F14; font-family: 'DM Sans', sans-serif; direction: rtl; color: #fff; padding-bottom: 40px; }
-  .ev-header { padding: 52px 20px 20px; border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; gap: 12px; }
-  .ev-back { width: 36px; height: 36px; border-radius: 50%; background: rgba(255,255,255,0.08); border: none; color: rgba(255,255,255,0.7); font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-  .ev-back:hover { background: rgba(255,255,255,0.14); }
-  .ev-header-title { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 800; letter-spacing: -0.5px; }
-  .ev-header-sub { font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 2px; }
-  .ev-content { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
-  .ev-block { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09); border-radius: 18px; padding: 18px; }
-  .ev-block-label { font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.4); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 12px; }
-  .ev-input { width: 100%; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 12px 14px; color: #fff; font-size: 15px; font-family: 'DM Sans', sans-serif; outline: none; direction: rtl; transition: border-color 0.2s; }
-  .ev-input:focus { border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.09); }
-  .ev-input::placeholder { color: rgba(255,255,255,0.25); }
-  .ev-input + .ev-input { margin-top: 10px; }
-  .ev-seg { display: flex; gap: 8px; }
-  .ev-seg-btn { flex: 1; padding: 10px 6px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); background: transparent; color: rgba(255,255,255,0.45); font-size: 12px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.2s; text-align: center; }
-  .ev-seg-btn.active { background: rgba(255,255,255,0.14); border-color: rgba(255,255,255,0.3); color: #fff; }
-  .ev-upload-zone { border: 2px dashed rgba(255,255,255,0.15); border-radius: 14px; padding: 28px 20px; text-align: center; cursor: pointer; transition: all 0.2s; }
-  .ev-upload-zone:hover { border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.04); }
-  .ev-preview { width: 100%; border-radius: 12px; max-height: 180px; object-fit: cover; margin-top: 12px; }
-  .ev-error { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; padding: 12px 16px; font-size: 13px; color: #FCA5A5; text-align: center; }
-  .ev-submit { width: 100%; padding: 16px; background: linear-gradient(135deg, #fff 0%, #e8e8e8 100%); color: #0F0F14; font-size: 16px; font-weight: 700; border: none; border-radius: 16px; cursor: pointer; font-family: 'Syne', sans-serif; letter-spacing: 0.3px; transition: transform 0.15s, box-shadow 0.15s; box-shadow: 0 8px 30px rgba(0,0,0,0.4); }
-  .ev-submit:hover { transform: translateY(-1px); box-shadow: 0 12px 36px rgba(0,0,0,0.5); }
-`;
 
 export default function EditVoucher() {
   const navigate = useNavigate();
@@ -49,15 +27,22 @@ export default function EditVoucher() {
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
-    if (file) { setImageFile(file); setImagePreview(URL.createObjectURL(file)); }
+    if (file) {
+      setImageFile(file);
+      setImagePreview(URL.createObjectURL(file));
+    }
   };
 
-  const handleMediaTypeChange = (val) => { setMediaType(val); setImageFile(null); };
+  const handleMediaTypeChange = (val) => {
+    setMediaType(val);
+    setImageFile(null);
+  };
 
   const handleSubmit = async () => {
     try {
       let finalMediaValue = mediaValue;
       let finalMediaType = mediaType;
+
       if (mediaType === 'upload' && imageFile) {
         const formData = new FormData();
         formData.append('file', imageFile);
@@ -67,62 +52,139 @@ export default function EditVoucher() {
         finalMediaValue = 'http://138.2.162.153' + res.data.url;
         finalMediaType = 'image';
       }
+
       await axios.patch(
         `${API}/api/vouchers/${voucher.id}`,
-        { balance: parseFloat(balance) || 0, expiry_date: expiry || null, media_type: finalMediaType || null, media_value: finalMediaValue || null, notes: notes || null },
+        {
+          balance: parseFloat(balance) || 0,
+          expiry_date: expiry || null,
+          media_type: finalMediaType || null,
+          media_value: finalMediaValue || null,
+          notes: notes || null
+        },
         { headers: { Authorization: 'Bearer ' + localStorage.getItem('token') } }
       );
       navigate('/');
-    } catch (e) { setError(e.response?.data?.detail || 'שגיאה'); }
+    } catch (e) {
+      setError(e.response?.data?.detail || 'שגיאה');
+    }
   };
 
+  const mediaOptions = [
+    { value: 'link', label: 'לינק', icon: <LinkIcon fontSize='small' /> },
+    { value: 'image', label: 'URL תמונה', icon: <ImageIcon fontSize='small' /> },
+    { value: 'upload', label: 'העלאה', icon: <CameraAltIcon fontSize='small' /> },
+  ];
+
   return (
-    <>
-      <style>{styles}</style>
-      <div className="ev-root">
-        <div className="ev-header">
-          <button className="ev-back" onClick={() => navigate('/')}>→</button>
-          <div>
-            <div className="ev-header-title">עריכת שובר</div>
-            <div className="ev-header-sub">{voucher.brand_name}</div>
-          </div>
-        </div>
+    <Box sx={{ minHeight: '100vh', bgcolor: '#F0F4F8' }}>
 
-        <div className="ev-content">
-          <div className="ev-block">
-            <div className="ev-block-label">פרטים</div>
-            <input className="ev-input" type="number" placeholder="יתרה (₪)" value={balance} onChange={e => setBalance(e.target.value)} style={{ direction: 'ltr' }} />
-            <input className="ev-input" type="date" value={expiry} onChange={e => setExpiry(e.target.value)} style={{ direction: 'ltr', colorScheme: 'dark' }} />
-          </div>
+      {/* Header */}
+      <Box sx={{
+        background: 'linear-gradient(145deg, #006D6D 0%, #00897B 50%, #00ACC1 100%)',
+        px: 2, pt: 5, pb: 3, display: 'flex', alignItems: 'center', gap: 1
+      }}>
+        <IconButton onClick={() => navigate('/')} sx={{
+          color: 'white', bgcolor: 'rgba(255,255,255,0.15)',
+          '&:hover': { bgcolor: 'rgba(255,255,255,0.25)' }
+        }}>
+          <ArrowForwardIcon />
+        </IconButton>
+        <Box>
+          <Typography variant='h6' fontWeight='700' color='white'>עריכת שובר</Typography>
+          <Typography fontSize={13} color='rgba(255,255,255,0.75)'>{voucher.brand_name}</Typography>
+        </Box>
+      </Box>
 
-          <div className="ev-block">
-            <div className="ev-block-label">סוג מדיה</div>
-            <div className="ev-seg" style={{ marginBottom: 14 }}>
-              {[['link', '🔗 לינק'], ['image', '🖼 URL תמונה'], ['upload', '📤 העלאה']].map(([val, label]) => (
-                <button key={val} className={`ev-seg-btn${mediaType === val ? ' active' : ''}`} onClick={() => handleMediaTypeChange(val)}>{label}</button>
-              ))}
-            </div>
-            {mediaType === 'upload' ? (
-              <>
-                <input className="ev-input" placeholder="שם המוצר / תיאור" value={notes} onChange={e => setNotes(e.target.value)} />
-                <label style={{ display: 'block', marginTop: 12 }}>
-                  <div className="ev-upload-zone">
-                    <div style={{ fontSize: 24, marginBottom: 6 }}>📁</div>
-                    <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.6)', fontWeight: 500 }}>לחץ לבחירת תמונה</div>
-                    <input type="file" accept="image/*" hidden onChange={handleImageChange} />
-                  </div>
-                </label>
-                {imagePreview && <img src={imagePreview} className="ev-preview" alt="" />}
-              </>
-            ) : (
-              <input className="ev-input" placeholder={mediaType === 'link' ? 'לינק לשובר' : 'URL של תמונה'} value={mediaValue} onChange={e => setMediaValue(e.target.value)} style={{ direction: 'ltr' }} />
-            )}
-          </div>
+      <Box sx={{ px: 2, pt: 3 }}>
 
-          {error && <div className="ev-error">{error}</div>}
-          <button className="ev-submit" onClick={handleSubmit}>שמור שינויים</button>
-        </div>
-      </div>
-    </>
+        {/* Balance & Expiry */}
+        <Card sx={{ p: 2.5, borderRadius: 3, mb: 2, boxShadow: '0 2px 12px rgba(0,0,0,0.07)' }}>
+          <Typography fontSize={12} fontWeight={700} color='text.secondary' letterSpacing={0.5} mb={1.5}>
+            פרטים
+          </Typography>
+          <TextField fullWidth label='יתרה (₪)' type='number' value={balance}
+            onChange={e => setBalance(e.target.value)}
+            sx={{ mb: 2, '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+            inputProps={{ dir: 'ltr' }} />
+          <TextField fullWidth type='date' value={expiry}
+            onChange={e => setExpiry(e.target.value)}
+            sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+            InputLabelProps={{ shrink: true }}
+            label='תאריך תוקף' />
+        </Card>
+
+        {/* Media Type */}
+        <Card sx={{ p: 2.5, borderRadius: 3, mb: 2, boxShadow: '0 2px 12px rgba(0,0,0,0.07)' }}>
+          <Typography fontSize={12} fontWeight={700} color='text.secondary' letterSpacing={0.5} mb={1.5}>
+            סוג מדיה
+          </Typography>
+          <Box display='flex' gap={1} mb={2}>
+            {mediaOptions.map(opt => (
+              <Box key={opt.value} flex={1}
+                onClick={() => handleMediaTypeChange(opt.value)}
+                sx={{
+                  p: 1.5, borderRadius: 2, cursor: 'pointer', textAlign: 'center',
+                  border: '2px solid',
+                  borderColor: mediaType === opt.value ? '#00897B' : '#E0E0E0',
+                  bgcolor: mediaType === opt.value ? '#E0F7FA' : 'white',
+                  transition: '0.2s',
+                }}>
+                <Box sx={{ color: mediaType === opt.value ? '#00897B' : '#999', mb: 0.5 }}>{opt.icon}</Box>
+                <Typography fontSize={11} fontWeight={600}
+                  color={mediaType === opt.value ? '#00695C' : 'text.secondary'}>
+                  {opt.label}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+
+          {mediaType === 'upload' ? (
+            <>
+              <TextField fullWidth label='שם המוצר / תיאור' value={notes}
+                onChange={e => setNotes(e.target.value)}
+                sx={{ mb: 2, '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                inputProps={{ dir: 'rtl' }} />
+              <Box component='label' sx={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                p: 3, borderRadius: 2, border: '2px dashed #B2EBF2',
+                bgcolor: '#F0FDFD', cursor: 'pointer', mb: imagePreview ? 1.5 : 0,
+                '&:hover': { bgcolor: '#E0F7FA', borderColor: '#00ACC1' }, transition: '0.2s'
+              }}>
+                <CameraAltIcon sx={{ fontSize: 32, color: '#00ACC1', mb: 1 }} />
+                <Typography fontSize={14} color='#00838F' fontWeight={600}>לחץ לבחירת תמונה חדשה</Typography>
+                <input type='file' accept='image/*' hidden onChange={handleImageChange} />
+              </Box>
+              {imagePreview && (
+                <Box component='img' src={imagePreview}
+                  sx={{ width: '100%', borderRadius: 2, maxHeight: 200, objectFit: 'cover' }} />
+              )}
+            </>
+          ) : (
+            <TextField fullWidth
+              label={mediaType === 'link' ? 'לינק לשובר' : 'URL של תמונה'}
+              value={mediaValue} onChange={e => setMediaValue(e.target.value)}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+              inputProps={{ dir: 'ltr' }} />
+          )}
+        </Card>
+
+        {error && (
+          <Box sx={{ p: 2, bgcolor: '#FFEBEE', borderRadius: 2, mb: 2 }}>
+            <Typography color='error' fontSize={14} textAlign='center'>{error}</Typography>
+          </Box>
+        )}
+
+        <Button fullWidth variant='contained' size='large' onClick={handleSubmit}
+          sx={{
+            py: 1.75, borderRadius: 3, fontSize: 16, fontWeight: 700,
+            background: 'linear-gradient(145deg, #00ACC1, #00897B)',
+            boxShadow: '0 6px 20px rgba(0,137,123,0.4)',
+            '&:hover': { background: 'linear-gradient(145deg, #0097A7, #00796B)' }
+          }}>
+          שמור שינויים
+        </Button>
+      </Box>
+    </Box>
   );
 }
