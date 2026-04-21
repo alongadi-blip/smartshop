@@ -1,9 +1,24 @@
 import { useState, useEffect } from 'react';
-import { Box, Typography, Button, Card, CircularProgress } from '@mui/material';
-import GroupIcon from '@mui/icons-material/Group';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useNavigate, useParams } from 'react-router-dom';
 import { previewInvite, joinGroup } from '../api';
+
+const styles = `
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  .jg-root { min-height: 100vh; background: #0F0F14; font-family: 'DM Sans', sans-serif; direction: rtl; color: #fff; display: flex; align-items: center; justify-content: center; padding: 24px; }
+  .jg-card { width: 100%; max-width: 340px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; padding: 32px 24px; text-align: center; }
+  .jg-icon { font-size: 52px; margin-bottom: 16px; }
+  .jg-group-name { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 6px; }
+  .jg-meta { font-size: 13px; color: rgba(255,255,255,0.45); margin-bottom: 4px; }
+  .jg-desc { font-size: 12px; color: rgba(255,255,255,0.3); margin-bottom: 28px; }
+  .jg-join-btn { width: 100%; padding: 15px; background: linear-gradient(135deg, #5B5EF4, #8B5CF6); color: #fff; font-size: 16px; font-weight: 700; border: none; border-radius: 14px; cursor: pointer; font-family: 'Syne', sans-serif; margin-bottom: 10px; transition: opacity 0.2s; }
+  .jg-join-btn:hover { opacity: 0.88; }
+  .jg-join-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .jg-cancel-btn { width: 100%; padding: 12px; background: transparent; color: rgba(255,255,255,0.4); font-size: 14px; border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+  .jg-error { font-size: 14px; color: #FCA5A5; margin-bottom: 16px; }
+  .jg-success-icon { font-size: 52px; margin-bottom: 16px; }
+  .jg-success-text { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 800; }
+`;
 
 export default function JoinGroup() {
   const { code } = useParams();
@@ -27,51 +42,42 @@ export default function JoinGroup() {
       await joinGroup(code);
       setJoined(true);
       setTimeout(() => navigate('/groups'), 1500);
-    } catch (e) {
-      setError(e.response?.data?.detail || 'שגיאה בהצטרפות');
-    }
+    } catch (e) { setError(e.response?.data?.detail || 'שגיאה בהצטרפות'); }
     setJoining(false);
   };
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: '#F5F6FA', display: 'flex', alignItems: 'center', justifyContent: 'center', p: 3 }}>
-      <Card sx={{ p: 4, borderRadius: 3, textAlign: 'center', maxWidth: 360, width: '100%', boxShadow: '0 4px 24px rgba(0,0,0,0.1)' }}>
-        {loading ? (
-          <CircularProgress sx={{ color: '#00897B' }} />
-        ) : error ? (
-          <>
-            <Typography color='error' fontWeight='700' fontSize={16} mb={1}>{error}</Typography>
-            <Button onClick={() => navigate('/')} sx={{ color: '#00897B' }}>חזור לדף הראשי</Button>
-          </>
-        ) : joined ? (
-          <>
-            <CheckCircleIcon sx={{ fontSize: 56, color: '#43A047', mb: 1 }} />
-            <Typography fontWeight='700' fontSize={18} color='#1A1D23'>הצטרפת בהצלחה!</Typography>
-          </>
-        ) : (
-          <>
-            <GroupIcon sx={{ fontSize: 56, color: '#00897B', mb: 2 }} />
-            <Typography fontWeight='800' fontSize={20} color='#1A1D23' mb={0.5}>{info?.group_name}</Typography>
-            <Typography color='#9196A6' fontSize={14} mb={0.5}>
-              {info?.member_count} חברים
-            </Typography>
-            <Typography color='#9196A6' fontSize={13} mb={3}>
-              הוזמנת להצטרף לקבוצת שיתוף
-            </Typography>
-            <Button fullWidth variant='contained' size='large' onClick={handleJoin} disabled={joining}
-              sx={{
-                py: 1.5, borderRadius: 2, fontWeight: 700,
-                background: 'linear-gradient(145deg,#00ACC1,#00897B)',
-                '&:hover': { background: 'linear-gradient(145deg,#0097A7,#00796B)' }
-              }}>
-              {joining ? <CircularProgress size={22} sx={{ color: 'white' }} /> : 'הצטרף לקבוצה'}
-            </Button>
-            <Button fullWidth onClick={() => navigate('/')} sx={{ mt: 1, color: '#9196A6' }}>
-              ביטול
-            </Button>
-          </>
-        )}
-      </Card>
-    </Box>
+    <>
+      <style>{styles}</style>
+      <div className="jg-root">
+        <div className="jg-card">
+          {loading ? (
+            <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>טוען...</div>
+          ) : joined ? (
+            <>
+              <div className="jg-success-icon">✅</div>
+              <div className="jg-success-text">הצטרפת בהצלחה!</div>
+            </>
+          ) : error && !info ? (
+            <>
+              <div style={{ fontSize: 14, color: '#FCA5A5', marginBottom: 16 }}>{error}</div>
+              <button className="jg-cancel-btn" onClick={() => navigate('/')}>חזור לדף הראשי</button>
+            </>
+          ) : (
+            <>
+              <div className="jg-icon">👥</div>
+              <div className="jg-group-name">{info?.group_name}</div>
+              <div className="jg-meta">{info?.member_count} חברים</div>
+              <div className="jg-desc">הוזמנת להצטרף לקבוצת שיתוף</div>
+              {error && <div className="jg-error">{error}</div>}
+              <button className="jg-join-btn" onClick={handleJoin} disabled={joining}>
+                {joining ? '...' : 'הצטרף לקבוצה'}
+              </button>
+              <button className="jg-cancel-btn" onClick={() => navigate('/')}>ביטול</button>
+            </>
+          )}
+        </div>
+      </div>
+    </>
   );
 }
