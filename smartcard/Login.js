@@ -3,8 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { login, register } from '../api';
 import axios from 'axios';
 
-const API_BASE = 'http://138.2.162.153:8000/api';
-
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -45,7 +43,7 @@ export default function Login({ onLogin }) {
     try {
       if (tempToken) {
         // TOTP step
-        const res = await axios.post(`${API_BASE}/auth/totp/verify-login`, { temp_token: tempToken, code: totpCode });
+        const res = await axios.post('/api/auth/totp/verify-login', { temp_token: tempToken, code: totpCode });
         onLogin(res.data.access_token);
       } else if (mode === 'login') {
         const res = await login(email, password);

@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API = axios.create({ baseURL: 'http://138.2.162.153:8000/api' });
+const API = axios.create({ baseURL: '/api' });
 
 API.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
@@ -33,3 +33,6 @@ export const joinGroup = (code) => API.post(`/groups/invites/${code}/join`);
 export const getGroupVouchers = (groupId) => API.get(`/groups/${groupId}/vouchers`);
 export const createGroupVoucher = (groupId, data) => API.post(`/groups/${groupId}/vouchers`, data);
 export const removeMember = (groupId, userId) => API.delete(`/groups/${groupId}/members/${userId}`);
+export const getMe = () => API.get('/auth/me');
+export const logout = () => API.post('/auth/logout');
+export const resetPassword = (token, newPassword) => API.post('/auth/reset-password', { token, new_password: newPassword });
