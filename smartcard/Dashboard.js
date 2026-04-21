@@ -333,8 +333,15 @@ export default function Dashboard({ onLogout }) {
   useEffect(() => { loadVouchers(); }, []);
 
   const loadVouchers = async () => {
-    const res = await getVouchers();
-    setVouchers(res.data);
+    try {
+      const res = await getVouchers();
+      setVouchers(res.data);
+    } catch (e) {
+      if (e.response?.status === 401) {
+        localStorage.removeItem('token');
+        window.location.href = '/login';
+      }
+    }
   };
 
   const handleSearch = async (e) => {
