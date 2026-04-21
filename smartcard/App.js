@@ -1,12 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import { getMe, logout as apiLogout } from './api';
 import AddVoucher from './pages/AddVoucher';
 import EditVoucher from './pages/EditVoucher';
 import Groups from './pages/Groups';
 import JoinGroup from './pages/JoinGroup';
+import Help from './pages/Help';
+import ResetPassword from './pages/ResetPassword';
 
 const theme = createTheme({
   direction: 'rtl',
@@ -56,18 +59,55 @@ function RequireAuth({ token, children }) {
   return children;
 }
 
-function App() {
-  const [token, setToken] = useState(localStorage.getItem('token'));
+const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 minutes
 
-  const handleLogin = (newToken) => {
-    localStorage.setItem('token', newToken);
-    setToken(newToken);
-  };
+function App() {
+  const [token, setToken] = useState(null); // null=loading, false=logged out, true=logged in
+  const timerRef = useRef(null);
+
+  useEffect(() => {
+    getMe().then(() => setToken(true)).catch(() => setToken(false));
+  }, []);
+
+  const handleLogin = () => setToken(true);
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    setToken(null);
+    apiLogout().finally(() => setToken(false));
   };
+
+  useEffect(() => {
+    if (!token) return;
+
+    const resetTimer = () => {
+      clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(handleLogout, INACTIVITY_TIMEOUT);
+    };
+
+    const events = ['mousedown', 'mousemove', 'keydown', 'touchstart', 'scroll', 'click'];
+    events.forEach(e => window.addEventListener(e, resetTimer));
+    resetTimer();
+
+    return () => {
+      clearTimeout(timerRef.current);
+      events.forEach(e => window.removeEventListener(e, resetTimer));
+    };
+  }, [token]);
+
+  if (token === null) return (
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(160deg, #00ACC1 0%, #00897B 100%)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center'
+    }}>
+      <div style={{ textAlign: 'center', color: 'white', fontFamily: 'Segoe UI, Arial, sans-serif' }}>
+        <div style={{ fontSize: 32, fontWeight: 800, letterSpacing: 1, marginBottom: 16 }}>SmartCard</div>
+        <div style={{ width: 40, height: 40, border: '4px solid rgba(255,255,255,0.3)',
+          borderTop: '4px solid white', borderRadius: '50%',
+          animation: 'spin 1s linear infinite', margin: '0 auto' }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    </div>
+  );
 
   return (
     <ThemeProvider theme={theme}>
@@ -80,6 +120,8 @@ function App() {
           <Route path='/edit' element={<RequireAuth token={token}><EditVoucher /></RequireAuth>} />
           <Route path='/groups' element={<RequireAuth token={token}><Groups /></RequireAuth>} />
           <Route path='/join/:code' element={<RequireAuth token={token}><JoinGroup /></RequireAuth>} />
+          <Route path='/help' element={<RequireAuth token={token}><Help /></RequireAuth>} />
+          <Route path='/reset-password' element={<ResetPassword />} />
         </Routes>
       </BrowserRouter>
     </ThemeProvider>

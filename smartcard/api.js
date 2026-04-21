@@ -1,11 +1,8 @@
 import axios from 'axios';
 
-const API = axios.create({ baseURL: '/api' });
-
-API.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
+const API = axios.create({
+  baseURL: 'https://138-2-162-153.sslip.io/api',
+  withCredentials: true
 });
 
 export const register = (email, password) => API.post('/auth/register', { email, password });
@@ -15,9 +12,13 @@ export const login = (email, password) => {
   form.append('password', password);
   return API.post('/auth/login', form);
 };
-export const getVouchers = () => API.get('/vouchers/');
+export const logout = () => API.post('/auth/logout');
+export const getMe = () => API.get('/auth/me');
+export const getVouchers = () => API.get('/vouchers/all');
 export const createVoucher = (data) => API.post('/vouchers/', data);
 export const updateBalance = (id, balance) => API.patch(`/vouchers/${id}/balance`, { balance });
+export const updateVoucher = (id, data) => API.patch(`/vouchers/${id}`, data);
+export const uploadImage = (formData) => API.post('/vouchers/upload-image', formData);
 export const deleteVoucher = (id) => API.delete(`/vouchers/${id}`);
 export const getBrands = () => API.get('/brands/');
 export const searchStores = (q) => API.get(`/brands/search?q=${q}`);
@@ -33,6 +34,12 @@ export const joinGroup = (code) => API.post(`/groups/invites/${code}/join`);
 export const getGroupVouchers = (groupId) => API.get(`/groups/${groupId}/vouchers`);
 export const createGroupVoucher = (groupId, data) => API.post(`/groups/${groupId}/vouchers`, data);
 export const removeMember = (groupId, userId) => API.delete(`/groups/${groupId}/members/${userId}`);
-export const getMe = () => API.get('/auth/me');
-export const logout = () => API.post('/auth/logout');
-export const resetPassword = (token, newPassword) => API.post('/auth/reset-password', { token, new_password: newPassword });
+export const assignVoucherToGroup = (voucherId, groupId) => API.post(`/groups/${groupId}/vouchers`, { voucher_id: voucherId });
+
+// 2FA / TOTP
+export const totpSetup = () => API.post('/auth/totp/setup');
+export const totpEnable = (code) => API.post('/auth/totp/enable', { code });
+export const totpDisable = (code) => API.post('/auth/totp/disable', { code });
+export const totpVerifyLogin = (temp_token, code) => API.post('/auth/totp/verify-login', { temp_token, code });
+export const totpStatus = () => API.get('/auth/totp/status');
+
