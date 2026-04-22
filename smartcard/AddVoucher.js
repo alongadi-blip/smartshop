@@ -179,7 +179,7 @@ export default function AddVoucher() {
   const [customBrand, setCustomBrand] = useState('');
   const [balance, setBalance] = useState('');
   const [notes, setNotes] = useState('');
-  const [category, setCategory] = useState('שובר כספי');
+  const [category, setCategory] = useState('');
   const [customCategory, setCustomCategory] = useState('');
   const [expiry, setExpiry] = useState('');
   const [mediaType, setMediaType] = useState('link');
@@ -257,7 +257,7 @@ export default function AddVoucher() {
         media_type: finalMediaValue ? finalMediaType : null,
         media_value: finalMediaValue || null,
         notes: notes || null,
-        category: category === 'שובר אחר' ? (customCategory || 'שובר אחר') : category,
+        category: !category ? 'כללי' : category === 'שובר אחר' ? (customCategory || 'כללי') : category,
       };
       if (groupId) { await createGroupVoucher(groupId, voucherData); navigate('/groups'); }
       else { await createVoucher(voucherData); navigate('/'); }

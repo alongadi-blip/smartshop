@@ -328,6 +328,7 @@ export default function Dashboard({ onLogout }) {
   const [search, setSearch] = useState('');
   const [searchResults, setSearchResults] = useState(null);
   const [expandedImage, setExpandedImage] = useState(null);
+  const [sortBy, setSortBy] = useState('category');
   const navigate = useNavigate();
 
   useEffect(() => { loadVouchers(); }, []);
@@ -466,6 +467,18 @@ export default function Dashboard({ onLogout }) {
           />
         </div>
 
+        {/* Sort */}
+        <div style={{ display: 'flex', gap: 8, padding: '0 16px 12px', direction: 'rtl' }}>
+          {[['category', 'לפי קטגוריה'], ['brand', 'לפי מותג']].map(([val, label]) => (
+            <button key={val} onClick={() => setSortBy(val)} style={{
+              padding: '6px 14px', borderRadius: 20, border: '1px solid rgba(255,255,255,0.15)',
+              background: sortBy === val ? 'rgba(255,255,255,0.15)' : 'transparent',
+              color: sortBy === val ? '#fff' : 'rgba(255,255,255,0.45)',
+              fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif'
+            }}>{label}</button>
+          ))}
+        </div>
+
         {/* Content */}
         <div className="sc-content">
 
@@ -495,6 +508,18 @@ export default function Dashboard({ onLogout }) {
               <h3>אין שוברים עדיין</h3>
               <p>לחץ על + כדי להוסיף שובר ראשון</p>
             </div>
+          ) : sortBy === 'brand' ? (
+            <>
+              <div className="sc-section-head">
+                <span className="sc-section-count">{vouchers.length}</span>
+                <span className="sc-section-title">לפי מותג</span>
+              </div>
+              <div className="sc-cards-grid" style={{ gridTemplateColumns: '1fr' }}>
+                {[...vouchers].sort((a, b) => (a.brand_name || '').localeCompare(b.brand_name || '', 'he')).map(v => (
+                  <CardInner key={v.id} v={v} featured={false} />
+                ))}
+              </div>
+            </>
           ) : (
             <>
               {Object.entries(
@@ -510,11 +535,7 @@ export default function Dashboard({ onLogout }) {
                     <span className="sc-section-count">{catVouchers.length}</span>
                     <span className="sc-section-title">{category}</span>
                   </div>
-
-                  {/* Featured: first voucher full width */}
                   <CardInner v={catVouchers[0]} featured={true} />
-
-                  {/* Rest in 2-col grid */}
                   {catVouchers.length > 1 && (
                     <div className="sc-cards-grid">
                       {catVouchers.slice(1).map(v => <CardInner key={v.id} v={v} featured={false} />)}

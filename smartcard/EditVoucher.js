@@ -42,9 +42,9 @@ export default function EditVoucher() {
   const [mediaValue, setMediaValue] = useState(voucher?.media_value || '');
   const [notes, setNotes] = useState(voucher?.notes || '');
   const FIXED_CATS = ['שובר כספי', 'זיכויים', 'שובר אחר'];
-  const initCat = voucher?.category || 'שובר כספי';
+  const initCat = voucher?.category || '';
   const [category, setCategory] = useState(FIXED_CATS.includes(initCat) ? initCat : 'שובר אחר');
-  const [customCategory, setCustomCategory] = useState(FIXED_CATS.includes(initCat) ? '' : initCat);
+  const [customCategory, setCustomCategory] = useState(FIXED_CATS.includes(initCat) ? '' : (initCat || ''));
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(voucher?.media_type === 'image' ? voucher.media_value : null);
   const [error, setError] = useState('');
@@ -73,7 +73,7 @@ export default function EditVoucher() {
       }
       await axios.patch(
         `${API}/api/vouchers/${voucher.id}`,
-        { balance: parseFloat(balance) || 0, expiry_date: expiry || null, media_type: finalMediaType || null, media_value: finalMediaValue || null, notes: notes || null, category: category === 'שובר אחר' ? (customCategory || 'שובר אחר') : category },
+        { balance: parseFloat(balance) || 0, expiry_date: expiry || null, media_type: finalMediaType || null, media_value: finalMediaValue || null, notes: notes || null, category: category === 'שובר אחר' ? (customCategory || 'כללי') : category },
         { headers: { Authorization: 'Bearer ' + localStorage.getItem('token') } }
       );
       navigate('/');
