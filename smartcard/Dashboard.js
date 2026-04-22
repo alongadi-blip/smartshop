@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { getVouchers, deleteVoucher, searchStores } from '../api';
 
 // Bold color palette per brand
@@ -201,10 +201,8 @@ const styles = `
   /* Card actions */
   .sc-card-actions {
     position: absolute; top: 10px; left: 10px;
-    display: flex; gap: 4px; opacity: 0; transition: opacity 0.2s;
+    display: flex; gap: 4px; opacity: 1;
   }
-  .sc-card:hover .sc-card-actions,
-  .sc-card-featured:hover .sc-card-actions { opacity: 1; }
   .sc-card-action {
     width: 26px; height: 26px; border-radius: 50%;
     background: rgba(0,0,0,0.35); backdrop-filter: blur(4px);
@@ -321,7 +319,62 @@ const styles = `
   .sc-nav-btn.active { color: #fff; }
   .sc-nav-icon { font-size: 20px; }
   .sc-nav-label { font-size: 10px; font-weight: 500; font-family: 'DM Sans', sans-serif; }
+
+  /* Image thumb */
+  .sc-thumb {
+    width: 100%; border-radius: 10px; max-height: 90px;
+    object-fit: contain; margin-top: 10px;
+    cursor: pointer; background: rgba(0,0,0,0.2);
+  }
+  .sc-card-featured .sc-thumb { max-height: 130px; }
+
+  /* Desktop */
+  @media (min-width: 768px) {
+    .sc-root { max-width: 900px; margin: 0 auto; }
+    .sc-cards-grid { grid-template-columns: repeat(3, 1fr); }
+    .sc-card-featured { max-width: 100%; }
+    .sc-thumb { max-height: 120px; }
+    .sc-card-featured .sc-thumb { max-height: 160px; }
+    .sc-header { padding: 24px 32px 20px; }
+    .sc-content { padding: 20px 32px 0; }
+    .sc-search-wrap { padding: 14px 32px 0; }
+  }
 `;
+
+function ExpiryBadge({ expiry_date }) {
+  const days = getDaysLeft(expiry_date);
+  if (days === null) return null;
+  const cls = days <= 0 ? 'sc-expiry sc-expiry-dead' : days <= 14 ? 'sc-expiry sc-expiry-warn' : 'sc-expiry sc-expiry-ok';
+  const label = days <= 0 ? 'פג תוקף' : `עוד ${days} ימים`;
+  return <span className={cls}>⏱ {label}</span>;
+}
+
+function CardInner({ v, featured, navigate, onDelete, onExpandImage }) {
+  const color = getBrandColor(v.brand_name);
+  return (
+    <div className={featured ? 'sc-card-featured' : 'sc-card'} style={{ background: color.bg, color: color.text }}>
+      <div style={{ position: 'absolute', top: featured ? -40 : -30, right: featured ? -40 : -30, width: featured ? 130 : 90, height: featured ? 130 : 90, borderRadius: '50%', background: 'rgba(255,255,255,0.09)', pointerEvents: 'none' }} />
+      <div style={{ position: 'relative', zIndex: 1 }}>
+        <div className="sc-card-brand">{v.brand_name}</div>
+        {v.media_type === 'image' && v.notes
+          ? <div className="sc-card-note">{v.notes}</div>
+          : <div className="sc-card-amount">₪{Number(v.balance).toLocaleString()}</div>
+        }
+        <ExpiryBadge expiry_date={v.expiry_date} />
+        {v.media_value && v.media_type === 'image' && (
+          <img className="sc-thumb" src={v.media_value} alt="" onClick={(e) => { e.stopPropagation(); onExpandImage(v.media_value); }} />
+        )}
+        {v.media_value && v.media_type === 'link' && (
+          <button className="sc-link-chip" onClick={(e) => { e.stopPropagation(); window.open(v.media_value, '_blank'); }}>🔗 פתח שובר</button>
+        )}
+      </div>
+      <div className="sc-card-actions">
+        <button className="sc-card-action" onClick={(e) => { e.stopPropagation(); navigate('/edit', { state: { voucher: v } }); }} title="עריכה">✏️</button>
+        <button className="sc-card-action delete" onClick={(e) => onDelete(v.id, e)} title="מחיקה">🗑</button>
+      </div>
+    </div>
+  );
+}
 
 export default function Dashboard({ onLogout }) {
   const [vouchers, setVouchers] = useState([]);
@@ -330,8 +383,9 @@ export default function Dashboard({ onLogout }) {
   const [expandedImage, setExpandedImage] = useState(null);
   const [sortBy, setSortBy] = useState('category');
   const navigate = useNavigate();
+  const location = useLocation();
 
-  useEffect(() => { loadVouchers(); }, []);
+  useEffect(() => { loadVouchers(); }, [location.key]);
 
   const loadVouchers = async () => {
     try {
@@ -363,64 +417,7 @@ export default function Dashboard({ onLogout }) {
     .filter(v => v.media_type !== 'image' || !v.notes)
     .reduce((sum, v) => sum + (Number(v.balance) || 0), 0);
 
-  const ExpiryBadge = ({ expiry_date }) => {
-    const days = getDaysLeft(expiry_date);
-    if (days === null) return null;
-    const cls = days <= 0 ? 'sc-expiry sc-expiry-dead' : days <= 14 ? 'sc-expiry sc-expiry-warn' : 'sc-expiry sc-expiry-ok';
-    const label = days <= 0 ? 'פג תוקף' : `עוד ${days} ימים`;
-    return <span className={cls}>⏱ {label}</span>;
-  };
-
-  const CardInner = ({ v, featured }) => {
-    const color = getBrandColor(v.brand_name);
-    const isImg = v.media_type === 'image' && v.notes;
-    return (
-      <div
-        className={featured ? 'sc-card-featured' : 'sc-card'}
-        style={{ background: color.bg, color: color.text }}
-      >
-        {/* decoration circle top-left */}
-        <div style={{
-          position: 'absolute', top: featured ? -40 : -30,
-          right: featured ? -40 : -30,
-          width: featured ? 130 : 90, height: featured ? 130 : 90,
-          borderRadius: '50%', background: 'rgba(255,255,255,0.09)', pointerEvents: 'none'
-        }} />
-
-        <div style={{ position: 'relative', zIndex: 1 }}>
-          <div className="sc-card-brand">{v.brand_name}</div>
-
-          {isImg
-            ? <div className="sc-card-note">{v.notes}</div>
-            : <div className="sc-card-amount">₪{Number(v.balance).toLocaleString()}</div>
-          }
-
-          <ExpiryBadge expiry_date={v.expiry_date} />
-
-          {v.media_value && v.media_type === 'image' && (
-            <img
-              className="sc-thumb"
-              src={v.media_value}
-              alt=""
-              onClick={(e) => { e.stopPropagation(); setExpandedImage(v.media_value); }}
-            />
-          )}
-
-          {v.media_value && v.media_type === 'link' && (
-            <button className="sc-link-chip" onClick={(e) => { e.stopPropagation(); window.open(v.media_value, '_blank'); }}>
-              🔗 פתח שובר
-            </button>
-          )}
-        </div>
-
-        {/* actions */}
-        <div className="sc-card-actions">
-          <button className="sc-card-action" onClick={(e) => { e.stopPropagation(); navigate('/edit', { state: { voucher: v } }); }} title="עריכה">✏️</button>
-          <button className="sc-card-action delete" onClick={(e) => handleDelete(v.id, e)} title="מחיקה">🗑</button>
-        </div>
-      </div>
-    );
-  };
+  const onExpandImage = useCallback((url) => setExpandedImage(url), []);
 
   return (
     <>
@@ -516,7 +513,7 @@ export default function Dashboard({ onLogout }) {
               </div>
               <div className="sc-cards-grid" style={{ gridTemplateColumns: '1fr' }}>
                 {[...vouchers].sort((a, b) => (a.brand_name || '').localeCompare(b.brand_name || '', 'he')).map(v => (
-                  <CardInner key={v.id} v={v} featured={false} />
+                  <CardInner key={v.id} v={v} featured={false} navigate={navigate} onDelete={handleDelete} onExpandImage={onExpandImage} />
                 ))}
               </div>
             </>
@@ -535,10 +532,10 @@ export default function Dashboard({ onLogout }) {
                     <span className="sc-section-count">{catVouchers.length}</span>
                     <span className="sc-section-title">{category}</span>
                   </div>
-                  <CardInner v={catVouchers[0]} featured={true} />
+                  <CardInner v={catVouchers[0]} featured={true} navigate={navigate} onDelete={handleDelete} onExpandImage={onExpandImage} />
                   {catVouchers.length > 1 && (
                     <div className="sc-cards-grid">
-                      {catVouchers.slice(1).map(v => <CardInner key={v.id} v={v} featured={false} />)}
+                      {catVouchers.slice(1).map(v => <CardInner key={v.id} v={v} featured={false} navigate={navigate} onDelete={handleDelete} onExpandImage={onExpandImage} />)}
                     </div>
                   )}
                 </div>
