@@ -221,9 +221,11 @@ export default function AddVoucher() {
     setScanning(false);
   };
 
+  const isMonetary = category === 'שובר כספי' || category === 'זיכויים';
+
   const handleSubmit = async () => {
     if (!brandId && !customBrand) { setError('נא לבחור מותג'); return; }
-    if (mediaType !== 'upload' && !balance) { setError('נא למלא יתרה'); return; }
+    if (isMonetary && mediaType !== 'upload' && !balance) { setError('נא למלא יתרה'); return; }
     try {
       let finalBrandId = brandId;
       if (brandId === 'custom') {
@@ -355,10 +357,15 @@ export default function AddVoucher() {
                 </label>
                 {imagePreview && <img src={imagePreview} className="av-preview" alt="" />}
               </>
-            ) : (
+            ) : isMonetary ? (
               <>
                 <input className="av-input" type="number" placeholder="יתרה (₪)" value={balance} onChange={e => setBalance(e.target.value)} style={{ direction: 'ltr' }} />
                 <input className="av-input" placeholder={mediaType === 'link' ? 'לינק לשובר' : 'URL של תמונה'} value={mediaValue} onChange={e => setMediaValue(e.target.value)} style={{ direction: 'ltr' }} />
+              </>
+            ) : (
+              <>
+                <input className="av-input" placeholder="שם השובר / תיאור" value={notes} onChange={e => setNotes(e.target.value)} />
+                <input className="av-input" placeholder={mediaType === 'link' ? 'לינק לשובר (אופציונלי)' : 'URL של תמונה (אופציונלי)'} value={mediaValue} onChange={e => setMediaValue(e.target.value)} style={{ direction: 'ltr', marginTop: 10 }} />
               </>
             )}
           </div>
