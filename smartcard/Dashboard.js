@@ -497,20 +497,31 @@ export default function Dashboard({ onLogout }) {
             </div>
           ) : (
             <>
-              <div className="sc-section-head">
-                <span className="sc-section-count">{vouchers.length}</span>
-                <span className="sc-section-title">השוברים שלי</span>
-              </div>
+              {Object.entries(
+                vouchers.reduce((acc, v) => {
+                  const cat = v.category || 'כללי';
+                  if (!acc[cat]) acc[cat] = [];
+                  acc[cat].push(v);
+                  return acc;
+                }, {})
+              ).map(([category, catVouchers]) => (
+                <div key={category}>
+                  <div className="sc-section-head">
+                    <span className="sc-section-count">{catVouchers.length}</span>
+                    <span className="sc-section-title">{category}</span>
+                  </div>
 
-              {/* Featured: first voucher full width */}
-              <CardInner v={vouchers[0]} featured={true} />
+                  {/* Featured: first voucher full width */}
+                  <CardInner v={catVouchers[0]} featured={true} />
 
-              {/* Rest in 2-col grid */}
-              {vouchers.length > 1 && (
-                <div className="sc-cards-grid">
-                  {vouchers.slice(1).map(v => <CardInner key={v.id} v={v} featured={false} />)}
+                  {/* Rest in 2-col grid */}
+                  {catVouchers.length > 1 && (
+                    <div className="sc-cards-grid">
+                      {catVouchers.slice(1).map(v => <CardInner key={v.id} v={v} featured={false} />)}
+                    </div>
+                  )}
                 </div>
-              )}
+              ))}
             </>
           )}
         </div>
