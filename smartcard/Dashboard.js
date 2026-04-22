@@ -202,6 +202,7 @@ const styles = `
   .sc-card-actions {
     position: absolute; top: 10px; left: 10px;
     display: flex; gap: 4px; opacity: 1;
+    z-index: 2;
   }
   .sc-card-action {
     width: 26px; height: 26px; border-radius: 50%;
