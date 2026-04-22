@@ -41,6 +41,10 @@ export default function EditVoucher() {
   const [mediaType, setMediaType] = useState(voucher?.media_type || 'link');
   const [mediaValue, setMediaValue] = useState(voucher?.media_value || '');
   const [notes, setNotes] = useState(voucher?.notes || '');
+  const FIXED_CATS = ['שובר כספי', 'זיכויים', 'שובר אחר'];
+  const initCat = voucher?.category || 'שובר כספי';
+  const [category, setCategory] = useState(FIXED_CATS.includes(initCat) ? initCat : 'שובר אחר');
+  const [customCategory, setCustomCategory] = useState(FIXED_CATS.includes(initCat) ? '' : initCat);
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(voucher?.media_type === 'image' ? voucher.media_value : null);
   const [error, setError] = useState('');
@@ -69,7 +73,7 @@ export default function EditVoucher() {
       }
       await axios.patch(
         `${API}/api/vouchers/${voucher.id}`,
-        { balance: parseFloat(balance) || 0, expiry_date: expiry || null, media_type: finalMediaType || null, media_value: finalMediaValue || null, notes: notes || null },
+        { balance: parseFloat(balance) || 0, expiry_date: expiry || null, media_type: finalMediaType || null, media_value: finalMediaValue || null, notes: notes || null, category: category === 'שובר אחר' ? (customCategory || 'שובר אחר') : category },
         { headers: { Authorization: 'Bearer ' + localStorage.getItem('token') } }
       );
       navigate('/');
@@ -89,6 +93,19 @@ export default function EditVoucher() {
         </div>
 
         <div className="ev-content">
+          {/* Category */}
+          <div className="ev-block">
+            <div className="ev-block-label">קטגוריה</div>
+            <div className="ev-seg">
+              {['שובר כספי', 'זיכויים', 'שובר אחר'].map(cat => (
+                <button key={cat} className={`ev-seg-btn${category === cat ? ' active' : ''}`} onClick={() => setCategory(cat)}>{cat}</button>
+              ))}
+            </div>
+            {category === 'שובר אחר' && (
+              <input className="ev-input" style={{ marginTop: 10 }} placeholder="תיאור הקטגוריה..." value={customCategory} onChange={e => setCustomCategory(e.target.value)} />
+            )}
+          </div>
+
           <div className="ev-block">
             <div className="ev-block-label">פרטים</div>
             <input className="ev-input" type="number" placeholder="יתרה (₪)" value={balance} onChange={e => setBalance(e.target.value)} style={{ direction: 'ltr' }} />

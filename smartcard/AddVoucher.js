@@ -179,6 +179,8 @@ export default function AddVoucher() {
   const [customBrand, setCustomBrand] = useState('');
   const [balance, setBalance] = useState('');
   const [notes, setNotes] = useState('');
+  const [category, setCategory] = useState('שובר כספי');
+  const [customCategory, setCustomCategory] = useState('');
   const [expiry, setExpiry] = useState('');
   const [mediaType, setMediaType] = useState('link');
   const [mediaValue, setMediaValue] = useState('');
@@ -255,6 +257,7 @@ export default function AddVoucher() {
         media_type: finalMediaValue ? finalMediaType : null,
         media_value: finalMediaValue || null,
         notes: notes || null,
+        category: category === 'שובר אחר' ? (customCategory || 'שובר אחר') : category,
       };
       if (groupId) { await createGroupVoucher(groupId, voucherData); navigate('/groups'); }
       else { await createVoucher(voucherData); navigate('/'); }
@@ -308,6 +311,19 @@ export default function AddVoucher() {
                   <div style={{ fontSize: 12, color: '#FCD34D', marginTop: 4 }}>לא זוהו נתונים, מלא ידנית</div>
                 )}
               </div>
+            )}
+          </div>
+
+          {/* Category */}
+          <div className="av-block">
+            <div className="av-block-label">קטגוריה</div>
+            <div className="av-seg">
+              {['שובר כספי', 'זיכויים', 'שובר אחר'].map(cat => (
+                <button key={cat} className={`av-seg-btn${category === cat ? ' active' : ''}`} onClick={() => setCategory(cat)}>{cat}</button>
+              ))}
+            </div>
+            {category === 'שובר אחר' && (
+              <input className="av-input" style={{ marginTop: 10 }} placeholder="תיאור הקטגוריה..." value={customCategory} onChange={e => setCustomCategory(e.target.value)} />
             )}
           </div>
 
