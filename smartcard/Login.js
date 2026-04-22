@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { login, register } from '../api';
-import axios from 'axios';
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap');
@@ -25,32 +24,21 @@ const styles = `
   .lg-error { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); border-radius: 10px; padding: 10px 14px; font-size: 13px; color: #FCA5A5; text-align: center; margin-bottom: 12px; }
   .lg-dots { display: flex; gap: 6px; justify-content: center; margin-top: 24px; }
   .lg-dot { width: 6px; height: 6px; border-radius: 50%; }
-  .lg-totp { font-size: 13px; color: rgba(255,255,255,0.5); text-align: center; margin-bottom: 12px; }
 `;
 
 export default function Login({ onLogin }) {
   const [mode, setMode] = useState('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [totpCode, setTotpCode] = useState('');
-  const [tempToken, setTempToken] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handle = async () => {
     setError(''); setLoading(true);
     try {
-      if (tempToken) {
-        // TOTP step
-        const res = await axios.post('/api/auth/totp/verify-login', { temp_token: tempToken, code: totpCode });
-        onLogin(res.data.access_token);
-      } else if (mode === 'login') {
+      if (mode === 'login') {
         const res = await login(email, password);
-        if (res.data.requires_2fa) {
-          setTempToken(res.data.temp_token);
-        } else {
-          onLogin(res.data.access_token);
-        }
+        onLogin(res.data.access_token);
       } else {
         const res = await register(email, password);
         onLogin(res.data.access_token);
@@ -76,20 +64,11 @@ export default function Login({ onLogin }) {
 
           {error && <div className="lg-error">{error}</div>}
 
-          {tempToken ? (
-            <>
-              <div className="lg-totp">הזן קוד מאפליקציית האימות (Google Authenticator)</div>
-              <input className="lg-input" type="text" inputMode="numeric" placeholder="קוד 6 ספרות" value={totpCode} onChange={e => setTotpCode(e.target.value)} onKeyDown={e => e.key === 'Enter' && handle()} autoFocus />
-            </>
-          ) : (
-            <>
-              <input className="lg-input" type="email" placeholder="כתובת אימייל" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === 'Enter' && handle()} />
-              <input className="lg-input" type="password" placeholder="סיסמה" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && handle()} />
-            </>
-          )}
+          <input className="lg-input" type="email" placeholder="כתובת אימייל" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === 'Enter' && handle()} />
+          <input className="lg-input" type="password" placeholder="סיסמה" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && handle()} />
 
           <button className="lg-submit" onClick={handle} disabled={loading}>
-            {loading ? '...' : tempToken ? 'אמת' : mode === 'login' ? 'כניסה' : 'צור חשבון'}
+            {loading ? '...' : mode === 'login' ? 'כניסה' : 'צור חשבון'}
           </button>
         </div>
 
