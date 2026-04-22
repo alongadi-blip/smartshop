@@ -47,6 +47,8 @@ export default function EditVoucher() {
   const [imagePreview, setImagePreview] = useState(voucher?.media_type === 'image' ? voucher.media_value : null);
   const [error, setError] = useState('');
 
+  const isMonetary = category === 'שובר כספי' || category === 'זיכויים';
+
   if (!voucher) { navigate('/'); return null; }
 
   const handleImageChange = (e) => {
@@ -107,8 +109,12 @@ export default function EditVoucher() {
 
           <div className="ev-block">
             <div className="ev-block-label">פרטים</div>
-            <input className="ev-input" type="number" placeholder="יתרה (₪)" value={balance} onChange={e => setBalance(e.target.value)} style={{ direction: 'ltr' }} />
-            <input className="ev-input" type="date" value={expiry} onChange={e => setExpiry(e.target.value)} style={{ direction: 'ltr', colorScheme: 'dark' }} />
+            {isMonetary ? (
+              <input className="ev-input" type="number" placeholder="יתרה (₪)" value={balance} onChange={e => setBalance(e.target.value)} style={{ direction: 'ltr' }} />
+            ) : (
+              <input className="ev-input" placeholder="שם השובר / תיאור" value={notes} onChange={e => setNotes(e.target.value)} />
+            )}
+            <input className="ev-input" type="date" value={expiry} onChange={e => setExpiry(e.target.value)} style={{ direction: 'ltr', colorScheme: 'dark', marginTop: 10 }} />
           </div>
 
           <div className="ev-block">
@@ -120,8 +126,10 @@ export default function EditVoucher() {
             </div>
             {mediaType === 'upload' ? (
               <>
-                <input className="ev-input" placeholder="שם המוצר / תיאור" value={notes} onChange={e => setNotes(e.target.value)} />
-                <label style={{ display: 'block', marginTop: 12 }}>
+                {isMonetary && (
+                  <input className="ev-input" placeholder="שם המוצר / תיאור" value={notes} onChange={e => setNotes(e.target.value)} style={{ marginBottom: 12 }} />
+                )}
+                <label style={{ display: 'block' }}>
                   <div className="ev-upload-zone">
                     <div style={{ fontSize: 24, marginBottom: 6 }}>📁</div>
                     <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.6)', fontWeight: 500 }}>לחץ לבחירת תמונה</div>
