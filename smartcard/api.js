@@ -14,6 +14,9 @@ export const login = (email, password) => {
 };
 export const logout = () => API.post('/auth/logout');
 export const getMe = () => API.get('/auth/me');
+export const forgotPassword = (email) => API.post('/auth/forgot-password', { email });
+export const createBrand = (name) => API.post('/brands/create', { name });
+export const resetPassword = (token, newPassword) => API.post('/auth/reset-password', { token, new_password: newPassword });
 export const getVouchers = () => API.get('/vouchers/all');
 export const createVoucher = (data) => API.post('/vouchers/', data);
 export const updateBalance = (id, balance) => API.patch(`/vouchers/${id}/balance`, { balance });

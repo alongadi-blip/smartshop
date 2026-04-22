@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { getBrands, createVoucher, createGroupVoucher } from '../api';
+import { getBrands, createVoucher, createGroupVoucher, uploadImage, createBrand } from '../api';
 import axios from 'axios';
-
-const API = 'http://138.2.162.153:8000';
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap');
@@ -208,9 +206,7 @@ export default function AddVoucher() {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const res = await axios.post(`${API}/api/vouchers/ocr`, formData, {
-        headers: { Authorization: 'Bearer ' + localStorage.getItem('token') }
-      });
+      const res = await axios.post('/api/vouchers/ocr', formData);
       const data = res.data;
       setOcrResult(data);
       if (data.balance) setBalance(String(data.balance));
@@ -231,23 +227,16 @@ export default function AddVoucher() {
     try {
       let finalBrandId = brandId;
       if (brandId === 'custom') {
-        const res = await fetch(`${API}/api/brands/create`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('token') },
-          body: JSON.stringify({ name: customBrand })
-        });
-        const data = await res.json();
-        finalBrandId = data.id;
+        const res = await createBrand(customBrand);
+        finalBrandId = res.data.id;
       }
       let finalMediaValue = mediaValue;
       let finalMediaType = mediaType;
       if (mediaType === 'upload' && imageFile) {
         const formData = new FormData();
         formData.append('file', imageFile);
-        const res = await axios.post(`${API}/api/vouchers/upload-image`, formData, {
-          headers: { Authorization: 'Bearer ' + localStorage.getItem('token') }
-        });
-        finalMediaValue = 'http://138.2.162.153' + res.data.url;
+        const res = await uploadImage(formData);
+        finalMediaValue = res.data.url;
         finalMediaType = 'image';
       }
       const voucherData = {

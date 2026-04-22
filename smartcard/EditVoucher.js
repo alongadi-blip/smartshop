@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import axios from 'axios';
-
-const API = 'http://138.2.162.153:8000';
+import { updateVoucher, uploadImage } from '../api';
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap');
@@ -65,17 +63,18 @@ export default function EditVoucher() {
       if (mediaType === 'upload' && imageFile) {
         const formData = new FormData();
         formData.append('file', imageFile);
-        const res = await axios.post(`${API}/api/vouchers/upload-image`, formData, {
-          headers: { Authorization: 'Bearer ' + localStorage.getItem('token') }
-        });
-        finalMediaValue = 'http://138.2.162.153' + res.data.url;
+        const res = await uploadImage(formData);
+        finalMediaValue = res.data.url;
         finalMediaType = 'image';
       }
-      await axios.patch(
-        `${API}/api/vouchers/${voucher.id}`,
-        { balance: parseFloat(balance) || 0, expiry_date: expiry || null, media_type: finalMediaType || null, media_value: finalMediaValue || null, notes: notes || null, category: category === 'שובר אחר' ? (customCategory || 'כללי') : category },
-        { headers: { Authorization: 'Bearer ' + localStorage.getItem('token') } }
-      );
+      await updateVoucher(voucher.id, {
+        balance: parseFloat(balance) || 0,
+        expiry_date: expiry || null,
+        media_type: finalMediaType || null,
+        media_value: finalMediaValue || null,
+        notes: notes || null,
+        category: category === 'שובר אחר' ? (customCategory || 'כללי') : category
+      });
       navigate('/');
     } catch (e) { setError(e.response?.data?.detail || 'שגיאה'); }
   };
