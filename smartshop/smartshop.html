@@ -209,43 +209,40 @@
     .cat-head { padding: 10px 15px; background: var(--surface); border-bottom: 1px solid var(--border); font-weight: 600; font-size: 0.82rem; display: flex; align-items: center; gap: 6px; letter-spacing: 0.01em; color: var(--text-muted); }
     .cat-head .cnt { font-size: 0.75rem; color: var(--text-muted); font-weight: 400; opacity: 0.7; }
 
-    .item { display: flex; align-items: center; padding: 12px 15px; border-bottom: 1px solid var(--border); gap: 10px; transition: background var(--tr), opacity 0.25s; position: relative; overflow: hidden; }
+    .item { display: flex; align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--border); gap: 13px; transition: background var(--tr), opacity 0.25s; position: relative; overflow: hidden; cursor: default; }
     .item:last-child { border-bottom: none; }
     .item:hover { background: var(--surface2); }
     .item.done { opacity: 1; }
     .check {
-      width: 22px; height: 22px; border-radius: 6px; border: 1.5px solid var(--border);
+      width: 23px; height: 23px; border-radius: 7px; border: 1.5px solid var(--border);
       background: none; cursor: pointer; flex-shrink: 0;
       display: flex; align-items: center; justify-content: center;
-      color: transparent; font-size: 0.75rem; font-weight: 700; transition: all var(--tr);
+      color: transparent; font-size: 0.8rem; font-weight: 700; transition: all var(--tr);
     }
     .check:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-dim); }
     .done-chk { background: var(--primary) !important; border-color: var(--primary) !important; color: white !important; }
     .done-chk:hover { opacity: 0.8; }
-    .item-body { flex: 1; min-width: 0; }
-    .item-name-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-    .item-name { font-size: 0.91rem; font-weight: 500; display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
-    .item-emoji { font-size: 1rem; line-height: 1; flex-shrink: 0; }
-    .item-note { font-size: 0.73rem; color: var(--text-muted); margin-top: 2px; }
-    .qty-tag { display: inline-flex; align-items: center; background: var(--primary-dim); border-radius: 6px; padding: 3px 9px; color: var(--primary); font-weight: 600; font-size: 0.78rem; cursor: pointer; gap: 3px; transition: background var(--tr); }
-    .qty-tag:hover { opacity: 0.8; }
-    .qty-tag .edit-hint { font-size: 0.6rem; opacity: 0.5; }
-    .qty-add-hint { display: inline-flex; align-items: center; gap: 3px; font-size: 0.76rem; color: var(--text-muted); cursor: pointer; border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; transition: all var(--tr); font-weight: 500; }
-    .qty-add-hint:hover { color: var(--primary); border-color: var(--primary); background: var(--primary-dim); }
+    .item-body { flex: 1; min-width: 0; cursor: pointer; }
+    .item-name { font-size: 0.97rem; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .item-sub { display: flex; align-items: center; gap: 5px; margin-top: 3px; flex-wrap: wrap; }
+    .item-qty { font-size: 0.78rem; color: var(--primary); font-weight: 600; cursor: pointer; }
+    .item-qty:hover { opacity: 0.75; }
+    .item-sub-sep { font-size: 0.7rem; color: var(--border); }
+    .item-sub-note { font-size: 0.78rem; color: var(--text-muted); }
     .qty-inline { display: inline-flex; align-items: center; gap: 4px; }
     .qty-num-in { width: 52px; padding: 2px 8px; border: 1.5px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--text); font-size: 0.83rem; font-family: inherit; outline: none; }
     .qty-num-in:focus { border-color: var(--primary); }
     .qty-unit-in { padding: 2px 6px; border: 1.5px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--text); font-size: 0.8rem; font-family: inherit; outline: none; }
     .qty-ok-btn { width: 22px; height: 22px; border-radius: 6px; border: none; background: var(--primary); color: white; cursor: pointer; font-size: 0.75rem; display: flex; align-items: center; justify-content: center; }
     .qty-x-btn  { width: 22px; height: 22px; border-radius: 6px; border: none; background: var(--surface2); color: var(--text-muted); cursor: pointer; font-size: 0.75rem; display: flex; align-items: center; justify-content: center; }
-    .item-actions { display: flex; gap: 2px; opacity: 0; transition: opacity var(--tr); align-items: center; }
+    .item-actions { display: flex; gap: 2px; opacity: 0; transition: opacity var(--tr); align-items: center; flex-shrink: 0; }
     .item:hover .item-actions { opacity: 1; }
-    @media (max-width: 620px) { .item-actions { opacity: 1; } }
-    .act { background: none; border: none; cursor: pointer; width: 28px; height: 28px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; color: var(--text-muted); transition: all var(--tr); }
+    .act { background: none; border: none; cursor: pointer; width: 30px; height: 30px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; color: var(--text-muted); transition: all var(--tr); }
     .act:hover { background: var(--surface2); color: var(--text); }
     .act.del:hover { background: var(--danger-dim); color: var(--danger); }
-    .undo-btn { background: none; border: 1px solid var(--border); border-radius: 7px; cursor: pointer; color: var(--text-muted); font-size: 0.73rem; padding: 3px 9px; transition: all var(--tr); white-space: nowrap; font-family: inherit; font-weight: 500; }
+    .undo-btn { background: none; border: 1px solid var(--border); border-radius: 7px; cursor: pointer; color: var(--text-muted); font-size: 0.73rem; padding: 3px 9px; transition: all var(--tr); white-space: nowrap; font-family: inherit; font-weight: 500; flex-shrink: 0; }
     .undo-btn:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-dim); }
+    .purch-body .item-name { text-decoration: line-through; opacity: 0.5; }
 
     /* empty state */
     .empty { text-align: center; padding: 48px 28px; background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); color: var(--text-muted); }
@@ -265,7 +262,6 @@
     .purch-section:not(.collapsed) .purch-body { display: block; }
     .purch-body .item-actions { opacity: 1; }
     .purch-body .item { background: var(--surface); opacity: 1; }
-    .purch-body .item-name { text-decoration: line-through; color: var(--text-muted); opacity: 0.6; }
 
     .swipe-hint { font-size: 0.71rem; color: var(--text-muted); text-align: center; padding: 4px 0; opacity: 0.6; }
     @media (min-width: 621px) { .swipe-hint { display: none; } }
@@ -2469,36 +2465,41 @@ function itemHTML(id, it, purch) {
   if (it.qtyN) qtyStr = it.qtyN + ' ' + (it.qtyU || "יח'");
   else if (it.qty) qtyStr = it.qty; // backward compat
 
-  let qtyArea;
-  if (purch) {
-    qtyArea = qtyStr ? `<span class="qty-tag" style="cursor:default">${hEsc(qtyStr)}</span>` : '';
-  } else {
-    qtyArea = qtyStr
-      ? `<span class="qty-tag" id="qty-wrap-${id}" onclick="startQtyEdit('${id}')" title="לחץ לעריכת כמות">${hEsc(qtyStr)} <span class="edit-hint">✎</span></span>`
-      : `<span class="qty-add-hint" id="qty-wrap-${id}" onclick="startQtyEdit('${id}')" title="הגדר כמות">⚖</span>`;
-  }
-
-  const note = it.note ? `<div class="item-note">${hEsc(it.note)}</div>` : '';
-  const emoji = prodEmoji(it.name);
   const checkBtn = `<button class="check${purch ? ' done-chk' : ''}" onclick="togglePurch('${id}')" title="${purch ? 'בטל סימון' : 'סמן כנרכש'}">✓</button>`;
 
-  const actions = purch
-    ? `<button class="undo-btn" onclick="togglePurch('${id}')">↩ החזר לרשימה</button>
-       <button class="act del" onclick="askDel('${id}')" title="מחק">🗑️</button>`
-    : `<button class="act" onclick="openEdit('${id}')" title="ערוך">✏️</button>
-       <button class="act del" onclick="askDel('${id}')" title="מחק">🗑️</button>`;
+  // Build sub-line: qty + note
+  const subParts = [];
+  if (qtyStr) {
+    subParts.push(purch
+      ? `<span class="item-sub-note">${hEsc(qtyStr)}</span>`
+      : `<span class="item-qty" id="qty-wrap-${id}" onclick="event.stopPropagation();startQtyEdit('${id}')">${hEsc(qtyStr)}</span>`);
+  }
+  if (it.note) subParts.push(`<span class="item-sub-note">${hEsc(it.note)}</span>`);
+  const subHtml = subParts.length
+    ? `<div class="item-sub">${subParts.join('<span class="item-sub-sep">·</span>')}</div>`
+    : '';
+
+  if (purch) {
+    return `<div class="item done" data-id="${id}">
+      ${checkBtn}
+      <div class="item-body">
+        <div class="item-name">${hEsc(it.name)}</div>
+        ${subHtml}
+      </div>
+      <button class="undo-btn" onclick="togglePurch('${id}')">↩ החזר</button>
+      <button class="act del" onclick="askDel('${id}')" title="מחק">🗑️</button>
+    </div>`;
+  }
 
   return `<div class="item" data-id="${id}">
     ${checkBtn}
-    <div class="item-body">
-      <div class="item-name-row">
-        <span class="item-name">${hEsc(it.name)}</span>
-        ${emoji ? `<span class="item-emoji">${emoji}</span>` : ''}
-        ${qtyArea}
-      </div>
-      ${note}
+    <div class="item-body" onclick="openEdit('${id}')">
+      <div class="item-name">${hEsc(it.name)}</div>
+      ${subHtml}
     </div>
-    <div class="item-actions">${actions}</div>
+    <div class="item-actions">
+      <button class="act del" onclick="event.stopPropagation();askDel('${id}')" title="מחק">🗑️</button>
+    </div>
   </div>`;
 }
 
