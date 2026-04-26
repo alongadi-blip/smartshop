@@ -2497,8 +2497,6 @@ function itemHTML(id, it, purch) {
         <div class="item-name">${hEsc(it.name)}</div>
         ${subHtml}
       </div>
-      <button class="undo-btn" onclick="togglePurch('${id}')">↩ החזר</button>
-      <button class="act del" onclick="askDel('${id}')" title="מחק">🗑️</button>
     </div>`;
   }
 
@@ -2740,20 +2738,37 @@ function togglePurchSect() {
 // ============================================================
 function attachSwipe() {
   document.querySelectorAll('.item[data-id]').forEach(el => {
+    const isPurch = el.classList.contains('done');
     let sx = 0, sy = 0, moving = false;
     el.addEventListener('touchstart', e => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; moving = false; }, { passive: true });
     el.addEventListener('touchmove', e => {
       const dx = e.touches[0].clientX - sx, dy = e.touches[0].clientY - sy;
       if (!moving && Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 8) moving = true;
-      if (moving && dx < 0) { el.style.transform = `translateX(${Math.max(dx, -80)}px)`; el.style.background = `rgba(229,57,53,${Math.min(-dx / 80 * 0.35, 0.35)})`; }
+      if (!moving) return;
+      if (!isPurch && dx < 0) {
+        // active item: swipe left = delete (red bg)
+        el.style.transform = `translateX(${Math.max(dx, -80)}px)`;
+        el.style.background = `rgba(229,57,53,${Math.min(-dx / 80 * 0.35, 0.35)})`;
+      } else if (isPurch && dx > 0) {
+        // purchased item: swipe right = delete (red bg)
+        el.style.transform = `translateX(${Math.min(dx, 80)}px)`;
+        el.style.background = `rgba(229,57,53,${Math.min(dx / 80 * 0.35, 0.35)})`;
+      }
     }, { passive: true });
     el.addEventListener('touchend', e => {
       const dx = e.changedTouches[0].clientX - sx;
-      if (moving && dx < -55) {
+      if (!isPurch && moving && dx < -55) {
         const id = el.dataset.id;
         el.style.cssText += 'transform:translateX(-110%);opacity:0;transition:all .28s';
         setTimeout(() => { const it = items[id]; if (it) { const name = it.name; del(id); toastUndo('🗑️ ' + name + ' נמחק'); } }, 280);
-      } else { el.style.transform = ''; el.style.background = ''; }
+      } else if (isPurch && moving && dx > 55) {
+        const id = el.dataset.id;
+        el.style.cssText += 'transform:translateX(110%);opacity:0;transition:all .28s';
+        setTimeout(() => { const it = items[id]; if (it) { const name = it.name; del(id); toastUndo('🗑️ ' + name + ' נמחק'); } }, 280);
+      } else {
+        el.style.transform = '';
+        el.style.background = '';
+      }
     }, { passive: true });
   });
 }
