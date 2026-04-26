@@ -87,6 +87,19 @@
     .list-name-disp:hover { background: var(--surface2); }
     .list-name-text { font-size: 0.85rem; font-weight: 600; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .list-name-edit-icon { font-size: 0.7rem; opacity: 0.45; flex-shrink: 0; }
+
+    /* list name bar (mobile — shown below search when header is crowded) */
+    .list-name-bar {
+      display: none; align-items: center; gap: 6px;
+      padding: 6px 16px 2px; cursor: pointer;
+    }
+    .list-name-bar:hover .list-name-bar-text { opacity: 0.75; }
+    .list-name-bar-text { font-size: 1rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+    .list-name-bar-icon { font-size: 0.75rem; opacity: 0.4; flex-shrink: 0; }
+    @media (max-width: 620px) {
+      .list-name-area { display: none; }
+      .list-name-bar { display: flex; }
+    }
     .list-name-input {
       font-size: 0.88rem; font-weight: 600; background: var(--surface2);
       border: 1px solid var(--border); color: var(--text); border-radius: 8px;
@@ -545,6 +558,12 @@
         <button class="icon-btn" onclick="openHelp()" title="עזרה">❓</button>
         <button class="icon-btn" id="adminBtn" onclick="openAdmin()" title="ניהול קטלוג מוצרים" style="display:none">🔧</button>
       </div>
+    </div>
+
+    <!-- List name bar (mobile) -->
+    <div class="list-name-bar" id="listNameBar" onclick="startEditName()" title="לחץ לשינוי שם הרשימה" style="display:none">
+      <span class="list-name-bar-text" id="listNameBarText">…</span>
+      <span class="list-name-bar-icon">✏️</span>
     </div>
 
     <!-- Search -->
@@ -1899,7 +1918,11 @@ function initMeta(isShared) {
 }
 
 function renderListName() {
-  document.getElementById('listNameText').textContent = listName || 'רשימה ללא שם';
+  const name = listName || 'רשימה ללא שם';
+  document.getElementById('listNameText').textContent = name;
+  document.getElementById('listNameBarText').textContent = name;
+  // Show the mobile bar only when a real list is open (not home mode)
+  document.getElementById('listNameBar').style.display = homeMode ? 'none' : '';
 }
 
 function startEditName() {
@@ -1962,6 +1985,7 @@ function updateRegistry(id, name, token) {
 function showHomeScreen() {
   homeMode = true;
   document.getElementById('homeView').style.display = 'block';
+  document.getElementById('listNameBar').style.display = 'none';
   document.querySelector('.search-wrap').style.display = 'none';
   renderHomeList();
 }
