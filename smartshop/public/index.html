@@ -306,6 +306,14 @@
     .lists-empty { padding: 32px 16px; text-align: center; color: var(--text-muted); font-size: 0.88rem; }
     .lists-footer { padding: 12px 16px; border-top: 1px solid var(--border); flex-shrink: 0; }
 
+    /* ---- HOME VIEW ---- */
+    .home-view { padding: 20px 16px; max-width: 480px; margin: 0 auto; }
+    .home-view-card { background: var(--surface); border-radius: 18px; overflow: hidden; box-shadow: var(--shadow); border: 1px solid var(--border); }
+    .home-view-head { padding: 16px 16px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+    .home-view-title { font-size: 1.05rem; font-weight: 700; flex: 1; }
+    .home-view-body { max-height: calc(100vh - 220px); overflow-y: auto; }
+    .home-view-footer { padding: 12px 16px; border-top: 1px solid var(--border); }
+
     /* TOAST */
     .toast { position: fixed; bottom: 88px; left: 50%; transform: translateX(-50%) translateY(16px); background: var(--text); color: var(--bg); padding: 9px 20px; border-radius: 10px; font-size: 0.85rem; z-index: 500; opacity: 0; transition: all 0.22s; pointer-events: none; white-space: nowrap; display: flex; align-items: center; gap: 10px; box-shadow: var(--shadow-hover); }
     .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
@@ -556,6 +564,18 @@
     </aside>
 
     <div class="main">
+      <div id="homeView" class="home-view" style="display:none">
+        <div class="home-view-card">
+          <div class="home-view-head">
+            <div class="home-view-title">📋 הרשימות שלי</div>
+          </div>
+          <div class="lists-body home-view-body" id="homeListsBody"></div>
+          <div class="home-view-footer">
+            <button class="btn btn-primary btn-full" onclick="newList()">➕ צור רשימה חדשה</button>
+          </div>
+        </div>
+      </div>
+
       <div class="stats-bar" id="statsBar" style="display:none">
         <div class="stat">סה"כ: <b id="sTotal">0</b></div>
         <div class="prog-wrap"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
@@ -1615,6 +1635,7 @@ let activeCat = 'all';
 let _undoId = null;
 let _undoItem = null;
 let offlineMode = false;
+let homeMode = false;
 let editingId = null;
 let searchResults = [];
 let connectedCount = 0;
@@ -1715,12 +1736,11 @@ function initWithFirebase() {
   listId = parsed.id;
   listToken = parsed.token;
 
-  // If no hash in URL, show list picker home screen
+  // If no hash in URL, show inline home screen
   if (!listId) {
     document.getElementById('listNameText').textContent = 'SmartShop';
     document.getElementById('listWm').textContent = '';
-    render(); // render empty state
-    setTimeout(() => openLists(), 200);
+    setTimeout(() => showHomeScreen(), 200);
     return;
   }
 
@@ -1937,6 +1957,35 @@ function updateRegistry(id, name, token) {
 // ============================================================
 //  LISTS MODAL
 // ============================================================
+function showHomeScreen() {
+  homeMode = true;
+  document.getElementById('homeView').style.display = 'block';
+  document.querySelector('.search-wrap').style.display = 'none';
+  renderHomeList();
+}
+function hideHomeScreen() {
+  if (!homeMode) return;
+  homeMode = false;
+  document.getElementById('homeView').style.display = 'none';
+  document.querySelector('.search-wrap').style.display = '';
+}
+function renderHomeList() {
+  const body = document.getElementById('homeListsBody');
+  body.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted)">טוען…</div>';
+  if (currentUser && db) {
+    db.ref('smartshop/users/' + currentUser.uid + '/lists').once('value', snap => {
+      const val = snap.val();
+      if (!val) { _renderListsHtml(body, []); return; }
+      const lists = Object.entries(val)
+        .map(([id, d]) => ({ id, ...d }))
+        .sort((a, b) => (b.last || 0) - (a.last || 0));
+      _renderListsHtml(body, lists);
+    });
+  } else {
+    _renderListsHtml(body, getRegistry());
+  }
+}
+
 function openLists() {
   updateRegistry(listId, listName, listToken);
   renderLists();
@@ -1944,8 +1993,6 @@ function openLists() {
 }
 function closeLists() {
   document.getElementById('listsOverlay').classList.remove('open');
-  // If no list loaded yet (home screen mode), create a new list
-  if (!listId) newList();
 }
 
 function renderLists() {
@@ -2015,7 +2062,7 @@ function renameListBtn(btn) {
 }
 
 function switchList(id, token) {
-  listId = id; // prevent closeLists() from creating a new list
+  hideHomeScreen();
   closeLists();
   location.hash = token ? id + '~' + token : id;
   location.reload();
@@ -2024,6 +2071,7 @@ function switchList(id, token) {
 function newList() {
   const name = prompt('שם הרשימה החדשה (אפשר לדלג):') ;
   if (name === null) return; // cancelled
+  hideHomeScreen();
   const trimmed = (name || '').trim().slice(0, 40);
   closeLists();
   const newId = 'sl_' + secureRandHex(6);
