@@ -313,6 +313,8 @@
     .home-view-title { font-size: 1.05rem; font-weight: 700; flex: 1; }
     .home-view-body { max-height: calc(100vh - 220px); overflow-y: auto; }
     .home-view-footer { padding: 12px 16px; border-top: 1px solid var(--border); }
+    #homeView .list-row-name { font-size: 1rem; }
+    #homeView .list-row { padding: 14px 16px; }
 
     /* TOAST */
     .toast { position: fixed; bottom: 88px; left: 50%; transform: translateX(-50%) translateY(16px); background: var(--text); color: var(--bg); padding: 9px 20px; border-radius: 10px; font-size: 0.85rem; z-index: 500; opacity: 0; transition: all 0.22s; pointer-events: none; white-space: nowrap; display: flex; align-items: center; gap: 10px; box-shadow: var(--shadow-hover); }
@@ -1975,11 +1977,29 @@ function renderHomeList() {
   if (currentUser && db) {
     db.ref('smartshop/users/' + currentUser.uid + '/lists').once('value', snap => {
       const val = snap.val();
-      if (!val) { _renderListsHtml(body, []); return; }
-      const lists = Object.entries(val)
-        .map(([id, d]) => ({ id, ...d }))
-        .sort((a, b) => (b.last || 0) - (a.last || 0));
-      _renderListsHtml(body, lists);
+      if (val) {
+        const lists = Object.entries(val)
+          .map(([id, d]) => {
+            // Enrich name from localStorage meta if Firebase entry has no name
+            if (!d.name) {
+              const local = JSON.parse(localStorage.getItem('ss_meta_' + id) || 'null') || {};
+              d.name = local.name || '';
+            }
+            return { id, ...d };
+          })
+          .sort((a, b) => (b.last || 0) - (a.last || 0));
+        _renderListsHtml(body, lists);
+      } else {
+        // Firebase has no lists — fall back to localStorage registry
+        const reg = getRegistry().map(r => {
+          if (!r.name) {
+            const local = JSON.parse(localStorage.getItem('ss_meta_' + r.id) || 'null') || {};
+            r.name = local.name || r.name;
+          }
+          return r;
+        });
+        _renderListsHtml(body, reg);
+      }
     });
   } else {
     _renderListsHtml(body, getRegistry());
