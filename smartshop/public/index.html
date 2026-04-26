@@ -176,11 +176,11 @@
     .search-add-btn { font-size: 1.3rem; }
 
     /* ---- MOBILE CHIPS ---- */
-    .chip-bar { display: none; overflow-x: auto; gap: 6px; padding: 8px 12px; background: var(--surface); border-bottom: 1px solid var(--border); scrollbar-width: none; }
+    .chip-bar { display: none; overflow-x: auto; gap: 8px; padding: 10px 14px; background: var(--surface); border-bottom: 1px solid var(--border); scrollbar-width: none; }
     .chip-bar::-webkit-scrollbar { display: none; }
     @media (max-width: 620px) { .chip-bar { display: flex; } }
-    .chip { white-space: nowrap; padding: 5px 13px; border-radius: 999px; flex-shrink: 0; background: transparent; border: 1px solid var(--border); font-size: 0.8rem; cursor: pointer; transition: all var(--tr); font-weight: 500; color: var(--text-muted); }
-    .chip.active { background: var(--primary-dim); color: var(--primary); border-color: transparent; font-weight: 600; }
+    .chip { white-space: nowrap; padding: 6px 14px; border-radius: 999px; flex-shrink: 0; background: transparent; border: 1.5px solid var(--border); font-size: 0.8rem; cursor: pointer; transition: all var(--tr); font-weight: 500; color: var(--text-muted); }
+    .chip.active { background: rgba(22,163,74,0.13); color: var(--text); border-color: transparent; font-weight: 600; }
 
     /* ---- LAYOUT ---- */
     .layout { max-width: 900px; margin: 0 auto; padding: 16px; display: grid; grid-template-columns: 176px 1fr; gap: 14px; }
