@@ -69,56 +69,36 @@
     header {
       background: var(--surface);
       color: var(--text);
-      padding: 12px 16px;
+      padding: 0;
       position: sticky; top: 0; z-index: 100;
       border-bottom: 1px solid var(--border);
       box-shadow: var(--shadow);
     }
-    .header-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-    .logo { font-size: 1.05rem; font-weight: 700; white-space: nowrap; letter-spacing: -0.01em; color: var(--text); }
-
-    /* list name */
-    .list-name-area { flex: 1; min-width: 0; display: flex; align-items: center; }
-    .list-name-disp {
-      display: flex; align-items: center; gap: 4px; cursor: pointer;
-      padding: 4px 8px; border-radius: 8px; max-width: 180px;
-      transition: background var(--tr); min-width: 0;
+    .header-top { display: flex; align-items: center; gap: 6px; padding: 8px 10px; }
+    .hdr-icon-btn {
+      background: transparent; border: none; color: var(--text);
+      width: 38px; height: 38px; border-radius: 9px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background var(--tr); flex-shrink: 0;
     }
-    .list-name-disp:hover { background: var(--surface2); }
-    .list-name-text { font-size: 0.85rem; font-weight: 600; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .list-name-edit-icon { font-size: 0.7rem; opacity: 0.45; flex-shrink: 0; }
-
-    /* list name bar (mobile — shown below search when header is crowded) */
-    .list-name-bar {
-      display: none; align-items: center; gap: 6px;
-      padding: 6px 16px 2px; cursor: pointer;
+    .hdr-icon-btn:hover { background: var(--surface2); }
+    .hdr-title {
+      flex: 1; min-width: 0; cursor: pointer; padding: 5px 8px;
+      border-radius: 8px; transition: background var(--tr);
+      display: flex; align-items: center;
     }
-    .list-name-bar:hover .list-name-bar-text { opacity: 0.75; }
-    .list-name-bar-text { font-size: 1rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
-    .list-name-bar-icon { font-size: 0.75rem; opacity: 0.4; flex-shrink: 0; }
-    @media (max-width: 620px) {
-      .list-name-area { display: none; }
-      .list-name-bar { display: flex; }
-    }
+    .hdr-title:hover { background: var(--surface2); }
+    .hdr-title span { font-size: 1rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .hdr-right { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
     .list-name-input {
-      font-size: 0.88rem; font-weight: 600; background: var(--surface2);
-      border: 1px solid var(--border); color: var(--text); border-radius: 8px;
-      padding: 4px 10px; outline: none; width: 150px; font-family: inherit; display: none;
+      flex: 1; font-size: 1rem; font-weight: 700; background: var(--surface2);
+      border: 1.5px solid var(--primary); color: var(--text); border-radius: 8px;
+      padding: 5px 10px; outline: none; font-family: inherit; display: none;
     }
     .list-name-input::placeholder { color: var(--text-muted); }
 
-    .header-right { display: flex; gap: 4px; flex-shrink: 0; }
-    .icon-btn {
-      background: transparent; border: none; color: var(--text-muted);
-      width: 34px; height: 34px; border-radius: 8px; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1rem; transition: background var(--tr), color var(--tr); flex-shrink: 0;
-    }
-    .icon-btn:hover { background: var(--surface2); color: var(--text); }
-
-    /* ---- SEARCH ROW ---- */
-    .search-row { display: flex; align-items: center; gap: 6px; }
-    .search-wrap { flex: 1; position: relative; }
+    /* ---- SEARCH ---- */
+    .search-wrap { position: relative; padding: 0 10px 8px; }
     .search-input {
       width: 100%; padding: 9px 16px; border: 1px solid var(--border); border-radius: 10px;
       background: var(--surface2); color: var(--text); font-size: 0.92rem; outline: none;
@@ -127,7 +107,7 @@
     .search-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-dim); }
     .search-input::placeholder { color: var(--text-muted); }
     .search-dropdown {
-      position: absolute; top: calc(100% + 6px); right: 0; left: 0;
+      position: absolute; top: calc(100% - 2px); right: 10px; left: 10px;
       background: var(--surface); border-radius: 12px;
       box-shadow: var(--shadow-hover); border: 1px solid var(--border);
       max-height: 320px; overflow-y: auto; z-index: 200; display: none;
@@ -142,6 +122,50 @@
     .s-item:hover, .s-item:active { background: var(--surface2); }
     .s-cat { font-size: 0.7rem; color: var(--text-muted); margin-right: auto; white-space: nowrap; }
     .s-browse-link { color: var(--primary); border-top: 1px solid var(--border); font-size: 0.83rem; }
+
+    /* ---- MORE BOTTOM SHEET ---- */
+    .more-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 450; display: none; }
+    .more-overlay.open { display: block; }
+    .more-sheet {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 460;
+      background: var(--surface); border-radius: 20px 20px 0 0;
+      box-shadow: 0 -4px 24px rgba(0,0,0,0.15); border-top: 1px solid var(--border);
+      transform: translateY(100%); transition: transform 0.28s cubic-bezier(.32,.72,0,1);
+      max-height: 85vh; overflow-y: auto;
+    }
+    .more-sheet.open { transform: translateY(0); }
+    .more-handle { width: 36px; height: 4px; background: var(--border); border-radius: 99px; margin: 10px auto 4px; }
+    .more-item {
+      display: flex; align-items: center; gap: 14px; width: 100%;
+      padding: 14px 20px; background: none; border: none; cursor: pointer;
+      color: var(--text); font-size: 0.95rem; font-family: inherit;
+      text-align: right; transition: background var(--tr);
+    }
+    .more-item:hover, .more-item:active { background: var(--surface2); }
+    .more-item-icon { font-size: 1.15rem; width: 24px; text-align: center; flex-shrink: 0; }
+    .more-item-label { flex: 1; }
+    .more-divider { height: 1px; background: var(--border); margin: 4px 0; }
+    .more-user {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 20px 16px; border-top: 1px solid var(--border);
+    }
+    .more-user-photo { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; display: none; }
+    .more-user-name { flex: 1; font-size: 0.9rem; font-weight: 600; }
+    .more-signout-btn {
+      background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted);
+      border-radius: 8px; padding: 6px 14px; cursor: pointer; font-size: 0.82rem;
+      font-family: inherit; transition: all var(--tr);
+    }
+    .more-signout-btn:hover { background: var(--danger-dim); color: var(--danger); border-color: transparent; }
+
+    /* keep icon-btn for backward compat in modals */
+    .icon-btn {
+      background: transparent; border: none; color: var(--text-muted);
+      width: 34px; height: 34px; border-radius: 8px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; transition: background var(--tr), color var(--tr); flex-shrink: 0;
+    }
+    .icon-btn:hover { background: var(--surface2); color: var(--text); }
     .search-icon-btn {
       background: var(--primary); border: none; color: #fff;
       width: 38px; height: 38px; border-radius: 10px; cursor: pointer; flex-shrink: 0;
@@ -525,49 +549,35 @@
 <div id="app" style="display:none">
   <header>
     <div class="header-top">
-      <div class="logo">🛒</div>
+      <!-- Menu button -->
+      <button class="hdr-icon-btn" onclick="openMoreMenu()" aria-label="תפריט">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+          <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
 
-      <!-- List name (editable) -->
-      <div class="list-name-area">
-        <div class="list-name-disp" id="listNameDisp" onclick="startEditName()" title="לחץ לשינוי שם הרשימה">
-          <span class="list-name-text" id="listNameText">…</span>
-          <span class="list-name-edit-icon">✏️</span>
+      <!-- List title (editable) -->
+      <div class="hdr-title" id="listNameDisp" onclick="startEditName()" title="לחץ לשינוי שם הרשימה">
+        <span id="listNameText">…</span>
+      </div>
+      <input id="listNameInput" class="list-name-input" maxlength="40" placeholder="שם הרשימה"
+             onblur="saveEditName()" onkeydown="nameInputKey(event)">
+
+      <!-- Right: presence + search -->
+      <div class="hdr-right">
+        <div class="presence-badge" id="presenceBadge">
+          <span class="presence-dot"></span><span id="presenceText"></span>
         </div>
-        <input id="listNameInput" class="list-name-input" maxlength="40" placeholder="שם הרשימה"
-               onblur="saveEditName()" onkeydown="nameInputKey(event)">
-      </div>
-
-      <div class="presence-badge" id="presenceBadge">
-        <span class="presence-dot"></span><span id="presenceText"></span>
-      </div>
-
-      <div class="user-area" id="userArea" style="display:none">
-        <img class="user-photo" id="userPhoto" src="" alt="" onclick="mobileUserTap()" title="לחץ להתנתקות">
-        <span class="user-name-short" id="userNameShort"></span>
-        <button class="signout-btn" onclick="doSignOut()">יציאה</button>
-      </div>
-
-      <div class="header-right">
-        <button class="icon-btn" onclick="openAdd()" title="הוסף מוצר חדש" style="font-size:1.2rem">➕</button>
-        <button class="icon-btn" onclick="openBrowse()" title="עיון לפי קטגוריה">📂</button>
-        <button class="icon-btn" onclick="openLists()" title="הרשימות שלי">📋</button>
-        <button class="icon-btn" id="darkBtn" onclick="toggleDark()" title="מצב כהה/בהיר">🌙</button>
-        <button class="icon-btn" onclick="openShare()" title="הזמן לרשימה">🔗</button>
-        <button class="icon-btn" onclick="openScan()" title="סרוק ברקוד"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M3 3h7v7H3zm1 1v5h5V4zm1 1h3v3H5zm8-2h7v7h-7zm1 1v5h5V4zm1 1h3v3h-3zM3 13h7v7H3zm1 1v5h5v-5zm1 1h3v3H5zm8 0h2v2h-2zm0 4h2v2h-2zm4-4h2v2h-2zm-2 2h2v2h-2zm2 2h2v2h-2z"/></svg></button>
-        <button class="icon-btn" id="installBtn" onclick="installPwa()" title="התקן אפליקציה" style="display:none">📲</button>
-        <button class="icon-btn" onclick="openHelp()" title="עזרה">❓</button>
-        <button class="icon-btn" id="adminBtn" onclick="openAdmin()" title="ניהול קטלוג מוצרים" style="display:none">🔧</button>
+        <button class="hdr-icon-btn" onclick="toggleSearch()" id="searchToggleBtn" aria-label="חיפוש">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          </svg>
+        </button>
       </div>
     </div>
 
-    <!-- List name bar (mobile) -->
-    <div class="list-name-bar" id="listNameBar" onclick="startEditName()" title="לחץ לשינוי שם הרשימה" style="display:none">
-      <span class="list-name-bar-text" id="listNameBarText">…</span>
-      <span class="list-name-bar-icon">✏️</span>
-    </div>
-
-    <!-- Search -->
-    <div class="search-wrap">
+    <!-- Search bar (hidden by default) -->
+    <div class="search-wrap" id="searchWrap" style="display:none">
       <input type="text" class="search-input" id="searchInput"
              placeholder="🔍  חפש מוצר…"
              oninput="onSearch(this.value)" onkeydown="onSearchKey(event)"
@@ -575,6 +585,46 @@
       <div class="search-dropdown" id="searchDrop"></div>
     </div>
   </header>
+
+  <!-- More menu bottom sheet -->
+  <div class="more-overlay" id="moreOverlay" onclick="closeMoreMenu()"></div>
+  <div class="more-sheet" id="moreSheet">
+    <div class="more-handle"></div>
+    <button class="more-item" onclick="openAdd(); closeMoreMenu()">
+      <span class="more-item-icon">➕</span><span class="more-item-label">הוסף מוצר</span>
+    </button>
+    <button class="more-item" onclick="openLists(); closeMoreMenu()">
+      <span class="more-item-icon">📋</span><span class="more-item-label">הרשימות שלי</span>
+    </button>
+    <button class="more-item" onclick="openShare(); closeMoreMenu()">
+      <span class="more-item-icon">🔗</span><span class="more-item-label">הזמן לרשימה</span>
+    </button>
+    <button class="more-item" onclick="openBrowse(); closeMoreMenu()">
+      <span class="more-item-icon">📂</span><span class="more-item-label">עיון לפי קטגוריה</span>
+    </button>
+    <button class="more-item" onclick="openScan(); closeMoreMenu()">
+      <span class="more-item-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M3 3h7v7H3zm1 1v5h5V4zm1 1h3v3H5zm8-2h7v7h-7zm1 1v5h5V4zm1 1h3v3h-3zM3 13h7v7H3zm1 1v5h5v-5zm1 1h3v3H5zm8 0h2v2h-2zm0 4h2v2h-2zm4-4h2v2h-2zm-2 2h2v2h-2zm2 2h2v2h-2z"/></svg></span>
+      <span class="more-item-label">סרוק ברקוד</span>
+    </button>
+    <div class="more-divider"></div>
+    <button class="more-item" onclick="toggleDark()">
+      <span class="more-item-icon" id="darkBtnIcon">🌙</span><span class="more-item-label">מצב כהה/בהיר</span>
+    </button>
+    <button class="more-item" onclick="openHelp(); closeMoreMenu()">
+      <span class="more-item-icon">❓</span><span class="more-item-label">עזרה</span>
+    </button>
+    <button class="more-item" id="adminBtn" onclick="openAdmin(); closeMoreMenu()" style="display:none">
+      <span class="more-item-icon">🔧</span><span class="more-item-label">ניהול קטלוג</span>
+    </button>
+    <button class="more-item" id="installBtn" onclick="installPwa(); closeMoreMenu()" style="display:none">
+      <span class="more-item-icon">📲</span><span class="more-item-label">התקן אפליקציה</span>
+    </button>
+    <div class="more-user" id="userArea" style="display:none">
+      <img class="more-user-photo" id="userPhoto" src="" alt="">
+      <span class="more-user-name" id="userNameShort"></span>
+      <button class="more-signout-btn" onclick="doSignOut()">יציאה</button>
+    </div>
+  </div>
 
   <div class="chip-bar" id="chipBar"></div>
 
@@ -1845,7 +1895,7 @@ function updateUserUI(user) {
   const area = document.getElementById('userArea');
   if (!user) { area.style.display = 'none'; return; }
   const photo = document.getElementById('userPhoto');
-  if (user.photoURL) { photo.src = user.photoURL; photo.style.display = ''; }
+  if (user.photoURL) { photo.src = user.photoURL; photo.style.display = 'block'; }
   else { photo.style.display = 'none'; }
   const firstName = (user.displayName || user.email || '').split(' ')[0];
   document.getElementById('userNameShort').textContent = firstName;
@@ -1918,11 +1968,7 @@ function initMeta(isShared) {
 }
 
 function renderListName() {
-  const name = listName || 'רשימה ללא שם';
-  document.getElementById('listNameText').textContent = name;
-  document.getElementById('listNameBarText').textContent = name;
-  // Show the mobile bar only when a real list is open (not home mode)
-  document.getElementById('listNameBar').style.display = homeMode ? 'none' : '';
+  document.getElementById('listNameText').textContent = listName || 'רשימה ללא שם';
 }
 
 function startEditName() {
@@ -1938,7 +1984,7 @@ function saveEditName() {
   const inp = document.getElementById('listNameInput');
   const disp = document.getElementById('listNameDisp');
   inp.style.display = 'none';
-  disp.style.display = 'flex';
+  disp.style.display = '';
   const name = inp.value.trim();
   if (name === listName) return;
   listName = name;
@@ -1985,15 +2031,16 @@ function updateRegistry(id, name, token) {
 function showHomeScreen() {
   homeMode = true;
   document.getElementById('homeView').style.display = 'block';
-  document.getElementById('listNameBar').style.display = 'none';
-  document.querySelector('.search-wrap').style.display = 'none';
+  document.getElementById('searchWrap').style.display = 'none';
+  document.getElementById('searchToggleBtn').style.display = 'none';
+  document.getElementById('listNameText').textContent = 'SmartShop';
   renderHomeList();
 }
 function hideHomeScreen() {
   if (!homeMode) return;
   homeMode = false;
   document.getElementById('homeView').style.display = 'none';
-  document.querySelector('.search-wrap').style.display = '';
+  document.getElementById('searchToggleBtn').style.display = '';
 }
 function renderHomeList() {
   const body = document.getElementById('homeListsBody');
@@ -2554,6 +2601,25 @@ function pickSearch(idx) {
 function closeSearch() {
   document.getElementById('searchDrop').classList.remove('open');
   document.getElementById('searchInput').value = '';
+  document.getElementById('searchWrap').style.display = 'none';
+}
+function toggleSearch() {
+  const wrap = document.getElementById('searchWrap');
+  const isOpen = wrap.style.display !== 'none';
+  if (isOpen) {
+    closeSearch();
+  } else {
+    wrap.style.display = '';
+    document.getElementById('searchInput').focus();
+  }
+}
+function openMoreMenu() {
+  document.getElementById('moreOverlay').classList.add('open');
+  document.getElementById('moreSheet').classList.add('open');
+}
+function closeMoreMenu() {
+  document.getElementById('moreOverlay').classList.remove('open');
+  document.getElementById('moreSheet').classList.remove('open');
 }
 
 document.addEventListener('click', e => {
@@ -2711,7 +2777,8 @@ function toggleDark() {
 }
 function applyDark(on) {
   document.documentElement.setAttribute('data-theme', on ? 'dark' : 'light');
-  document.getElementById('darkBtn').textContent = on ? '☀️' : '🌙';
+  const icon = document.getElementById('darkBtnIcon');
+  if (icon) icon.textContent = on ? '☀️' : '🌙';
 }
 
 // ============================================================
@@ -2853,7 +2920,7 @@ function esc(s) { return String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\
 //  KEYBOARD
 // ============================================================
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closeAdd(); closeEdit(); closeSearch(); closeBrowse(); closeLists(); closeShare(); closeScan(); closeAdmin(); closeHelp(); }
+  if (e.key === 'Escape') { closeAdd(); closeEdit(); closeSearch(); closeBrowse(); closeLists(); closeShare(); closeScan(); closeAdmin(); closeHelp(); closeMoreMenu(); }
 });
 document.getElementById('addOverlay').addEventListener('keydown',  e => { if (e.key === 'Enter') submitAdd(); });
 document.getElementById('editOverlay').addEventListener('keydown', e => { if (e.key === 'Enter') submitEdit(); });
