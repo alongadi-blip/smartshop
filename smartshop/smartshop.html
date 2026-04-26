@@ -2450,10 +2450,24 @@ function renderList(shown, done) {
       </div>`).join('');
   }
 
-  // Done items — appended at the bottom, no category header
+  // Done items — grouped by category, appended at the bottom
   if (done.length) {
-    const doneSorted = [...done].sort((a, b) => (b[1].purchasedAt || 0) - (a[1].purchasedAt || 0));
-    html += `<div class="cat-group">${doneSorted.map(([id, i]) => itemHTML(id, i, true)).join('')}</div>`;
+    const doneGroups = {};
+    done.forEach(([id, i]) => {
+      const c = i.cat || 'כללי';
+      if (!doneGroups[c]) doneGroups[c] = [];
+      doneGroups[c].push([id, i]);
+    });
+    Object.values(doneGroups).forEach(g => g.sort((a, b) => (b[1].purchasedAt || 0) - (a[1].purchasedAt || 0)));
+    html += Object.keys(doneGroups).sort().map(cat => `
+      <div class="cat-group">
+        <div class="cat-head" style="opacity:0.5">
+          <span>${CAT_ICON[cat] || '📦'}</span>
+          <span>${hEsc(cat)}</span>
+          <span class="cnt">(${doneGroups[cat].length})</span>
+        </div>
+        ${doneGroups[cat].map(([id, i]) => itemHTML(id, i, true)).join('')}
+      </div>`).join('');
   }
 
   cont.innerHTML = html;
