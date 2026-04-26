@@ -260,8 +260,8 @@
     .purch-section.collapsed .chev { transform: rotate(-90deg); }
     .purch-body { display: none; background: var(--surface); }
     .purch-section:not(.collapsed) .purch-body { display: block; }
-    .purch-body .item-actions { opacity: 1; }
-    .purch-body .item { background: var(--surface); opacity: 1; }
+    .item.done .item-name { text-decoration: line-through; color: var(--text-muted); }
+    .item.done .item-sub { opacity: 0.6; }
 
     .swipe-hint { font-size: 0.71rem; color: var(--text-muted); text-align: center; padding: 4px 0; opacity: 0.6; }
     @media (min-width: 621px) { .swipe-hint { display: none; } }
@@ -2366,14 +2366,14 @@ function render() {
   const active = all.filter(([, i]) => !i.purchased);
   const done   = all.filter(([, i]) =>  i.purchased);
   const shown  = activeCat === 'all' ? active : active.filter(([, i]) => i.cat === activeCat);
+  const doneShown = activeCat === 'all' ? done : done.filter(([, i]) => i.cat === activeCat);
 
   renderSidebar(active);
   renderStats(all.length, done.length);
-  renderList(shown);
-  renderPurchased(done);
-  document.getElementById('swipeHint').style.display = shown.length ? '' : 'none';
+  renderList(shown, doneShown);
+  document.getElementById('purchSect').style.display = 'none';
+  document.getElementById('swipeHint').style.display = (shown.length || doneShown.length) ? '' : 'none';
 
-  // Restore inline qty edit if it was open before re-render
   if (editingQtyId && items[editingQtyId] && !items[editingQtyId].purchased) {
     startQtyEdit(editingQtyId);
   }
@@ -2416,9 +2416,11 @@ function renderSidebar(active) {
   document.getElementById('chipBar').style.display  = has ? 'flex' : 'none';
 }
 
-function renderList(shown) {
+function renderList(shown, done) {
   const cont = document.getElementById('listContainer');
-  if (!shown.length) {
+  let html = '';
+
+  if (!shown.length && !done.length) {
     cont.innerHTML = `<div class="empty">
       <div class="big">🛒</div>
       <div class="title">הרשימה ריקה</div>
@@ -2428,24 +2430,33 @@ function renderList(shown) {
     return;
   }
 
-  const groups = {};
-  shown.forEach(([id, i]) => {
-    const c = i.cat || 'כללי';
-    if (!groups[c]) groups[c] = [];
-    groups[c].push([id, i]);
-  });
-  Object.values(groups).forEach(g => g.sort((a, b) => (a[1].addedAt || 0) - (b[1].addedAt || 0)));
+  // Active items — grouped by category
+  if (shown.length) {
+    const groups = {};
+    shown.forEach(([id, i]) => {
+      const c = i.cat || 'כללי';
+      if (!groups[c]) groups[c] = [];
+      groups[c].push([id, i]);
+    });
+    Object.values(groups).forEach(g => g.sort((a, b) => (a[1].addedAt || 0) - (b[1].addedAt || 0)));
+    html += Object.keys(groups).sort().map(cat => `
+      <div class="cat-group">
+        <div class="cat-head">
+          <span>${CAT_ICON[cat] || '📦'}</span>
+          <span>${hEsc(cat)}</span>
+          <span class="cnt">(${groups[cat].length})</span>
+        </div>
+        ${groups[cat].map(([id, i]) => itemHTML(id, i, false)).join('')}
+      </div>`).join('');
+  }
 
-  cont.innerHTML = Object.keys(groups).sort().map(cat => `
-    <div class="cat-group">
-      <div class="cat-head">
-        <span>${CAT_ICON[cat] || '📦'}</span>
-        <span>${hEsc(cat)}</span>
-        <span class="cnt">(${groups[cat].length})</span>
-      </div>
-      ${groups[cat].map(([id, i]) => itemHTML(id, i, false)).join('')}
-    </div>`).join('');
+  // Done items — appended at the bottom, no category header
+  if (done.length) {
+    const doneSorted = [...done].sort((a, b) => (b[1].purchasedAt || 0) - (a[1].purchasedAt || 0));
+    html += `<div class="cat-group">${doneSorted.map(([id, i]) => itemHTML(id, i, true)).join('')}</div>`;
+  }
 
+  cont.innerHTML = html;
   if (window.innerWidth <= 620) attachSwipe();
 }
 
