@@ -264,6 +264,26 @@
     .item.done .item-name { text-decoration: line-through; color: var(--text-muted); }
     .item.done .item-sub { opacity: 0.6; }
 
+    /* ---- MICRO-INTERACTIONS ---- */
+    @keyframes checkBounce {
+      0%   { transform: scale(1); }
+      35%  { transform: scale(1.45); }
+      60%  { transform: scale(0.82); }
+      80%  { transform: scale(1.15); }
+      100% { transform: scale(1); }
+    }
+    @keyframes itemEnter {
+      from { opacity: 0; transform: translateY(-8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes listFade {
+      from { opacity: 0; transform: translateY(4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .check.pop { animation: checkBounce 0.38s cubic-bezier(0.36,0.07,0.19,0.97) both; }
+    .item.item-enter { animation: itemEnter 0.28s ease both; }
+    .list-fade { animation: listFade 0.22s ease both; }
+
     .swipe-hint { font-size: 0.71rem; color: var(--text-muted); text-align: center; padding: 4px 0; opacity: 0.6; }
     @media (min-width: 621px) { .swipe-hint { display: none; } }
 
@@ -2347,6 +2367,13 @@ function togglePurch(id) {
   const it = items[id]; if (!it) return;
   const p = !it.purchased;
   if (p) purchCollapsed = false; // auto-expand purchased section
+  // bounce the checkbox before re-render
+  const chk = document.querySelector(`.item[data-id="${id}"] .check`);
+  if (chk) {
+    chk.classList.remove('pop');
+    void chk.offsetWidth; // force reflow to restart animation
+    chk.classList.add('pop');
+  }
   upd(id, { purchased: p, purchasedAt: p ? Date.now() : null });
   toast(p ? '✅ ' + it.name + ' נרכש' : '↩️ ' + it.name + ' הוחזר לרשימה');
 }
@@ -2472,6 +2499,15 @@ function renderList(shown, done) {
   }
 
   cont.innerHTML = html;
+  // animate newly-added items (added in the last 2 s)
+  const cutoff = Date.now() - 2000;
+  cont.querySelectorAll('.item[data-id]').forEach(el => {
+    const id = el.getAttribute('data-id');
+    const it = items[id];
+    if (it && !it.purchased && (it.addedAt || 0) > cutoff) {
+      el.classList.add('item-enter');
+    }
+  });
   if (window.innerWidth <= 620) attachSwipe();
 }
 
@@ -2527,7 +2563,16 @@ function itemHTML(id, it, purch) {
   </div>`;
 }
 
-function setCat(cat) { activeCat = (activeCat === cat) ? 'all' : cat; render(); }
+function setCat(cat) {
+  activeCat = (activeCat === cat) ? 'all' : cat;
+  render();
+  const cont = document.getElementById('listContainer');
+  if (cont) {
+    cont.classList.remove('list-fade');
+    void cont.offsetWidth; // force reflow
+    cont.classList.add('list-fade');
+  }
+}
 
 // ============================================================
 //  INLINE QTY EDIT
