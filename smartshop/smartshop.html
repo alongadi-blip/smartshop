@@ -3240,6 +3240,83 @@ init();
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
+
+// ============================================================
+//  BACK-BUTTON NAVIGATION (History API)
+// ============================================================
+// Every time we "open" a layer we push a dummy history state.
+// popstate fires when the user presses Back — we close the
+// topmost visible layer instead of leaving the app.
+
+function _pushNav() {
+  history.pushState({ smartshop: true }, '');
+}
+
+// Intercept every open* / toggleSearch / showHomeScreen call
+// to push a nav entry, without modifying the original functions.
+(function patchNavPushes() {
+  const wrap = (fn) => function(...a) { _pushNav(); return fn.apply(this, a); };
+
+  const fns = ['openAdd','openEdit','openShare','openHelp','openAdmin',
+                'openBrowse','openLists','openScan','openMoreMenu','showHomeScreen'];
+  fns.forEach(name => {
+    if (typeof window[name] === 'function') window[name] = wrap(window[name]);
+  });
+
+  // toggleSearch only pushes when it opens
+  const _origToggle = toggleSearch;
+  window.toggleSearch = function() {
+    const wrap = document.getElementById('searchWrap');
+    const isHidden = wrap.style.display === 'none' || wrap.style.display === '';
+    if (isHidden) _pushNav();
+    _origToggle();
+  };
+})();
+
+window.addEventListener('popstate', function(e) {
+  // Close layers from topmost to bottommost
+  const layers = [
+    // id / classList check → close function
+    { id: 'scanOverlay',  cls: 'open', close: closeScan },
+    { id: 'adminOverlay', cls: 'open', close: closeAdmin },
+    { id: 'helpOverlay',  cls: 'open', close: closeHelp },
+    { id: 'shareOverlay', cls: 'open', close: closeShare },
+    { id: 'editOverlay',  cls: 'open', close: closeEdit },
+    { id: 'addOverlay',   cls: 'open', close: closeAdd },
+    { id: 'browseOverlay',cls: 'open', close: closeBrowse },
+    { id: 'listsOverlay', cls: 'open', close: closeLists },
+    { id: 'moreOverlay',  cls: 'open', close: closeMoreMenu },
+  ];
+
+  for (const layer of layers) {
+    const el = document.getElementById(layer.id);
+    if (el && el.classList.contains(layer.cls)) {
+      layer.close();
+      return;
+    }
+  }
+
+  // Search bar
+  const sw = document.getElementById('searchWrap');
+  if (sw && sw.style.display !== 'none' && sw.style.display !== '') {
+    toggleSearch(); // will hide it
+    return;
+  }
+
+  // Home screen → go to the list
+  if (homeMode) {
+    // user pressed back while on the home/list-picker screen → nothing behind it, let them leave
+    return;
+  }
+
+  // We're on the list view and nothing is open → nothing to close; let the browser navigate away
+  // But to stay in the app on Android, push a new guard state so the next back press
+  // can be handled again (keeps app alive for one more press, standard PWA pattern).
+  _pushNav();
+});
+
+// Seed an initial guard state so the very first Back press is caught
+_pushNav();
 </script>
 </body>
 </html>
