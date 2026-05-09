@@ -1,3 +1,4 @@
+// עדכן מחירים לפי הצורך
 export const PRODUCTS = [
   {
     id: 'p01',
@@ -25,6 +26,7 @@ export const PRODUCTS = [
     category: 'חולצות',
     description: 'חולצת שרוול ארוך עם רוכסן חצי, בד מתיחה',
     sizes: ['S', 'M', 'L', 'XL', 'XXL'],
+    price: 200,
     color1: '#0a1a0a',
     color2: '#162a16',
     letter: 'L',
@@ -46,6 +48,7 @@ export const PRODUCTS = [
     category: 'מכנסיים',
     description: 'קרגו עם 6 כיסים, בד Ripstop עמיד',
     sizes: ['S', 'M', 'L', 'XL', 'XXL'],
+    price: 300,
     color1: '#1e2d12',
     color2: '#2a3d1a',
     letter: 'K',
@@ -55,7 +58,7 @@ export const PRODUCTS = [
     id: 'p06',
     name: 'מכנסי טרנינג',
     category: 'מכנסיים',
-    description: 'מכנסי ג\'וגר טכניים, כיסי רוכסן',
+    description: "מכנסי ג'וגר טכניים, כיסי רוכסן",
     sizes: ['S', 'M', 'L', 'XL', 'XXL'],
     color1: '#1a1020',
     color2: '#26183a',
@@ -63,9 +66,9 @@ export const PRODUCTS = [
   },
   {
     id: 'p07',
-    name: 'ג\'קט שדה',
-    category: 'ג\'קטים',
-    description: 'ג\'קט קל, כיסים מרובים, עמיד לרוח',
+    name: "ג'קט שדה",
+    category: "ג'קטים",
+    description: "ג'קט קל, כיסים מרובים, עמיד לרוח",
     sizes: ['S', 'M', 'L', 'XL', 'XXL'],
     color1: '#261a0a',
     color2: '#3a2810',
@@ -73,9 +76,9 @@ export const PRODUCTS = [
   },
   {
     id: 'p08',
-    name: 'ג\'קט מרופד',
-    category: 'ג\'קטים',
-    description: 'ג\'קט חורפי עם ריפוד, עמיד לקור',
+    name: "ג'קט מרופד",
+    category: "ג'קטים",
+    description: "ג'קט חורפי עם ריפוד, עמיד לקור",
     sizes: ['S', 'M', 'L', 'XL', 'XXL'],
     color1: '#0a1020',
     color2: '#121830',
