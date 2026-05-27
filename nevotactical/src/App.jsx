@@ -140,15 +140,13 @@ export default function App() {
     }).catch(() => {});
   }, []);
 
-  // Products with live prices
-  const products = PRODUCTS.map(p => ({
-    ...p,
-    price: prices[p.id] ?? p.price,
-  }));
+  // Products (no individual price)
+  const products = PRODUCTS;
 
   const shirtProduct = shirt(products);
   const pantsProduct = pants(products);
-  const setPrice     = (shirtProduct?.price || 0) + (pantsProduct?.price || 0);
+  // Single set price: from Firestore key 'set', default ₪400
+  const setPrice = prices['set'] ?? 400;
 
   // Hash routing
   useEffect(() => {
@@ -411,9 +409,6 @@ function SetConfigurator({ shirtProduct: sh, pantsProduct: pa, setPrice, onAddSe
           <div className="nt-product-panel-body">
             <h2 className="nt-product-panel-name">{sh.name}</h2>
             <p className="nt-product-panel-desc">{sh.description}</p>
-            {sh.price > 0 && (
-              <p className="nt-product-panel-price" aria-label={`מחיר חולצה: ₪${sh.price}`}>₪{sh.price}</p>
-            )}
             <label
               className={`nt-size-label${tried && !shirtSize ? ' err' : ''}`}
               id="shirt-size-label"
@@ -448,9 +443,6 @@ function SetConfigurator({ shirtProduct: sh, pantsProduct: pa, setPrice, onAddSe
           <div className="nt-product-panel-body">
             <h2 className="nt-product-panel-name">{pa.name}</h2>
             <p className="nt-product-panel-desc">{pa.description}</p>
-            {pa.price > 0 && (
-              <p className="nt-product-panel-price" aria-label={`מחיר מכנסיים: ₪${pa.price}`}>₪{pa.price}</p>
-            )}
             <label
               className={`nt-size-label${tried && !pantsSize ? ' err' : ''}`}
               id="pants-size-label"
@@ -1120,7 +1112,7 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
     URL.revokeObjectURL(url);
   };
 
-  const [editPrices, setEditPrices]     = useState(() => Object.fromEntries(products.map(p => [p.id, p.price ?? ''])));
+  const [editPrices, setEditPrices]     = useState(() => ({ set: prices['set'] ?? 400 }));
   const [savingPrices, setSavingPrices] = useState(false);
   const [pricesSaved, setPricesSaved]   = useState(false);
   const [pricesOpen, setPricesOpen]     = useState(false);
@@ -1221,24 +1213,21 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
                 <div className="nt-section-collapse-body">
                   <div className="nt-table-wrap">
                     <table className="nt-table">
-                      <thead><tr><th>מוצר</th><th>קטגוריה</th><th style={{ textAlign: 'center' }}>מחיר (₪)</th></tr></thead>
+                      <thead><tr><th>מוצר</th><th style={{ textAlign: 'center' }}>מחיר (₪)</th></tr></thead>
                       <tbody>
-                        {products.map(p => (
-                          <tr key={p.id} style={{ cursor: 'default' }}>
-                            <td style={{ fontWeight: 700 }}>{p.name}</td>
-                            <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{p.category}</td>
-                            <td style={{ textAlign: 'center' }}>
-                              <input
-                                type="number" min="0"
-                                value={editPrices[p.id] ?? ''}
-                                placeholder="לא מוגדר"
-                                onChange={e => setEditPrices(prev => ({ ...prev, [p.id]: e.target.value }))}
-                                className="nt-price-input"
-                                aria-label={`מחיר ${p.name}`}
-                              />
-                            </td>
-                          </tr>
-                        ))}
+                        <tr style={{ cursor: 'default' }}>
+                          <td style={{ fontWeight: 700 }}>סט (חולצה + מכנסיים)</td>
+                          <td style={{ textAlign: 'center' }}>
+                            <input
+                              type="number" min="0"
+                              value={editPrices['set'] ?? ''}
+                              placeholder="400"
+                              onChange={e => setEditPrices({ set: e.target.value })}
+                              className="nt-price-input"
+                              aria-label="מחיר סט"
+                            />
+                          </td>
+                        </tr>
                       </tbody>
                     </table>
                   </div>
