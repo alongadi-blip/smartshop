@@ -348,7 +348,7 @@ function Hero() {
     <section className="nt-hero" aria-label="באנר ראשי">
       <div className="nt-hero-inner">
         <span className="nt-hero-eyebrow">הסט הטקטי המקצועי</span>
-        <h1 className="nt-hero-title">NEVO<br />TACTICAL</h1>
+        <h1 className="nt-hero-title">NEVO TACTICAL</h1>
         <p className="nt-hero-sub">
           חולצה + מכנסיים. בד מקצועי לשטח ולאימון.<br />
           נמכר כסט בלבד — בוחרים מידה לכל פריט.

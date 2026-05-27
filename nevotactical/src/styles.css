@@ -273,7 +273,7 @@ img { display: block; }
    HERO
    ================================================================= */
 .nt-hero {
-  position: relative; padding: 64px 24px 52px;
+  position: relative; padding: 28px 24px 20px;
   text-align: center; overflow: hidden;
   border-bottom: 1px solid var(--border);
 }
@@ -300,29 +300,30 @@ img { display: block; }
 
 .nt-hero-eyebrow {
   display: inline-block; font-size: 11px; letter-spacing: 5px;
-  color: var(--accent); text-transform: uppercase; margin-bottom: 12px; font-weight: 700;
+  color: var(--accent); text-transform: uppercase; margin-bottom: 6px; font-weight: 700;
 }
 
 .nt-hero-title {
   font-family: var(--font-brand);
-  font-size: clamp(48px, 9vw, 86px);
-  letter-spacing: 6px; line-height: 1.0; color: var(--text); margin-bottom: 20px;
+  font-size: clamp(36px, 5vw, 56px);
+  letter-spacing: 6px; line-height: 1.0; color: var(--text); margin-bottom: 10px;
+  white-space: nowrap;
 }
 
 .nt-hero-sub {
-  font-size: 15px; color: var(--text-muted);
-  max-width: 420px; margin: 0 auto 32px; line-height: 1.75; font-weight: 300;
+  font-size: 14px; color: var(--text-muted);
+  max-width: 420px; margin: 0 auto 10px; line-height: 1.65; font-weight: 300;
 }
 
 /* =================================================================
    SET CONFIGURATOR
    ================================================================= */
 .nt-configurator-section {
-  max-width: 1000px; margin: 0 auto; padding: 48px 20px 64px;
+  max-width: 1000px; margin: 0 auto; padding: 24px 20px 48px;
 }
 
 .nt-set-header {
-  text-align: center; margin-bottom: 36px;
+  text-align: center; margin-bottom: 20px;
 }
 
 .nt-set-label {
@@ -790,9 +791,9 @@ img { display: block; }
 @media (max-width: 640px) {
   .nt-logo-name { font-size: 17px; letter-spacing: 2px; }
   .hide-mobile  { display: none !important; }
-  .nt-hero { padding: 44px 20px 36px; }
+  .nt-hero { padding: 28px 20px 18px; }
   .nt-hero::after { display: none; }
-  .nt-hero-title { letter-spacing: 3px; }
+  .nt-hero-title { letter-spacing: 3px; white-space: normal; font-size: clamp(32px, 10vw, 48px); }
   .nt-stat-card { padding: 14px 16px; }
 }
 
