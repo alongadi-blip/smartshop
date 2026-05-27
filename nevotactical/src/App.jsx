@@ -146,7 +146,7 @@ export default function App() {
   const shirtProduct = shirt(products);
   const pantsProduct = pants(products);
   // Single set price: from Firestore key 'set', default ₪400
-  const setPrice = prices['set'] ?? 400;
+  const setPrice = prices['set'] ?? 450;
 
   // Hash routing
   useEffect(() => {
@@ -1112,7 +1112,7 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
     URL.revokeObjectURL(url);
   };
 
-  const [editPrices, setEditPrices]     = useState(() => ({ set: prices['set'] ?? 400 }));
+  const [editPrices, setEditPrices]     = useState(() => ({ set: prices['set'] ?? 450 }));
   const [savingPrices, setSavingPrices] = useState(false);
   const [pricesSaved, setPricesSaved]   = useState(false);
   const [pricesOpen, setPricesOpen]     = useState(false);
@@ -1221,7 +1221,7 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
                             <input
                               type="number" min="0"
                               value={editPrices['set'] ?? ''}
-                              placeholder="400"
+                              placeholder="450"
                               onChange={e => setEditPrices({ set: e.target.value })}
                               className="nt-price-input"
                               aria-label="מחיר סט"
