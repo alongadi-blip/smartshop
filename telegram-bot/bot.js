@@ -37,6 +37,12 @@ const PROJECTS = {
     deploy: null, // SSH deploy — needs manual step
     deployUrl: 'http://138.2.162.153',
   },
+  nevotactical: {
+    label: '🪖 NevoTactical',
+    path: path.join(BASE, 'nevotactical'),
+    deploy: 'npm run build && npx firebase deploy --only hosting',
+    deployUrl: 'https://nevotactical.web.app',
+  },
 };
 
 // ─── Bot setup ───────────────────────────────────────────────────────────────
@@ -149,9 +155,11 @@ bot.onText(/\/status/, async (msg) => {
 bot.on('message', async (msg) => {
   if (!msg.text || msg.text.startsWith('/')) return;
 
-  const { id: userId } = msg.from;
+  const { id: userId, first_name } = msg.from;
   const chatId = msg.chat.id;
   const text = msg.text.trim();
+
+  console.log(`\n📨 [${new Date().toLocaleTimeString()}] Message from ${first_name} (${userId}): "${text}"`);
 
   if (!isAllowed(userId)) {
     return bot.sendMessage(chatId,
@@ -204,7 +212,9 @@ bot.on('message', async (msg) => {
 
   try {
     // Run Claude Code
+    console.log(`🤖 Running Claude in: ${project.path}`);
     const claudeOut = await runClaude(project.path, text);
+    console.log(`✅ Claude done`);
 
     await bot.editMessageText(
       `✅ *Code change done!*\n\n` +
@@ -218,6 +228,7 @@ bot.on('message', async (msg) => {
 
     // Auto-deploy
     if (project.deploy) {
+      console.log(`🚀 Deploying ${project.label}...`);
       const deployMsg = await bot.sendMessage(chatId,
         `🚀 Deploying *${project.label}*...`,
         { parse_mode: 'Markdown' }
@@ -235,6 +246,7 @@ bot.on('message', async (msg) => {
           parse_mode: 'Markdown',
         }
       );
+      console.log(`✅ Deploy done: ${project.deployUrl}`);
     } else {
       await bot.sendMessage(chatId,
         `⚠️ *${project.label}* — changes saved locally.\n` +
@@ -245,6 +257,7 @@ bot.on('message', async (msg) => {
     }
 
   } catch (err) {
+    console.error(`❌ Error: ${err.message}`);
     await bot.editMessageText(
       `❌ *Error*\n\n\`\`\`\n${truncate(err.message, 2000)}\n\`\`\``,
       {
