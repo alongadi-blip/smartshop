@@ -541,9 +541,11 @@ function CartPage({ cart, shirtProduct: sh, pantsProduct: pa, onRemove, onChange
   const [name, setName]               = useState('');
   const [phone, setPhone]             = useState('');
   const [email, setEmail]             = useState('');
-  const [addressData, setAddressData] = useState(null);
-  const [building, setBuilding]       = useState('');
-  const [apartment, setApartment]     = useState('');
+  const [city, setCity]               = useState('');
+  const [street, setStreet]           = useState('');
+  const [buildingNum, setBuildingNum] = useState('');
+  const [apartmentNum, setApartmentNum] = useState('');
+  const [zip, setZip]                 = useState('');
   const [errors, setErrors]           = useState({});
   const [submitting, setSubmitting]   = useState(false);
 
@@ -556,7 +558,7 @@ function CartPage({ cart, shirtProduct: sh, pantsProduct: pa, onRemove, onChange
     if (!name.trim())  e.name  = true;
     if (!phone.trim()) e.phone = true;
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) e.email = true;
-    if (mode === 'delivery' && !addressData) e.address = true;
+    if (mode === 'delivery' && (!city.trim() || !street.trim())) e.address = true;
     return e;
   };
 
@@ -578,18 +580,18 @@ function CartPage({ cart, shirtProduct: sh, pantsProduct: pa, onRemove, onChange
         quantity:  i.quantity || 1, setPrice: i.setPrice || 0,
       }));
       const total   = itemsTotal + (shipping || 0);
-      const city    = mode === 'delivery' ? (addressData?.city || '') : 'איסוף עצמי';
-      const address = mode === 'delivery'
-        ? [addressData?.address, building ? 'בניין ' + building : '', apartment ? 'דירה ' + apartment : ''].filter(Boolean).join(', ')
+      const cityVal    = mode === 'delivery' ? city.trim() : 'איסוף עצמי';
+      const addressVal = mode === 'delivery'
+        ? [street.trim(), buildingNum.trim() ? 'בניין ' + buildingNum.trim() : '', apartmentNum.trim() ? 'דירה ' + apartmentNum.trim() : ''].filter(Boolean).join(', ')
         : '';
-      const zip = mode === 'delivery' ? (addressData?.zip || '') : '';
+      const zipVal = mode === 'delivery' ? zip.trim() : '';
 
       await addDoc(collection(db, 'orders'), {
         orderNumber, sets, total,
         shipping: shipping ?? 'הצעה טלפונית',
         deliveryType: mode,
         name: name.trim(), phone: phone.trim(), email: email.trim(),
-        city, address, zip,
+        city: cityVal, address: addressVal, zip: zipVal,
         timestamp: serverTimestamp(),
       });
 
@@ -745,26 +747,34 @@ function CartPage({ cart, shirtProduct: sh, pantsProduct: pa, onRemove, onChange
             {mode === 'delivery' && (
               <div style={{ marginBottom: 24 }}>
                 <p className="nt-cart-section-title" style={errors.address ? { color: 'var(--danger)' } : {}}>
-                  כתובת למשלוח{errors.address && ' — שדה חובה'}
+                  כתובת למשלוח{errors.address && ' — עיר ורחוב חובה'}
                 </p>
-                <AddressSearch error={errors.address} onSelect={data => { setAddressData(data); setErrors(x => ({ ...x, address: false })); }} />
-                {addressData && (
-                  <div className="nt-address-confirmed" aria-live="polite">
-                    ✓ {addressData.address}{addressData.city ? `, ${addressData.city}` : ''}{addressData.zip ? ` ${addressData.zip}` : ''}
-                  </div>
-                )}
-                {addressData && (
-                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', gap: 8 }}>
                     <div style={{ flex: 1 }}>
-                      <label className="nt-field-label" htmlFor="b-num">מספר בניין</label>
-                      <input id="b-num" className="nt-input nt-input-sm" placeholder="1" value={building} onChange={e => setBuilding(e.target.value)} style={{ textAlign: 'center' }} />
+                      <label className={`nt-field-label${errors.address && !city.trim() ? ' err' : ''}`} htmlFor="addr-city">עיר</label>
+                      <input id="addr-city" className={`nt-input${errors.address && !city.trim() ? ' err' : ''}`} placeholder="תל אביב" value={city} onChange={e => { setCity(e.target.value); setErrors(x => ({ ...x, address: false })); }} autoComplete="address-level2" aria-required="true" />
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <label className="nt-field-label" htmlFor="a-num">דירה <span style={{ opacity: 0.5, fontWeight: 400 }}>(אופציונלי)</span></label>
-                      <input id="a-num" className="nt-input nt-input-sm" placeholder="5" value={apartment} onChange={e => setApartment(e.target.value)} style={{ textAlign: 'center' }} />
+                    <div style={{ flex: 2 }}>
+                      <label className={`nt-field-label${errors.address && !street.trim() ? ' err' : ''}`} htmlFor="addr-street">רחוב</label>
+                      <input id="addr-street" className={`nt-input${errors.address && !street.trim() ? ' err' : ''}`} placeholder="רחוב הרצל" value={street} onChange={e => { setStreet(e.target.value); setErrors(x => ({ ...x, address: false })); }} autoComplete="street-address" aria-required="true" />
                     </div>
                   </div>
-                )}
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <div style={{ flex: 1 }}>
+                      <label className="nt-field-label" htmlFor="addr-building">מספר בניין</label>
+                      <input id="addr-building" className="nt-input" placeholder="1" value={buildingNum} onChange={e => setBuildingNum(e.target.value)} style={{ textAlign: 'center' }} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label className="nt-field-label" htmlFor="addr-apt">דירה <span style={{ opacity: 0.5, fontWeight: 400 }}>(אופציונלי)</span></label>
+                      <input id="addr-apt" className="nt-input" placeholder="5" value={apartmentNum} onChange={e => setApartmentNum(e.target.value)} style={{ textAlign: 'center' }} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label className="nt-field-label" htmlFor="addr-zip">מיקוד <span style={{ opacity: 0.5, fontWeight: 400 }}>(אופציונלי)</span></label>
+                      <input id="addr-zip" className="nt-input" placeholder="6100000" value={zip} onChange={e => setZip(e.target.value)} style={{ textAlign: 'center' }} autoComplete="postal-code" />
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -814,88 +824,6 @@ function OrderSuccessOverlay({ orderNumber, onClose }) {
           המשך קנייה
         </button>
       </div>
-    </div>
-  );
-}
-
-// ─── ADDRESS SEARCH ───────────────────────────────────────────────────────────
-function AddressSearch({ onSelect, error }) {
-  const [input, setInput]         = useState('');
-  const [results, setResults]     = useState([]);
-  const [confirmed, setConfirmed] = useState(false);
-  const [loading, setLoading]     = useState(false);
-  const timer = useRef(null);
-
-  const search = async (q) => {
-    if (q.length < 3) { setResults([]); return; }
-    setLoading(true);
-    try {
-      const url  = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&countrycodes=il&format=json&addressdetails=1&limit=7&accept-language=he`;
-      const res  = await fetch(url);
-      const data = await res.json();
-      setResults(data.filter(r => r.address && (r.address.road || r.address.pedestrian || r.address.suburb)));
-    } catch {}
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    clearTimeout(timer.current);
-    if (!confirmed) timer.current = setTimeout(() => search(input), 500);
-    return () => clearTimeout(timer.current);
-  }, [input, confirmed]);
-
-  const select = (item) => {
-    const a    = item.address;
-    const city = a.city || a.town || a.village || a.municipality || a.county || '';
-    const road = a.road || a.pedestrian || a.suburb || '';
-    const house   = a.house_number || '';
-    const zip     = a.postcode || '';
-    const display = [road + (house ? ' ' + house : ''), city].filter(Boolean).join(', ');
-    setInput(display); setConfirmed(true); setResults([]);
-    onSelect({ city, address: road + (house ? ' ' + house : ''), zip, display });
-  };
-
-  return (
-    <div className="nt-address-wrap">
-      <div style={{ position: 'relative' }}>
-        <input
-          className={`nt-input${error ? ' err' : ''}`}
-          style={confirmed ? { borderColor: 'var(--accent)' } : {}}
-          value={input}
-          onChange={e => { setInput(e.target.value); setConfirmed(false); onSelect(null); }}
-          placeholder="הקלד כתובת ובחר מהרשימה..."
-          aria-label="חיפוש כתובת"
-          autoComplete="off"
-        />
-        {loading && (
-          <div style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }}>
-            <span className="spinner" style={{ width: 14, height: 14 }} aria-label="מחפש..." />
-          </div>
-        )}
-      </div>
-      {!confirmed && results.length > 0 && (
-        <div className="nt-address-dropdown" role="listbox">
-          {results.map(r => {
-            const a    = r.address;
-            const city = a.city || a.town || a.village || a.municipality || '';
-            const road = a.road || a.pedestrian || a.suburb || '';
-            const house = a.house_number || '';
-            const line1 = road + (house ? ' ' + house : '');
-            return (
-              <div key={r.place_id} className="nt-address-item" onClick={() => select(r)} role="option" tabIndex={0} onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && select(r)}>
-                <div style={{ fontSize: 13, color: 'var(--text)', fontWeight: 600 }}>{line1 || r.display_name.split(',')[0]}</div>
-                {city && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{city}</div>}
-              </div>
-            );
-          })}
-          <div className="nt-address-osm">© OpenStreetMap contributors</div>
-        </div>
-      )}
-      {!confirmed && input.length >= 3 && !loading && results.length === 0 && (
-        <div className="nt-address-dropdown" style={{ padding: '12px 14px', fontSize: 12, color: 'var(--text-muted)' }} role="status" aria-live="polite">
-          לא נמצאו תוצאות — נסה כתובת מלאה יותר
-        </div>
-      )}
     </div>
   );
 }
