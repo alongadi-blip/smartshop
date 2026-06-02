@@ -104,6 +104,14 @@ const IcBox = () => (
   </svg>
 );
 
+const IcPrint = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <polyline points="6 9 6 2 18 2 18 9"/>
+    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+    <rect x="6" y="14" width="12" height="8"/>
+  </svg>
+);
+
 const ShipIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{display:'inline',verticalAlign:'middle',marginInlineEnd:'4px'}}>
     <rect x="1" y="3" width="15" height="13"/>
@@ -951,6 +959,17 @@ function OrderDetailModal({ order: o, onClose, onUpdateStatus, onDelete }) {
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onClose}>חזרה לרשימה</button>
+            {o.deliveryType === 'delivery' && (
+              <button
+                className="btn btn-ghost"
+                style={{ padding: '10px 16px', gap: 6 }}
+                onClick={() => printLabels([o])}
+                aria-label="הדפס תווית משלוח"
+                title="הדפס תווית משלוח"
+              >
+                <IcPrint /> תווית
+              </button>
+            )}
             <button
               className="btn"
               style={{ background: 'transparent', borderColor: 'var(--danger)', color: 'var(--danger)', padding: '10px 16px' }}
@@ -964,6 +983,60 @@ function OrderDetailModal({ order: o, onClose, onUpdateStatus, onDelete }) {
       </div>
     </div>
   );
+}
+
+// ─── PRINT LABELS ────────────────────────────────────────────────────────────
+function printLabels(orders) {
+  const deliveryOrders = orders.filter(o => o.deliveryType === 'delivery' && (o.city || o.address));
+  if (deliveryOrders.length === 0) { alert('אין הזמנות משלוח עם כתובת להדפסה'); return; }
+
+  const labelsHTML = deliveryOrders.map(o => {
+    const parts     = (o.name || '').trim().split(' ');
+    const firstName = parts[0] || '';
+    const lastName  = parts.slice(1).join(' ') || '';
+    return `
+      <div class="label">
+        <div class="label-logo">NEVO TACTICAL</div>
+        <div class="label-divider"></div>
+        <div class="label-row"><span class="lk">שם פרטי</span><span class="lv">${esc(firstName)}</span></div>
+        <div class="label-row"><span class="lk">שם משפחה</span><span class="lv">${esc(lastName)}</span></div>
+        <div class="label-row"><span class="lk">כתובת</span><span class="lv">${esc(o.address || '')}</span></div>
+        <div class="label-row"><span class="lk">עיר</span><span class="lv">${esc(o.city || '')}</span></div>
+        ${o.zip ? `<div class="label-row"><span class="lk">מיקוד</span><span class="lv">${esc(o.zip)}</span></div>` : ''}
+        ${o.orderNumber ? `<div class="label-order">#${o.orderNumber}</div>` : ''}
+      </div>`;
+  }).join('');
+
+  function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  const html = `<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+<meta charset="UTF-8">
+<title>תוויות משלוח — Nevo Tactical</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:Arial,sans-serif;background:#fff;direction:rtl;padding:20px}
+  .grid{display:flex;flex-wrap:wrap;gap:18px}
+  .label{border:2px solid #111;padding:14px 18px;width:260px;min-height:150px;display:flex;flex-direction:column;gap:7px;page-break-inside:avoid;position:relative}
+  .label-logo{font-family:'Arial Black',sans-serif;font-size:10px;letter-spacing:3px;color:#555;font-weight:900;margin-bottom:2px}
+  .label-divider{border-top:1.5px solid #111;margin-bottom:2px}
+  .label-row{display:flex;gap:8px;align-items:baseline}
+  .lk{font-size:10px;font-weight:700;color:#777;min-width:72px;flex-shrink:0}
+  .lv{font-size:15px;font-weight:700;color:#111}
+  .label-order{position:absolute;bottom:10px;left:14px;font-size:10px;color:#aaa;font-weight:700;letter-spacing:1px}
+  @media print{body{padding:10px}.grid{gap:12px}}
+</style>
+</head>
+<body>
+<div class="grid">${labelsHTML}</div>
+<script>window.onload=function(){window.print()}<\/script>
+</body></html>`;
+
+  const win = window.open('', '_blank');
+  if (!win) { alert('אנא אפשר חלונות קופצים'); return; }
+  win.document.write(html);
+  win.document.close();
 }
 
 // ─── ADMIN LOGIN ──────────────────────────────────────────────────────────────
@@ -1217,6 +1290,7 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
                   ))}
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
+                  <button className="btn btn-ghost btn-sm" onClick={() => printLabels(orders)} title="הדפס תוויות לכל הזמנות המשלוח"><IcPrint /> תוויות</button>
                   <button className="btn btn-primary btn-sm" onClick={exportCSV}><IcDownload /> CSV</button>
                   <button className="btn btn-danger btn-sm" onClick={() => { if (window.confirm(`למחוק את כל ${orders.length} ההזמנות?`)) onDeleteAll(); }}><IcTrash /> מחק הכל</button>
                 </div>
