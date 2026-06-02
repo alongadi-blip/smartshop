@@ -621,9 +621,8 @@ img { display: block; }
    ================================================================= */
 .nt-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.78); z-index: 300;
-  display: flex; align-items: flex-start; justify-content: center; padding: 16px;
+  display: flex; align-items: center; justify-content: center; padding: 16px;
   backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
-  overflow-y: auto;
 }
 
 .nt-modal {
@@ -744,7 +743,7 @@ img { display: block; }
 .nt-item-chip { display: inline-block; background: var(--surface-3); border: 1px solid var(--border); padding: 2px 9px; font-size: 11px; margin-left: 4px; margin-bottom: 2px; color: var(--text-muted); }
 .nt-action-btns { display: flex; gap: 4px; flex-wrap: wrap; }
 
-.nt-order-modal { max-width: 540px; }
+.nt-order-modal { max-width: 540px; max-height: min(90vh, calc(100dvh - 32px)); display: flex; flex-direction: column; overflow: hidden; }
 .nt-detail-section { padding: 14px 18px; background: var(--surface-2); border: 1px solid var(--border); margin-bottom: 10px; }
 .nt-detail-section-label { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px; font-weight: 700; }
 

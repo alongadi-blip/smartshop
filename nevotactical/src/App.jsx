@@ -868,7 +868,8 @@ function OrderDetailModal({ order: o, onClose, onUpdateStatus, onDelete }) {
           <button className="nt-modal-close" onClick={onClose} aria-label="סגור"><IcClose /></button>
         </div>
 
-        <div style={{ padding: '18px 18px 24px', direction: 'rtl' }}>
+        {/* Scrollable body */}
+        <div style={{ overflowY: 'auto', flex: 1, padding: '18px 18px 8px', direction: 'rtl', WebkitOverflowScrolling: 'touch' }}>
           {/* Customer */}
           <div className="nt-detail-section">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
@@ -941,12 +942,14 @@ function OrderDetailModal({ order: o, onClose, onUpdateStatus, onDelete }) {
             </div>
           </div>
 
-          <p style={{ color: 'var(--text-muted)', fontSize: 12, marginBottom: 20 }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: 12, marginBottom: 12 }}>
             תאריך: {o.timestamp?.toDate?.()?.toLocaleDateString('he-IL') || '—'}
           </p>
+        </div>
 
-          {/* Actions */}
-          <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+        {/* Pinned action footer */}
+        <div style={{ flexShrink: 0, borderTop: '1px solid var(--border)', padding: '14px 18px 16px', background: 'var(--surface)', direction: 'rtl', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8 }}>
             {status !== 'sent' && (
               <button className="btn btn-success" style={{ flex: 1, padding: 12, letterSpacing: 1, fontWeight: 800 }} onClick={() => onUpdateStatus(o.id, 'sent')}>✓ סמן כנשלח</button>
             )}
@@ -960,22 +963,11 @@ function OrderDetailModal({ order: o, onClose, onUpdateStatus, onDelete }) {
           <div style={{ display: 'flex', gap: 8 }}>
             <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onClose}>חזרה לרשימה</button>
             {o.deliveryType === 'delivery' && (
-              <button
-                className="btn btn-ghost"
-                style={{ padding: '10px 16px', gap: 6 }}
-                onClick={() => printLabels([o])}
-                aria-label="הדפס תווית משלוח"
-                title="הדפס תווית משלוח"
-              >
+              <button className="btn btn-ghost" style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 6 }} onClick={() => printLabels([o])} aria-label="הדפס תווית משלוח" title="הדפס תווית משלוח">
                 <IcPrint /> תווית
               </button>
             )}
-            <button
-              className="btn"
-              style={{ background: 'transparent', borderColor: 'var(--danger)', color: 'var(--danger)', padding: '10px 16px' }}
-              onClick={() => { if (window.confirm('למחוק הזמנה זו לצמיתות?')) { onDelete(o.id); onClose(); } }}
-              aria-label="מחק הזמנה"
-            >
+            <button className="btn" style={{ background: 'transparent', borderColor: 'var(--danger)', color: 'var(--danger)', padding: '10px 16px' }} onClick={() => { if (window.confirm('למחוק הזמנה זו לצמיתות?')) { onDelete(o.id); onClose(); } }} aria-label="מחק הזמנה">
               <IcTrash />
             </button>
           </div>
