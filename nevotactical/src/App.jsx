@@ -1007,17 +1007,24 @@ function printLabels(orders) {
 <meta charset="UTF-8">
 <title>תוויות משלוח — Nevo Tactical</title>
 <style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:Arial,sans-serif;background:#fff;direction:rtl;padding:20px}
-  .grid{display:flex;flex-wrap:wrap;gap:18px}
-  .label{border:2px solid #111;padding:14px 18px;width:260px;min-height:150px;display:flex;flex-direction:column;gap:7px;page-break-inside:avoid;position:relative}
-  .label-logo{font-family:'Arial Black',sans-serif;font-size:10px;letter-spacing:3px;color:#555;font-weight:900;margin-bottom:2px}
-  .label-divider{border-top:1.5px solid #111;margin-bottom:2px}
-  .label-row{display:flex;gap:8px;align-items:baseline}
-  .lk{font-size:10px;font-weight:700;color:#777;min-width:72px;flex-shrink:0}
-  .lv{font-size:15px;font-weight:700;color:#111}
-  .label-order{position:absolute;bottom:10px;left:14px;font-size:10px;color:#aaa;font-weight:700;letter-spacing:1px}
-  @media print{body{padding:10px}.grid{gap:12px}}
+  @page { size: A4 portrait; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; background: #fff; direction: rtl; width: 210mm; }
+  .grid { display: grid; grid-template-columns: 105mm 105mm; }
+  .label {
+    width: 105mm; height: 148.5mm;
+    border: 1.5px solid #111;
+    padding: 12mm 10mm 10mm 10mm;
+    display: flex; flex-direction: column; gap: 5mm;
+    position: relative; overflow: hidden;
+    page-break-inside: avoid;
+  }
+  .label-logo { font-family: 'Arial Black', sans-serif; font-size: 8pt; letter-spacing: 3px; color: #666; font-weight: 900; }
+  .label-divider { border-top: 1.5px solid #111; margin: 1mm 0; }
+  .label-row { display: flex; gap: 4mm; align-items: baseline; }
+  .lk { font-size: 7pt; font-weight: 700; color: #888; min-width: 18mm; flex-shrink: 0; }
+  .lv { font-size: 13pt; font-weight: 700; color: #111; line-height: 1.2; }
+  .label-order { position: absolute; bottom: 7mm; left: 8mm; font-size: 7pt; color: #bbb; font-weight: 700; letter-spacing: 1px; }
 </style>
 </head>
 <body>
