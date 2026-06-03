@@ -838,10 +838,10 @@ function OrderSuccessOverlay({ orderNumber, onClose }) {
 
 // ─── STATUS BADGE ─────────────────────────────────────────────────────────────
 function StatusBadge({ status }) {
-  const map = { new: 'חדשה', sent: 'נשלחה', cancelled: 'בוטלה' };
-  const cls = { new: 'nt-badge nt-badge-new', sent: 'nt-badge nt-badge-sent', cancelled: 'nt-badge nt-badge-cancelled' };
+  const map = { new: 'הוזמן', paid: 'שולם', sent: 'נשלח', cancelled: 'בוטל' };
+  const cls = { new: 'nt-badge nt-badge-new', paid: 'nt-badge nt-badge-paid', sent: 'nt-badge nt-badge-sent', cancelled: 'nt-badge nt-badge-cancelled' };
   const s = status || 'new';
-  return <span className={cls[s] || cls.new}>{map[s] || 'חדשה'}</span>;
+  return <span className={cls[s] || cls.new}>{map[s] || 'הוזמן'}</span>;
 }
 
 // ─── ORDER DETAIL MODAL ───────────────────────────────────────────────────────
@@ -949,8 +949,11 @@ function OrderDetailModal({ order: o, onClose, onUpdateStatus, onDelete }) {
 
         {/* Pinned action footer */}
         <div style={{ flexShrink: 0, borderTop: '1px solid var(--border)', padding: '14px 18px 16px', background: 'var(--surface)', direction: 'rtl', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ display: 'flex', gap: 8 }}>
-            {status !== 'sent' && (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {status === 'new' && (
+              <button className="btn btn-paid" style={{ flex: 1, padding: 12, letterSpacing: 1, fontWeight: 800 }} onClick={() => onUpdateStatus(o.id, 'paid')}>₪ סמן כשולם</button>
+            )}
+            {(status === 'new' || status === 'paid') && (
               <button className="btn btn-success" style={{ flex: 1, padding: 12, letterSpacing: 1, fontWeight: 800 }} onClick={() => onUpdateStatus(o.id, 'sent')}>✓ סמן כנשלח</button>
             )}
             {status !== 'cancelled' && (
@@ -1117,7 +1120,7 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
   const [pricesSaved, setPricesSaved]   = useState(false);
   const [pricesOpen, setPricesOpen]     = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
-  const [tab, setTab]                   = useState('open');
+  const [tab, setTab]                   = useState('new');
   const [selectedCity, setSelectedCity] = useState(null);
 
   const updateStatus = async (orderId, status) => {
@@ -1125,9 +1128,10 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
     if (selectedOrder?.id === orderId) setSelectedOrder(prev => ({ ...prev, status }));
   };
 
-  const openOrders   = orders.filter(o => !o.status || o.status === 'new');
-  const closedOrders = orders.filter(o => o.status === 'sent' || o.status === 'cancelled');
-  const displayed    = tab === 'open' ? openOrders : closedOrders;
+  const newOrders  = orders.filter(o => !o.status || o.status === 'new');
+  const paidOrders = orders.filter(o => o.status === 'paid');
+  const sentOrders = orders.filter(o => o.status === 'sent' || o.status === 'cancelled');
+  const displayed  = tab === 'new' ? newOrders : tab === 'paid' ? paidOrders : sentOrders;
 
   const handleSavePrices = async () => {
     setSavingPrices(true);
@@ -1284,7 +1288,7 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
             <section>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
                 <div className="nt-tabs">
-                  {[['open', `פתוחות (${openOrders.length})`], ['closed', `סגורות (${closedOrders.length})`]].map(([key, label]) => (
+                  {[['new', `הוזמן (${newOrders.length})`], ['paid', `שולם (${paidOrders.length})`], ['sent', `נשלח (${sentOrders.length})`]].map(([key, label]) => (
                     <button key={key} className={`nt-tab${tab === key ? ' active' : ''}`} onClick={() => setTab(key)} role="tab" aria-selected={tab === key}>{label}</button>
                   ))}
                 </div>
@@ -1297,7 +1301,9 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
 
               {displayed.length === 0 ? (
                 <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', padding: '40px 20px', textAlign: 'center' }}>
-                  <p style={{ color: 'var(--text-muted)', fontSize: 13, letterSpacing: 1 }}>{tab === 'open' ? 'אין הזמנות פתוחות' : 'אין הזמנות סגורות'}</p>
+                  <p style={{ color: 'var(--text-muted)', fontSize: 13, letterSpacing: 1 }}>
+                    {tab === 'new' ? 'אין הזמנות חדשות' : tab === 'paid' ? 'אין הזמנות ששולמו' : 'אין הזמנות שנשלחו'}
+                  </p>
                 </div>
               ) : (
                 <div className="nt-table-wrap">
@@ -1327,9 +1333,10 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
                             <td><StatusBadge status={s} /></td>
                             <td onClick={e => e.stopPropagation()}>
                               <div className="nt-action-btns">
-                                {s !== 'sent'      && <button className="btn btn-success btn-xs" onClick={() => updateStatus(o.id, 'sent')}>נשלח</button>}
+                                {s === 'new'       && <button className="btn btn-paid   btn-xs" onClick={() => updateStatus(o.id, 'paid')}>שולם</button>}
+                                {s !== 'sent' && s !== 'cancelled' && <button className="btn btn-success btn-xs" onClick={() => updateStatus(o.id, 'sent')}>נשלח</button>}
                                 {s !== 'cancelled' && <button className="btn btn-danger  btn-xs" onClick={() => updateStatus(o.id, 'cancelled')}>בוטל</button>}
-                                {s !== 'new'       && <button className="btn btn-ghost   btn-xs" onClick={() => updateStatus(o.id, 'new')}>פתח</button>}
+                                {s !== 'new'       && <button className="btn btn-ghost   btn-xs" onClick={() => updateStatus(o.id, 'new')}>החזר</button>}
                                 <button className="btn btn-xs" style={{ background: 'transparent', borderColor: 'var(--danger)', color: 'var(--danger)' }} onClick={() => { if (window.confirm('למחוק הזמנה זו?')) onDeleteOrder(o.id); }}><IcTrash /></button>
                               </div>
                             </td>
@@ -1393,8 +1400,8 @@ function MyOrdersModal({ shirtProduct, pantsProduct, setPrice, onAddToCart, onCl
     onAddToCart(sets);
   };
 
-  const statusLabel = { new: 'חדשה', sent: 'נשלחה', cancelled: 'בוטלה' };
-  const statusCls   = { new: 'nt-badge nt-badge-new', sent: 'nt-badge nt-badge-sent', cancelled: 'nt-badge nt-badge-cancelled' };
+  const statusLabel = { new: 'הוזמן', paid: 'שולם', sent: 'נשלח', cancelled: 'בוטל' };
+  const statusCls   = { new: 'nt-badge nt-badge-new', paid: 'nt-badge nt-badge-paid', sent: 'nt-badge nt-badge-sent', cancelled: 'nt-badge nt-badge-cancelled' };
 
   return (
     <div className="nt-overlay" onClick={e => e.target === e.currentTarget && onClose()} role="dialog" aria-modal="true" aria-label="ההזמנות שלי">
