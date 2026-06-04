@@ -2,9 +2,9 @@ import emailjs from '@emailjs/browser';
 
 // ─── FILL THESE IN AFTER EmailJS SETUP ───────────────────────────────────────
 export const EMAILJS_CONFIG = {
-  serviceId:  'service_9y0fwke',
-  templateId: 'template_bvhyirj',
-  publicKey:  '02ye5sN5Jn7Z4rNlW',
+  serviceId:  import.meta.env.VITE_EMAILJS_SERVICE_ID,
+  templateId: import.meta.env.VITE_EMAILJS_TEMPLATE_ID,
+  publicKey:  import.meta.env.VITE_EMAILJS_PUBLIC_KEY,
 };
 
 export function isEmailConfigured() {
