@@ -1091,7 +1091,7 @@ function printLabels(orders) {
         <div class="label-row"><span class="lk">כתובת</span><span class="lv">${esc(o.address || '')}</span></div>
         <div class="label-row"><span class="lk">עיר</span><span class="lv">${esc(o.city || '')}</span></div>
         ${o.zip ? `<div class="label-row"><span class="lk">מיקוד</span><span class="lv">${esc(o.zip)}</span></div>` : ''}
-        ${o.orderNumber ? `<div class="label-order">#${o.orderNumber}</div>` : ''}
+        ${o.orderNumber ? `<div class="label-order">#${esc(o.orderNumber)}</div>` : ''}
       </div>`;
   }).join('');
 
