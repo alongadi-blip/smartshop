@@ -1205,6 +1205,13 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
   const [tab, setTab]                   = useState('new');
   const [citiesOpen, setCitiesOpen]     = useState(false);
   const [selectedCity, setSelectedCity] = useState(null);
+  const [searchName, setSearchName]     = useState('');
+  const [filterSize, setFilterSize]     = useState('');
+  const [filterPaid, setFilterPaid]     = useState('');
+  const [filterCity2, setFilterCity2]   = useState('');
+  const [filterOrderNum, setFilterOrderNum] = useState('');
+  const [sortField, setSortField]       = useState('timestamp');
+  const [sortDir, setSortDir]           = useState('desc');
 
   const updateStatus = async (orderId, status) => {
     await onUpdateStatus(orderId, status);
@@ -1221,6 +1228,50 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
   const paidOrders = orders.filter(o => o.status === 'paid');
   const sentOrders = orders.filter(o => o.status === 'sent' || o.status === 'cancelled');
   const displayed  = tab === 'new' ? newOrders : tab === 'paid' ? paidOrders : sentOrders;
+
+  const allSizes = [...new Set(
+    orders.flatMap(o => (o.sets || []).flatMap(s => [s.shirtSize, s.pantsSize].filter(Boolean)))
+  )].sort((a, b) => SIZE_ORDER.indexOf(a) - SIZE_ORDER.indexOf(b));
+
+  const allCitiesForFilter = [...new Set(
+    orders.map(o => (o.city || '').trim()).filter(c => c && c !== 'איסוף עצמי' && c !== 'לא צוין')
+  )].sort((a, b) => a.localeCompare(b, 'he'));
+
+  const toggleSort = (field) => {
+    if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortField(field); setSortDir('asc'); }
+  };
+
+  const hasFilters = searchName || filterOrderNum || filterCity2 || filterSize || filterPaid;
+
+  const filteredDisplayed = displayed.filter(o => {
+    if (searchName && !(o.name || '').toLowerCase().includes(searchName.toLowerCase())) return false;
+    if (filterOrderNum && !String(o.orderNumber || '').includes(filterOrderNum)) return false;
+    if (filterCity2 && (o.city || '').trim() !== filterCity2) return false;
+    if (filterSize && !(o.sets || []).some(s => s.shirtSize === filterSize || s.pantsSize === filterSize)) return false;
+    if (filterPaid === 'paid'   && !(o.payments || []).length) return false;
+    if (filterPaid === 'unpaid' &&  (o.payments || []).length) return false;
+    return true;
+  });
+
+  const sortedDisplayed = [...filteredDisplayed].sort((a, b) => {
+    let aVal, bVal;
+    switch (sortField) {
+      case 'orderNumber':  aVal = a.orderNumber || 0;  bVal = b.orderNumber || 0; break;
+      case 'name':         aVal = a.name || '';         bVal = b.name || ''; break;
+      case 'city':         aVal = a.city || '';         bVal = b.city || ''; break;
+      case 'total':        aVal = a.total || 0;         bVal = b.total || 0; break;
+      case 'deliveryType': aVal = a.deliveryType || ''; bVal = b.deliveryType || ''; break;
+      case 'status':       aVal = a.status || 'new';   bVal = b.status || 'new'; break;
+      case 'sets':
+        aVal = (a.sets || []).reduce((s, i) => s + (i.quantity || 1), 0);
+        bVal = (b.sets || []).reduce((s, i) => s + (i.quantity || 1), 0);
+        break;
+      default: aVal = a.timestamp?.seconds || 0; bVal = b.timestamp?.seconds || 0;
+    }
+    if (typeof aVal === 'string') return sortDir === 'asc' ? aVal.localeCompare(bVal, 'he') : bVal.localeCompare(aVal, 'he');
+    return sortDir === 'asc' ? aVal - bVal : bVal - aVal;
+  });
 
   const handleSavePrices = async () => {
     setSavingPrices(true);
@@ -1393,10 +1444,40 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
                 </div>
               </div>
 
-              {displayed.length === 0 ? (
+              {/* Search & Filters */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12, direction: 'rtl', alignItems: 'center' }}>
+                <div style={{ position: 'relative', flex: '2 1 180px' }}>
+                  <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none', display: 'flex' }}><IcSearch /></span>
+                  <input className="nt-input" placeholder="חיפוש שם לקוח..." value={searchName} onChange={e => setSearchName(e.target.value)} style={{ paddingRight: 32 }} />
+                </div>
+                <input className="nt-input" placeholder="מס' הזמנה" value={filterOrderNum} onChange={e => setFilterOrderNum(e.target.value)} style={{ flex: '0 0 110px', textAlign: 'center' }} type="number" min="1" />
+                <select className="nt-input" value={filterCity2} onChange={e => setFilterCity2(e.target.value)} style={{ flex: '1 1 130px' }}>
+                  <option value="">כל הערים</option>
+                  {allCitiesForFilter.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <select className="nt-input" value={filterSize} onChange={e => setFilterSize(e.target.value)} style={{ flex: '0 1 110px' }}>
+                  <option value="">כל המידות</option>
+                  {allSizes.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+                <select className="nt-input" value={filterPaid} onChange={e => setFilterPaid(e.target.value)} style={{ flex: '0 1 130px' }}>
+                  <option value="">כל הלקוחות</option>
+                  <option value="paid">שילמו</option>
+                  <option value="unpaid">לא שילמו</option>
+                </select>
+                {hasFilters && (
+                  <button className="btn btn-ghost btn-sm" onClick={() => { setSearchName(''); setFilterOrderNum(''); setFilterCity2(''); setFilterSize(''); setFilterPaid(''); }}>✕ נקה</button>
+                )}
+                {hasFilters && filteredDisplayed.length !== displayed.length && (
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{filteredDisplayed.length} / {displayed.length}</span>
+                )}
+              </div>
+
+              {sortedDisplayed.length === 0 ? (
                 <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', padding: '40px 20px', textAlign: 'center' }}>
                   <p style={{ color: 'var(--text-muted)', fontSize: 13, letterSpacing: 1 }}>
-                    {tab === 'new' ? 'אין הזמנות חדשות' : tab === 'paid' ? 'אין הזמנות ששולמו' : 'אין הזמנות שנשלחו'}
+                    {displayed.length === 0
+                      ? (tab === 'new' ? 'אין הזמנות חדשות' : tab === 'paid' ? 'אין הזמנות ששולמו' : 'אין הזמנות שנשלחו')
+                      : 'אין הזמנות התואמות את הסינון'}
                   </p>
                 </div>
               ) : (
@@ -1404,11 +1485,16 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
                   <table className="nt-table">
                     <thead>
                       <tr>
-                        {['#','שם','טלפון','סוג','עיר','סטים','מחיר','תאריך','סטטוס','פעולות'].map(h => <th key={h}>{h}</th>)}
+                        {[['orderNumber','#'],['name','שם'],['phone','טלפון'],['deliveryType','סוג'],['city','עיר'],['sets','סטים'],['total','מחיר'],['timestamp','תאריך'],['status','סטטוס']].map(([field, label]) => (
+                          <th key={field} onClick={() => toggleSort(field)} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
+                            {label}{sortField === field ? (sortDir === 'asc' ? ' ▲' : ' ▼') : <span style={{ opacity: 0.3 }}> ↕</span>}
+                          </th>
+                        ))}
+                        <th>פעולות</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {displayed.map(o => {
+                      {sortedDisplayed.map(o => {
                         const s = o.status || 'new';
                         return (
                           <tr key={o.id} onClick={() => setSelectedOrder(o)} tabIndex={0} onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && setSelectedOrder(o)}>
