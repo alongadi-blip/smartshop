@@ -1203,6 +1203,7 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
   const [pricesOpen, setPricesOpen]     = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [tab, setTab]                   = useState('new');
+  const [citiesOpen, setCitiesOpen]     = useState(false);
   const [selectedCity, setSelectedCity] = useState(null);
 
   const updateStatus = async (orderId, status) => {
@@ -1334,8 +1335,12 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
 
             {/* City chips */}
             {sortedCities.length > 0 && (
-              <section style={{ marginBottom: 24 }}>
-                <p className="nt-cart-section-title" style={{ marginBottom: 10 }}>ריכוז לפי עיר</p>
+              <section className="nt-section-collapse" style={{ marginBottom: 24 }}>
+                <button className="nt-section-collapse-header" onClick={() => setCitiesOpen(o => !o)} aria-expanded={citiesOpen}>
+                  <span className="nt-section-collapse-title">ריכוז לפי עיר ({sortedCities.length})</span>
+                  <span className={`nt-chevron${citiesOpen ? ' open' : ''}`}><IcChevron /></span>
+                </button>
+              {citiesOpen && <div className="nt-section-collapse-body">
                 <div className="nt-city-chips">
                   {sortedCities.map(([city, count]) => (
                     <button key={city} className={`nt-city-chip${selectedCity === city ? ' active' : ''}`} onClick={() => setSelectedCity(city === selectedCity ? null : city)} aria-pressed={selectedCity === city}>
@@ -1369,6 +1374,7 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
                     </div>
                   );
                 })()}
+              </div>}
               </section>
             )}
 
