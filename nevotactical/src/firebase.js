@@ -1,8 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
-// *** הדבק כאן את ה-firebaseConfig שלך מ-Firebase Console ***
-// Project Settings > Your Apps > Firebase SDK snippet > Config
 const firebaseConfig = {
   apiKey: "AIzaSyBcCcXZj0ZG89uHiG7_xjpbw3NUYBY8EMQ",
   authDomain: "nevotactical.firebaseapp.com",
@@ -14,3 +13,6 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
+
+const functions = getFunctions(app, 'europe-west1');
+export const sendOrderEmailFn = httpsCallable(functions, 'sendOrderEmail');
