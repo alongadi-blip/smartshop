@@ -54,7 +54,7 @@ function buildParams(order, trigger) {
   const body     = typeof cfg.body     === 'function' ? cfg.body(order)     : cfg.body;
 
   return {
-    to_email:      order.email,
+    email:         order.email,
     subject:       cfg.subject(order),
     badge,
     headline,
