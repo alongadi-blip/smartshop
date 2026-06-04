@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { db, sendOrderEmailFn } from './firebase';
+import { db } from './firebase';
+import { sendOrderEmail } from './emailService';
 import {
   collection, addDoc, getDocs, getDoc, setDoc, updateDoc,
   deleteDoc, doc, serverTimestamp, query, orderBy, where, runTransaction, arrayUnion,
@@ -613,7 +614,7 @@ function CartPage({ cart, shirtProduct: sh, pantsProduct: pa, onRemove, onChange
 
       // send confirmation email (fire-and-forget — don't block order completion)
       if (email.trim()) {
-        sendOrderEmailFn({ order: { ...orderData, timestamp: null }, trigger: 'new' }).catch(console.error);
+        sendOrderEmail({ ...orderData, timestamp: null }, 'new').catch(console.error);
       }
 
       onOrderDone(orderNumber);
@@ -1311,7 +1312,7 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
     if (status === 'paid' || status === 'sent') {
       const order = orders.find(o => o.id === orderId);
       if (order?.email) {
-        sendOrderEmailFn({ order: { ...order, timestamp: null }, trigger: status }).catch(console.error);
+        sendOrderEmail({ ...order, timestamp: null }, status).catch(console.error);
       }
     }
   };

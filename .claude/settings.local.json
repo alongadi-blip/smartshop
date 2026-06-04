@@ -9,7 +9,30 @@
       "Bash(firebase deploy:*)",
       "Bash(cmd /c \"firebase deploy --only hosting\")",
       "Bash(cmd /c \"cd \"\"c:\\\\Users\\\\מחשב\\\\claude files\"\" && firebase deploy --only hosting\")",
-      "Bash(powershell -Command \"Set-Location ''c:\\\\Users\\\\מחשב\\\\claude files''; firebase deploy --only hosting\")"
+      "Bash(powershell -Command \"Set-Location ''c:\\\\Users\\\\מחשב\\\\claude files''; firebase deploy --only hosting\")",
+      "Bash(cp \"c:/Users/מחשב/claude files/smartshop.html\" \"c:/Users/מחשב/claude files/public/index.html\")",
+      "Bash(\"C:/Users/מחשב/AppData/Roaming/npm/firebase.cmd\" deploy:*)",
+      "Bash(node -e \"console.log\\(''node ok''\\)\")",
+      "Bash(node -e \":*)",
+      "Bash(ssh -i \"C:\\\\Users\\\\מחשב\\\\Downloads\\\\ssh-key-2026-03-17.key\" -o StrictHostKeyChecking=no ubuntu@138.2.162.153 \"cat /home/ubuntu/smartcard/backend/routers/auth.py\")",
+      "Bash(git -C \"c:/Users/מחשב/claude files\" status)",
+      "Bash(git -C \"c:/Users/מחשב/claude files\" diff --stat)",
+      "WebFetch(domain:api.wikimedia.org)",
+      "WebSearch",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" -A \"Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36\" \"https://upload.wikimedia.org/wikipedia/commons/thumb/6/6f/Al_Foil.JPG/100px-Al_Foil.JPG\")",
+      "Bash(ssh -i \"/c/Users/מחשב/Downloads/ssh-key-2026-03-17.key\" -o StrictHostKeyChecking=no ubuntu@138.2.162.153 'ss -tlnp | grep 8000')",
+      "Bash(ssh -i \"/c/Users/מחשב/Downloads/ssh-key-2026-03-17.key\" -o StrictHostKeyChecking=no ubuntu@138.2.162.153 'cd /home/ubuntu/smartcard/backend && source venv/bin/activate && TOKEN=$\\(python3 -c \"\"import sys; sys.path.insert\\(0,\\\\\"\".\\\\\"\"\\); from routers.auth import create_token; print\\(create_token\\({\\\\\"\"sub\\\\\"\":\\\\\"\"alon.gadi@gmail.com\\\\\"\"}\\)\\)\"\" 2>/dev/null\\) && curl -s -X POST http://localhost:8000/api/vouchers/ocr -H \"\"Authorization: Bearer $TOKEN\"\" -F \"\"file=@/tmp/test_voucher.jpg\"\"')",
+      "Bash(ssh -i \"C:\\\\Users\\\\מחשב\\\\Downloads\\\\ssh-key-2026-03-17.key\":*)",
+      "Bash(scp -i \"C:\\\\Users\\\\מחשב\\\\Downloads\\\\ssh-key-2026-03-17.key\":*)",
+      "Bash(ssh -i \"/c/Users/מחשב/Downloads/ssh-key-2026-03-17.key\":*)",
+      "Bash(scp -i \"/c/Users/מחשב/Downloads/ssh-key-2026-03-17.key\":*)",
+      "Bash(npm run:*)",
+      "Bash(taskkill /PID 11852 /F)",
+      "Bash(taskkill /PID 9144 /F)",
+      "Bash(taskkill /PID 19588 /F)",
+      "Bash(cmd /c \"taskkill /PID 11852 /F & taskkill /PID 9144 /F & taskkill /PID 19588 /F\")",
+      "Bash(scp -i \"C:/Users/מחשב/Downloads/ssh-key-2026-03-17.key\" -o StrictHostKeyChecking=no \"C:/Users/מחשב/frontend_files/Dashboard.js\" ubuntu@138.2.162.153:/home/ubuntu/smartcard/frontend/src/pages/Dashboard.js)",
+      "Bash(ssh -i \"C:/Users/מחשב/Downloads/ssh-key-2026-03-17.key\" -o StrictHostKeyChecking=no ubuntu@138.2.162.153 \"sed -n ''174,185p'' /home/ubuntu/smartcard/backend/routers/vouchers.py\")"
     ]
   }
 }
