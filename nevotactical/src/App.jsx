@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { db } from './firebase';
 import {
   collection, addDoc, getDocs, getDoc, setDoc, updateDoc,
-  deleteDoc, doc, serverTimestamp, query, orderBy, where, runTransaction,
+  deleteDoc, doc, serverTimestamp, query, orderBy, where, runTransaction, arrayUnion,
 } from 'firebase/firestore';
 import { PRODUCTS } from './products';
 
@@ -217,6 +217,12 @@ export default function App() {
       await deleteDoc(doc(db, 'orders', orderId));
       setOrders(prev => prev.filter(o => o.id !== orderId));
     };
+    const addPaymentToOrder = async (orderId, payment) => {
+      await updateDoc(doc(db, 'orders', orderId), { payments: arrayUnion(payment) });
+      setOrders(prev => prev.map(o =>
+        o.id === orderId ? { ...o, payments: [...(o.payments || []), payment] } : o
+      ));
+    };
     const deleteAllOrders = async () => {
       await Promise.all(orders.map(o => deleteDoc(doc(db, 'orders', o.id))));
       setOrders([]);
@@ -229,6 +235,7 @@ export default function App() {
         onSavePrices={savePrices}
         onUpdateStatus={updateOrderStatus}
         onDeleteOrder={deleteOrder}
+        onAddPayment={addPaymentToOrder}
         onDeleteAll={deleteAllOrders}
         theme={theme} onToggleTheme={toggleTheme}
       />
@@ -845,9 +852,23 @@ function StatusBadge({ status }) {
 }
 
 // ─── ORDER DETAIL MODAL ───────────────────────────────────────────────────────
-function OrderDetailModal({ order: o, onClose, onUpdateStatus, onDelete }) {
+function OrderDetailModal({ order: o, onClose, onUpdateStatus, onDelete, onAddPayment }) {
   const status = o.status || 'new';
   const sets   = o.sets || [];
+
+  const [payAmount, setPayAmount]       = useState('');
+  const [payNote, setPayNote]           = useState('');
+  const [savingPayment, setSavingPayment] = useState(false);
+
+  const handleAddPayment = async () => {
+    const amount = Number(payAmount);
+    if (!amount || amount <= 0) return;
+    setSavingPayment(true);
+    await onAddPayment(o.id, { amount, note: payNote.trim(), ts: Date.now() });
+    setPayAmount('');
+    setPayNote('');
+    setSavingPayment(false);
+  };
 
   useEffect(() => {
     const onKey = e => e.key === 'Escape' && onClose();
@@ -938,6 +959,67 @@ function OrderDetailModal({ order: o, onClose, onUpdateStatus, onDelete }) {
               <div style={{ padding: '10px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontWeight: 800, fontSize: 14 }}>סה"כ</span>
                 <span style={{ fontFamily: 'var(--font-brand)', fontSize: 22, color: 'var(--gold)', letterSpacing: 1 }}>₪{total}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Partial Payments */}
+          <div className="nt-detail-section">
+            <p className="nt-detail-section-label" style={{ marginBottom: 10 }}>תשלום חלקי</p>
+
+            {(o.payments || []).length > 0 && (() => {
+              const paid      = (o.payments || []).reduce((s, p) => s + (p.amount || 0), 0);
+              const remaining = (total || 0) - paid;
+              return (
+                <div style={{ marginBottom: 12 }}>
+                  {(o.payments || []).map((p, i) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '7px 0', borderBottom: '1px solid var(--border)' }}>
+                      <div>
+                        <span style={{ fontFamily: 'var(--font-brand)', fontSize: 16, color: 'var(--gold)' }}>₪{p.amount}</span>
+                        {p.note && <div style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 2 }}>{p.note}</div>}
+                      </div>
+                      <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>{new Date(p.ts).toLocaleDateString('he-IL')}</span>
+                    </div>
+                  ))}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 13 }}>
+                    <span style={{ color: 'var(--success)', fontWeight: 700 }}>שולם: ₪{paid}</span>
+                    <span style={{ color: remaining > 0 ? 'var(--danger)' : 'var(--success)', fontWeight: 700 }}>נותר: ₪{Math.max(0, remaining)}</span>
+                  </div>
+                </div>
+              );
+            })()}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+                <div style={{ flex: 1 }}>
+                  <label className="nt-field-label" style={{ marginBottom: 4 }}>סכום (₪)</label>
+                  <input
+                    type="number" min="1" placeholder="0"
+                    className="nt-input"
+                    value={payAmount}
+                    onChange={e => setPayAmount(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleAddPayment()}
+                    style={{ textAlign: 'center' }}
+                  />
+                </div>
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={handleAddPayment}
+                  disabled={!payAmount || Number(payAmount) <= 0 || savingPayment}
+                  style={{ padding: '10px 16px', marginBottom: 1 }}
+                >
+                  {savingPayment ? <span className="spinner" aria-hidden="true" /> : '+ הוסף'}
+                </button>
+              </div>
+              <div>
+                <label className="nt-field-label" style={{ marginBottom: 4 }}>הערות</label>
+                <textarea
+                  className="nt-input"
+                  placeholder="הערות על התשלום..."
+                  value={payNote}
+                  onChange={e => setPayNote(e.target.value)}
+                  style={{ resize: 'vertical', minHeight: 56, fontFamily: 'inherit' }}
+                />
               </div>
             </div>
           </div>
@@ -1070,7 +1152,7 @@ function AdminLogin({ onLogin, onBack }) {
 }
 
 // ─── ADMIN DASHBOARD ──────────────────────────────────────────────────────────
-function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, onSavePrices, onUpdateStatus, onDeleteOrder, onDeleteAll, theme, onToggleTheme }) {
+function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, onSavePrices, onUpdateStatus, onDeleteOrder, onAddPayment, onDeleteAll, theme, onToggleTheme }) {
   // Aggregate sets from all orders
   const allSets = orders.flatMap(o =>
     (o.sets || []).flatMap(s => Array(s.quantity || 1).fill({ shirtSize: s.shirtSize, pantsSize: s.pantsSize }))
@@ -1126,6 +1208,12 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
   const updateStatus = async (orderId, status) => {
     await onUpdateStatus(orderId, status);
     if (selectedOrder?.id === orderId) setSelectedOrder(prev => ({ ...prev, status }));
+  };
+
+  const addPayment = async (orderId, payment) => {
+    await onAddPayment(orderId, payment);
+    if (selectedOrder?.id === orderId)
+      setSelectedOrder(prev => ({ ...prev, payments: [...(prev.payments || []), payment] }));
   };
 
   const newOrders  = orders.filter(o => !o.status || o.status === 'new');
@@ -1355,6 +1443,7 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
                 onClose={() => setSelectedOrder(null)}
                 onUpdateStatus={updateStatus}
                 onDelete={orderId => { onDeleteOrder(orderId); setSelectedOrder(null); }}
+                onAddPayment={addPayment}
               />
             )}
           </>
