@@ -1151,6 +1151,93 @@ function AdminLogin({ onLogin, onBack }) {
   );
 }
 
+// ─── COLUMN FILTER HELPERS ───────────────────────────────────────────────────
+const ADMIN_COLS = [
+  { key: 'orderNumber',  label: '#' },
+  { key: 'name',         label: 'שם' },
+  { key: 'phone',        label: 'טלפון' },
+  { key: 'deliveryType', label: 'סוג' },
+  { key: 'city',         label: 'עיר' },
+  { key: 'sets',         label: 'סטים' },
+  { key: 'total',        label: 'מחיר' },
+  { key: 'timestamp',    label: 'תאריך' },
+  { key: 'status',       label: 'סטטוס' },
+];
+
+function getColValue(colKey, o) {
+  switch (colKey) {
+    case 'orderNumber':  return String(o.orderNumber || '');
+    case 'name':         return o.name || '';
+    case 'phone':        return o.phone || '';
+    case 'deliveryType': return o.deliveryType === 'delivery' ? 'משלוח' : 'איסוף';
+    case 'city':         return (o.city || '').trim() || '—';
+    case 'sets':         return String((o.sets || []).reduce((s, i) => s + (i.quantity || 1), 0));
+    case 'total':        return o.total ? `₪${o.total}` : '₪0';
+    case 'timestamp':    return o.timestamp?.toDate?.()?.toLocaleDateString('he-IL') || '—';
+    case 'status':       return { new: 'הוזמן', paid: 'שולם', sent: 'נשלח', cancelled: 'בוטל' }[o.status || 'new'] || 'הוזמן';
+    default:             return '';
+  }
+}
+
+function ColFilterDropdown({ col, colLabel, anchor, values, selected, filterSearch, onFilterSearch, onToggle, onClear, onSort, sortField, sortDir, onClose }) {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [onClose]);
+
+  const shown = filterSearch ? values.filter(v => v.toLowerCase().includes(filterSearch.toLowerCase())) : values;
+  const isFiltered = selected && selected.size > 0;
+  const left = Math.min(anchor.left, window.innerWidth - 230);
+
+  return (
+    <div ref={ref} style={{
+      position: 'fixed', top: anchor.bottom + 2, left,
+      zIndex: 2000, minWidth: 210, maxWidth: 270,
+      background: 'var(--surface-2)', border: '1px solid var(--accent)',
+      boxShadow: '0 8px 32px rgba(0,0,0,0.35)', direction: 'rtl',
+    }}>
+      <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface-3)' }}>
+        <span style={{ fontWeight: 800, fontSize: 12, color: 'var(--accent)', letterSpacing: 1 }}>{colLabel}</span>
+        <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', padding: 2 }} onClick={onClose}><IcClose /></button>
+      </div>
+      <div style={{ padding: '6px 12px', borderBottom: '1px solid var(--border)', display: 'flex', gap: 6 }}>
+        <button className="btn btn-ghost btn-xs" onClick={() => { onSort(col, 'asc'); onClose(); }}
+          style={{ flex: 1, fontWeight: sortField === col && sortDir === 'asc' ? 800 : 400, color: sortField === col && sortDir === 'asc' ? 'var(--accent)' : undefined }}>
+          ▲ עולה
+        </button>
+        <button className="btn btn-ghost btn-xs" onClick={() => { onSort(col, 'desc'); onClose(); }}
+          style={{ flex: 1, fontWeight: sortField === col && sortDir === 'desc' ? 800 : 400, color: sortField === col && sortDir === 'desc' ? 'var(--accent)' : undefined }}>
+          ▼ יורד
+        </button>
+      </div>
+      <div style={{ padding: '8px 12px 4px' }}>
+        <input className="nt-input" placeholder="חפש ערך..." value={filterSearch} onChange={e => onFilterSearch(e.target.value)} autoFocus />
+      </div>
+      <div style={{ maxHeight: 220, overflowY: 'auto', padding: '4px 12px 8px' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', cursor: 'pointer', borderBottom: '1px solid var(--border)', marginBottom: 4 }}>
+          <input type="checkbox" checked={!isFiltered} onChange={() => onClear(col)} style={{ accentColor: 'var(--accent)', width: 14, height: 14 }} />
+          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)' }}>(בחר הכל)</span>
+        </label>
+        {shown.map(v => (
+          <label key={v} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', cursor: 'pointer' }}>
+            <input type="checkbox" checked={selected?.has(v) || false} onChange={() => onToggle(col, v)} style={{ accentColor: 'var(--accent)', width: 14, height: 14 }} />
+            <span style={{ fontSize: 13 }}>{v || '—'}</span>
+          </label>
+        ))}
+        {shown.length === 0 && <p style={{ fontSize: 12, color: 'var(--text-muted)', padding: '8px 0' }}>לא נמצאו ערכים</p>}
+      </div>
+      {isFiltered && (
+        <div style={{ padding: '6px 12px 8px', borderTop: '1px solid var(--border)' }}>
+          <button className="btn btn-ghost btn-sm btn-full" onClick={() => onClear(col)}>✕ נקה סינון ({selected.size})</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── ADMIN DASHBOARD ──────────────────────────────────────────────────────────
 function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, onSavePrices, onUpdateStatus, onDeleteOrder, onAddPayment, onDeleteAll, theme, onToggleTheme }) {
   // Aggregate sets from all orders
@@ -1203,15 +1290,15 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
   const [pricesOpen, setPricesOpen]     = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [tab, setTab]                   = useState('new');
-  const [citiesOpen, setCitiesOpen]     = useState(false);
-  const [selectedCity, setSelectedCity] = useState(null);
-  const [searchName, setSearchName]     = useState('');
-  const [filterSize, setFilterSize]     = useState('');
-  const [filterPaid, setFilterPaid]     = useState('');
-  const [filterCity2, setFilterCity2]   = useState('');
-  const [filterOrderNum, setFilterOrderNum] = useState('');
-  const [sortField, setSortField]       = useState('timestamp');
-  const [sortDir, setSortDir]           = useState('desc');
+  const [citiesOpen, setCitiesOpen]           = useState(false);
+  const [selectedCity, setSelectedCity]       = useState(null);
+  const [searchName, setSearchName]           = useState('');
+  const [columnFilters, setColumnFilters]     = useState({});
+  const [activeFilterCol, setActiveFilterCol] = useState(null);
+  const [filterDropdownSearch, setFilterDropdownSearch] = useState('');
+  const [dropdownAnchor, setDropdownAnchor]   = useState(null);
+  const [sortField, setSortField]             = useState('timestamp');
+  const [sortDir, setSortDir]                 = useState('desc');
 
   const updateStatus = async (orderId, status) => {
     await onUpdateStatus(orderId, status);
@@ -1229,48 +1316,58 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
   const sentOrders = orders.filter(o => o.status === 'sent' || o.status === 'cancelled');
   const displayed  = tab === 'new' ? newOrders : tab === 'paid' ? paidOrders : sentOrders;
 
-  const allSizes = [...new Set(
-    orders.flatMap(o => (o.sets || []).flatMap(s => [s.shirtSize, s.pantsSize].filter(Boolean)))
-  )].sort((a, b) => SIZE_ORDER.indexOf(a) - SIZE_ORDER.indexOf(b));
-
-  const allCitiesForFilter = [...new Set(
-    orders.map(o => (o.city || '').trim()).filter(c => c && c !== 'איסוף עצמי' && c !== 'לא צוין')
-  )].sort((a, b) => a.localeCompare(b, 'he'));
-
-  const toggleSort = (field) => {
-    if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-    else { setSortField(field); setSortDir('asc'); }
+  const getColUniqueValues = (col) => {
+    const vals = [...new Set(displayed.map(o => getColValue(col, o)))].filter(v => v !== '');
+    if (['orderNumber', 'sets'].includes(col)) return vals.sort((a, b) => Number(a) - Number(b));
+    if (col === 'total') return vals.sort((a, b) => Number(a.replace('₪', '')) - Number(b.replace('₪', '')));
+    if (col === 'status') {
+      const ord = { 'הוזמן': 0, 'שולם': 1, 'נשלח': 2, 'בוטל': 3 };
+      return vals.sort((a, b) => (ord[a] ?? 9) - (ord[b] ?? 9));
+    }
+    return vals.sort((a, b) => a.localeCompare(b, 'he'));
   };
 
-  const hasFilters = searchName || filterOrderNum || filterCity2 || filterSize || filterPaid;
+  const toggleColFilter = (col, val) => {
+    setColumnFilters(prev => {
+      const current = new Set(prev[col] || []);
+      if (current.has(val)) current.delete(val); else current.add(val);
+      const next = { ...prev, [col]: current };
+      if (!current.size) delete next[col];
+      return next;
+    });
+  };
+
+  const clearColFilter = (col) => setColumnFilters(prev => { const n = { ...prev }; delete n[col]; return n; });
+
+  const handleColHeaderClick = (col, e) => {
+    e.stopPropagation();
+    if (activeFilterCol === col) { setActiveFilterCol(null); return; }
+    const rect = e.currentTarget.getBoundingClientRect();
+    setDropdownAnchor({ bottom: rect.bottom, left: rect.left });
+    setActiveFilterCol(col);
+    setFilterDropdownSearch('');
+  };
 
   const filteredDisplayed = displayed.filter(o => {
     if (searchName && !(o.name || '').toLowerCase().includes(searchName.toLowerCase())) return false;
-    if (filterOrderNum && !String(o.orderNumber || '').includes(filterOrderNum)) return false;
-    if (filterCity2 && (o.city || '').trim() !== filterCity2) return false;
-    if (filterSize && !(o.sets || []).some(s => s.shirtSize === filterSize || s.pantsSize === filterSize)) return false;
-    if (filterPaid === 'paid'   && !(o.payments || []).length) return false;
-    if (filterPaid === 'unpaid' &&  (o.payments || []).length) return false;
-    return true;
+    return Object.entries(columnFilters).every(([col, vals]) => !vals?.size || vals.has(getColValue(col, o)));
   });
 
   const sortedDisplayed = [...filteredDisplayed].sort((a, b) => {
-    let aVal, bVal;
-    switch (sortField) {
-      case 'orderNumber':  aVal = a.orderNumber || 0;  bVal = b.orderNumber || 0; break;
-      case 'name':         aVal = a.name || '';         bVal = b.name || ''; break;
-      case 'city':         aVal = a.city || '';         bVal = b.city || ''; break;
-      case 'total':        aVal = a.total || 0;         bVal = b.total || 0; break;
-      case 'deliveryType': aVal = a.deliveryType || ''; bVal = b.deliveryType || ''; break;
-      case 'status':       aVal = a.status || 'new';   bVal = b.status || 'new'; break;
-      case 'sets':
-        aVal = (a.sets || []).reduce((s, i) => s + (i.quantity || 1), 0);
-        bVal = (b.sets || []).reduce((s, i) => s + (i.quantity || 1), 0);
-        break;
-      default: aVal = a.timestamp?.seconds || 0; bVal = b.timestamp?.seconds || 0;
+    if (sortField === 'timestamp') {
+      const aTs = a.timestamp?.seconds || 0, bTs = b.timestamp?.seconds || 0;
+      return sortDir === 'asc' ? aTs - bTs : bTs - aTs;
     }
-    if (typeof aVal === 'string') return sortDir === 'asc' ? aVal.localeCompare(bVal, 'he') : bVal.localeCompare(aVal, 'he');
-    return sortDir === 'asc' ? aVal - bVal : bVal - aVal;
+    if (['orderNumber', 'sets'].includes(sortField)) {
+      const aN = Number(getColValue(sortField, a)), bN = Number(getColValue(sortField, b));
+      return sortDir === 'asc' ? aN - bN : bN - aN;
+    }
+    if (sortField === 'total') {
+      const aT = Number(getColValue('total', a).replace('₪', '')), bT = Number(getColValue('total', b).replace('₪', ''));
+      return sortDir === 'asc' ? aT - bT : bT - aT;
+    }
+    const aV = getColValue(sortField, a), bV = getColValue(sortField, b);
+    return sortDir === 'asc' ? aV.localeCompare(bV, 'he') : bV.localeCompare(aV, 'he');
   });
 
   const handleSavePrices = async () => {
@@ -1444,30 +1541,22 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
                 </div>
               </div>
 
-              {/* Search & Filters */}
+              {/* Search bar + active column filter chips */}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12, direction: 'rtl', alignItems: 'center' }}>
-                <div style={{ position: 'relative', flex: '2 1 180px' }}>
+                <div style={{ position: 'relative', flex: '1 1 220px' }}>
                   <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none', display: 'flex' }}><IcSearch /></span>
                   <input className="nt-input" placeholder="חיפוש שם לקוח..." value={searchName} onChange={e => setSearchName(e.target.value)} style={{ paddingRight: 32 }} />
                 </div>
-                <input className="nt-input" placeholder="מס' הזמנה" value={filterOrderNum} onChange={e => setFilterOrderNum(e.target.value)} style={{ flex: '0 0 110px', textAlign: 'center' }} type="number" min="1" />
-                <select className="nt-input" value={filterCity2} onChange={e => setFilterCity2(e.target.value)} style={{ flex: '1 1 130px' }}>
-                  <option value="">כל הערים</option>
-                  {allCitiesForFilter.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-                <select className="nt-input" value={filterSize} onChange={e => setFilterSize(e.target.value)} style={{ flex: '0 1 110px' }}>
-                  <option value="">כל המידות</option>
-                  {allSizes.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-                <select className="nt-input" value={filterPaid} onChange={e => setFilterPaid(e.target.value)} style={{ flex: '0 1 130px' }}>
-                  <option value="">כל הלקוחות</option>
-                  <option value="paid">שילמו</option>
-                  <option value="unpaid">לא שילמו</option>
-                </select>
-                {hasFilters && (
-                  <button className="btn btn-ghost btn-sm" onClick={() => { setSearchName(''); setFilterOrderNum(''); setFilterCity2(''); setFilterSize(''); setFilterPaid(''); }}>✕ נקה</button>
+                {Object.entries(columnFilters).map(([col, vals]) => vals?.size > 0 ? (
+                  <span key={col} style={{ background: 'var(--accent-dim)', border: '1px solid var(--accent)', padding: '4px 10px', fontSize: 11, display: 'flex', alignItems: 'center', gap: 6, color: 'var(--accent)', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                    {ADMIN_COLS.find(c => c.key === col)?.label}: {[...vals].join(', ')}
+                    <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', padding: 0, lineHeight: 1 }} onClick={() => clearColFilter(col)}>✕</button>
+                  </span>
+                ) : null)}
+                {(searchName || Object.values(columnFilters).some(v => v?.size)) && (
+                  <button className="btn btn-ghost btn-sm" onClick={() => { setSearchName(''); setColumnFilters({}); }}>נקה הכל</button>
                 )}
-                {hasFilters && filteredDisplayed.length !== displayed.length && (
+                {(searchName || Object.values(columnFilters).some(v => v?.size)) && filteredDisplayed.length !== displayed.length && (
                   <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{filteredDisplayed.length} / {displayed.length}</span>
                 )}
               </div>
@@ -1485,11 +1574,21 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
                   <table className="nt-table">
                     <thead>
                       <tr>
-                        {[['orderNumber','#'],['name','שם'],['phone','טלפון'],['deliveryType','סוג'],['city','עיר'],['sets','סטים'],['total','מחיר'],['timestamp','תאריך'],['status','סטטוס']].map(([field, label]) => (
-                          <th key={field} onClick={() => toggleSort(field)} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
-                            {label}{sortField === field ? (sortDir === 'asc' ? ' ▲' : ' ▼') : <span style={{ opacity: 0.3 }}> ↕</span>}
-                          </th>
-                        ))}
+                        {ADMIN_COLS.map(({ key, label }) => {
+                          const isFiltered = columnFilters[key]?.size > 0;
+                          const isSorted   = sortField === key;
+                          return (
+                            <th key={key} onClick={e => handleColHeaderClick(key, e)}
+                              style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', position: 'relative', background: isFiltered ? 'var(--accent-dim)' : undefined }}
+                              title={`סנן / מיין לפי ${label}`}
+                            >
+                              {label}
+                              {isSorted && <span style={{ marginRight: 2 }}>{sortDir === 'asc' ? ' ▲' : ' ▼'}</span>}
+                              <span style={{ marginRight: 1, opacity: isFiltered ? 1 : 0.3, color: isFiltered ? 'var(--accent)' : undefined }}>▾</span>
+                              {isFiltered && <span style={{ position: 'absolute', top: 3, left: 6, width: 5, height: 5, borderRadius: '50%', background: 'var(--accent)' }} />}
+                            </th>
+                          );
+                        })}
                         <th>פעולות</th>
                       </tr>
                     </thead>
@@ -1536,6 +1635,24 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
                 onUpdateStatus={updateStatus}
                 onDelete={orderId => { onDeleteOrder(orderId); setSelectedOrder(null); }}
                 onAddPayment={addPayment}
+              />
+            )}
+
+            {activeFilterCol && dropdownAnchor && (
+              <ColFilterDropdown
+                col={activeFilterCol}
+                colLabel={ADMIN_COLS.find(c => c.key === activeFilterCol)?.label}
+                anchor={dropdownAnchor}
+                values={getColUniqueValues(activeFilterCol)}
+                selected={columnFilters[activeFilterCol]}
+                filterSearch={filterDropdownSearch}
+                onFilterSearch={setFilterDropdownSearch}
+                onToggle={toggleColFilter}
+                onClear={clearColFilter}
+                onSort={(field, dir) => { setSortField(field); setSortDir(dir); }}
+                sortField={sortField}
+                sortDir={sortDir}
+                onClose={() => setActiveFilterCol(null)}
               />
             )}
           </>
