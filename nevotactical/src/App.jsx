@@ -612,11 +612,6 @@ function CartPage({ cart, shirtProduct: sh, pantsProduct: pa, onRemove, onChange
       };
       await addDoc(collection(db, 'orders'), orderData);
 
-      // send confirmation email (fire-and-forget — don't block order completion)
-      if (email.trim()) {
-        sendOrderEmail({ ...orderData, timestamp: null }, 'new').catch(console.error);
-      }
-
       onOrderDone(orderNumber);
     } catch (err) {
       console.error(err);
@@ -1309,10 +1304,10 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
   const updateStatus = async (orderId, status) => {
     await onUpdateStatus(orderId, status);
     if (selectedOrder?.id === orderId) setSelectedOrder(prev => ({ ...prev, status }));
-    if (status === 'paid' || status === 'sent') {
+    if (status === 'sent') {
       const order = orders.find(o => o.id === orderId);
       if (order?.email) {
-        sendOrderEmail({ ...order, timestamp: null }, status).catch(console.error);
+        sendOrderEmail({ ...order, timestamp: null }, 'sent').catch(console.error);
       }
     }
   };
