@@ -1266,7 +1266,10 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
   const sortedCities  = Object.entries(cityMap).filter(([c]) => c !== 'איסוף עצמי').sort((a, b) => b[1] - a[1]);
   const deliveryCount = orders.filter(o => o.deliveryType === 'delivery').length;
   const pickupCount   = orders.filter(o => o.deliveryType === 'pickup').length;
-  const revenue       = orders.reduce((s, o) => s + (o.total || 0), 0);
+
+  const paidOrders_   = orders.filter(o => o.status === 'paid');
+  const paidRevenue   = paidOrders_.reduce((s, o) => s + (o.total || 0), 0);
+  const paidSetCount  = paidOrders_.reduce((s, o) => s + (o.sets || []).reduce((ss, set) => ss + (set.quantity || 1), 0), 0);
 
   const exportCSV = () => {
     const headers = ['#','שם','טלפון','מייל','סוג','עיר','כתובת','מיקוד','מידת חולצה','מידת מכנסיים','כמות','מחיר סט','תאריך'];
@@ -1427,6 +1430,21 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
                   <div className="nt-stat-val" style={{ color }}>{value}</div>
                 </div>
               ))}
+            </div>
+
+            {/* Payment stats */}
+            <div className="nt-stat-row" style={{ marginTop: 0 }}>
+              <div className="nt-stat-card" style={{ flex: 2 }}>
+                <div className="nt-stat-label">סכום ששולם</div>
+                <div className="nt-stat-val" style={{ color: 'var(--success)' }}>₪{paidRevenue.toLocaleString()}</div>
+              </div>
+              <div className="nt-stat-card" style={{ flex: 2 }}>
+                <div className="nt-stat-label">סטים ששולמו</div>
+                <div className="nt-stat-val" style={{ color: 'var(--success)' }}>
+                  {paidSetCount}
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 400 }}>/{totalSetCount}</span>
+                </div>
+              </div>
             </div>
 
             {/* Size breakdown */}
