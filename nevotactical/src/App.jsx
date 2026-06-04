@@ -851,6 +851,48 @@ function StatusBadge({ status }) {
   return <span className={cls[s] || cls.new}>{map[s] || 'הוזמן'}</span>;
 }
 
+// ─── EMAIL PROMPT MODAL ───────────────────────────────────────────────────────
+function EmailPromptModal({ order, onClose }) {
+  const subject = encodeURIComponent(`הזמנה #${order.orderNumber} נשלחה`);
+  const lines = [
+    `שלום ${order.name},`,
+    ``,
+    `הזמנתך מספר ${order.orderNumber} נשלחה בהצלחה.`,
+    ``,
+    `פרטי הזמנה:`,
+    ...(order.sets || []).map(s => `• חולצה ${s.shirtSize} / מכנסיים ${s.pantsSize}${s.quantity > 1 ? ` × ${s.quantity}` : ''}`),
+    ``,
+    `סכום: ₪${order.total || 0}`,
+    ``,
+    `תודה שרכשת מנבו טקטיקל!`,
+  ];
+  const body = encodeURIComponent(lines.join('\n'));
+  const mailtoLink = `mailto:${order.email}?subject=${subject}&body=${body}`;
+
+  return (
+    <div className="nt-overlay" onClick={e => e.target === e.currentTarget && onClose()} role="dialog" aria-modal="true" style={{ zIndex: 3000 }}>
+      <div className="nt-modal" style={{ maxWidth: 380, padding: 28, direction: 'rtl', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <p style={{ fontWeight: 800, fontSize: 16, margin: 0 }}>שלח אישור משלוח?</p>
+        <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0 }}>
+          ההזמנה של <strong>{order.name}</strong> סומנה כנשלחה.<br />
+          לשלוח מייל אישור ל-<span dir="ltr">{order.email}</span>?
+        </p>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <a
+            href={mailtoLink}
+            onClick={onClose}
+            className="btn btn-success"
+            style={{ flex: 1, padding: 12, textAlign: 'center', fontWeight: 800, letterSpacing: 1, textDecoration: 'none' }}
+          >
+            ✉ שלח מייל
+          </a>
+          <button className="btn btn-ghost" style={{ flex: 1, padding: 12 }} onClick={onClose}>דלג</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── ORDER DETAIL MODAL ───────────────────────────────────────────────────────
 function OrderDetailModal({ order: o, onClose, onUpdateStatus, onDelete, onAddPayment }) {
   const status = o.status || 'new';
@@ -1299,10 +1341,15 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
   const [dropdownAnchor, setDropdownAnchor]   = useState(null);
   const [sortField, setSortField]             = useState('timestamp');
   const [sortDir, setSortDir]                 = useState('desc');
+  const [emailPromptOrder, setEmailPromptOrder] = useState(null);
 
   const updateStatus = async (orderId, status) => {
     await onUpdateStatus(orderId, status);
     if (selectedOrder?.id === orderId) setSelectedOrder(prev => ({ ...prev, status }));
+    if (status === 'sent') {
+      const order = orders.find(o => o.id === orderId);
+      if (order?.email) setEmailPromptOrder({ ...order, status: 'sent' });
+    }
   };
 
   const addPayment = async (orderId, payment) => {
@@ -1636,6 +1683,10 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
                 onDelete={orderId => { onDeleteOrder(orderId); setSelectedOrder(null); }}
                 onAddPayment={addPayment}
               />
+            )}
+
+            {emailPromptOrder && (
+              <EmailPromptModal order={emailPromptOrder} onClose={() => setEmailPromptOrder(null)} />
             )}
 
             {activeFilterCol && dropdownAnchor && (
