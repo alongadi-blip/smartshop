@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { db } from './firebase';
+import { db, auth } from './firebase';
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { sendOrderEmail } from './emailService';
 import {
   collection, addDoc, getDocs, getDoc, setDoc, updateDoc,
@@ -7,7 +8,7 @@ import {
 } from 'firebase/firestore';
 import { PRODUCTS } from './products';
 
-const ADMIN_PASSWORD = 'NevoAdmin2025';
+const ADMIN_EMAIL = 'admin@nevotactical.com';
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 const shirt = (products) => products.find(p => p.role === 'shirt');
@@ -169,7 +170,7 @@ export default function App() {
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
 
-  const goHome  = () => { window.location.hash = '';      setPage('home');  setAdminAuth(false); };
+  const goHome  = () => { window.location.hash = ''; setPage('home'); setAdminAuth(false); signOut(auth).catch(() => {}); };
   const goCart  = () => { window.location.hash = 'cart';  setPage('cart');  };
   const goAdmin = () => { window.location.hash = 'admin'; setPage('admin'); };
 
@@ -202,7 +203,15 @@ export default function App() {
   if (page === 'admin') {
     if (!adminAuth) return (
       <AdminLogin
-        onLogin={pwd => { if (pwd === ADMIN_PASSWORD) { setAdminAuth(true); loadOrders(); } else alert('סיסמה שגויה'); }}
+        onLogin={async (pwd) => {
+          try {
+            await signInWithEmailAndPassword(auth, ADMIN_EMAIL, pwd);
+            setAdminAuth(true);
+            loadOrders();
+          } catch {
+            alert('סיסמה שגויה');
+          }
+        }}
         onBack={goHome}
       />
     );
