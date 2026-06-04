@@ -2,9 +2,9 @@ import emailjs from '@emailjs/browser';
 
 // ─── FILL THESE IN AFTER EmailJS SETUP ───────────────────────────────────────
 export const EMAILJS_CONFIG = {
-  serviceId:  '',   // e.g. 'service_abc123'
-  templateId: '',   // e.g. 'template_xyz789'
-  publicKey:  '',   // e.g. 'AbCdEfGhIjKlMnOp'
+  serviceId:  'service_9y0fwke',
+  templateId: 'template_bvhyirj',
+  publicKey:  '02ye5sN5Jn7Z4rNlW',
 };
 
 export function isEmailConfigured() {
