@@ -7,7 +7,7 @@ import {
   deleteDoc, doc, serverTimestamp, query, orderBy, where, runTransaction, arrayUnion,
 } from 'firebase/firestore';
 import { PRODUCTS } from './products';
-import { getSizeRecommendation, streamChatMessage, getOrderInsights } from './claudeService';
+import { getSizeRecommendation, streamChatMessage, getOrderInsights, askAdminQuestion } from './claudeService';
 
 
 const ADMIN_EMAIL = 'admin@nevotactical.com';
@@ -1560,6 +1560,9 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
   const [insightsOpen, setInsightsOpen]   = useState(false);
   const [insights, setInsights]           = useState('');
   const [loadingInsights, setLoadingInsights] = useState(false);
+  const [aiQuestion, setAiQuestion]       = useState('');
+  const [aiAnswer, setAiAnswer]           = useState('');
+  const [loadingQuestion, setLoadingQuestion] = useState(false);
 
   const fetchInsights = async () => {
     setInsightsOpen(true);
@@ -1982,16 +1985,54 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
                 </div>
               ) : (
                 <>
-                  <div style={{ fontSize: 13, lineHeight: 1.9, color: 'var(--text)', whiteSpace: 'pre-wrap' }}>
-                    {insights}
+                  {insights && (
+                    <div style={{ fontSize: 13, lineHeight: 1.9, color: 'var(--text)', whiteSpace: 'pre-wrap' }}>
+                      {insights}
+                    </div>
+                  )}
+                  <div style={{ marginTop: insights ? 20 : 0, paddingTop: insights ? 16 : 0, borderTop: insights ? '1px solid var(--border)' : 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                    {insights && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>מבוסס על {orders.length} הזמנות</span>}
+                    {insights && <button className="btn btn-ghost btn-sm" onClick={() => { setInsights(''); fetchInsights(); }}><IcRefresh /> רענן</button>}
                   </div>
-                  <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                      מבוסס על {orders.length} הזמנות
-                    </span>
-                    <button className="btn btn-ghost btn-sm" onClick={() => { setInsights(''); fetchInsights(); }}>
-                      <IcRefresh /> רענן
-                    </button>
+
+                  {/* Free-form question */}
+                  <div style={{ borderTop: '1px solid var(--border)', paddingTop: 18 }}>
+                    <p style={{ fontSize: 12, fontWeight: 800, color: 'var(--accent)', letterSpacing: 1, marginBottom: 10 }}>שאל שאלה חופשית</p>
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                      <input
+                        className="nt-input"
+                        placeholder='למשל: "כמה הזמנות היו ב-L?" או "מה ההכנסה מתל אביב?"'
+                        value={aiQuestion}
+                        onChange={e => { setAiQuestion(e.target.value); setAiAnswer(''); }}
+                        onKeyDown={async e => {
+                          if (e.key !== 'Enter' || !aiQuestion.trim() || loadingQuestion) return;
+                          setLoadingQuestion(true); setAiAnswer('');
+                          try { setAiAnswer(await askAdminQuestion(aiQuestion.trim(), orders)); }
+                          catch { setAiAnswer('שגיאה. נסה שוב.'); }
+                          setLoadingQuestion(false);
+                        }}
+                        disabled={loadingQuestion}
+                        style={{ flex: 1, fontSize: 12 }}
+                      />
+                      <button
+                        className="btn btn-primary btn-sm"
+                        disabled={!aiQuestion.trim() || loadingQuestion}
+                        style={{ padding: '9px 14px' }}
+                        onClick={async () => {
+                          setLoadingQuestion(true); setAiAnswer('');
+                          try { setAiAnswer(await askAdminQuestion(aiQuestion.trim(), orders)); }
+                          catch { setAiAnswer('שגיאה. נסה שוב.'); }
+                          setLoadingQuestion(false);
+                        }}
+                      >
+                        {loadingQuestion ? <span className="spinner" style={{ width: 12, height: 12, borderWidth: 2 }} /> : <IcSend />}
+                      </button>
+                    </div>
+                    {aiAnswer && (
+                      <div style={{ background: 'var(--surface-3)', border: '1px solid var(--border)', padding: '12px 14px', fontSize: 13, lineHeight: 1.8, color: 'var(--text)', whiteSpace: 'pre-wrap', animation: 'fadeUp 0.2s ease' }}>
+                        {aiAnswer}
+                      </div>
+                    )}
                   </div>
                 </>
               )}

@@ -99,6 +99,45 @@ export async function streamChatMessage(messages, onToken) {
   }
 }
 
+export async function askAdminQuestion(question, orders) {
+  const allSets = orders.flatMap(o =>
+    (o.sets || []).flatMap(s => Array(s.quantity || 1).fill(s))
+  );
+  const shirtCounts = {}, pantsCounts = {};
+  allSets.forEach(s => {
+    if (s.shirtSize) shirtCounts[s.shirtSize] = (shirtCounts[s.shirtSize] || 0) + 1;
+    if (s.pantsSize) pantsCounts[s.pantsSize] = (pantsCounts[s.pantsSize] || 0) + 1;
+  });
+  const statusCounts = {};
+  orders.forEach(o => { const st = o.status || 'new'; statusCounts[st] = (statusCounts[st] || 0) + 1; });
+
+  const summary = {
+    סה_כ_הזמנות: orders.length,
+    סה_כ_סטים: allSets.length,
+    הכנסות_כולל: orders.reduce((s, o) => s + (o.total || 0), 0),
+    שולם: orders.filter(o => o.status === 'paid').reduce((s, o) => s + (o.total || 0), 0),
+    סטטוסים: statusCounts,
+    מידות_חולצות: shirtCounts,
+    מידות_מכנסיים: pantsCounts,
+    הזמנות_פירוט: orders.map(o => ({
+      מספר: o.orderNumber,
+      שם: o.name,
+      עיר: o.city,
+      סטטוס: o.status || 'new',
+      סכום: o.total || 0,
+      סטים: (o.sets || []).map(s => `חולצה ${s.shirtSize} מכנסיים ${s.pantsSize} ×${s.quantity || 1}`),
+      תאריך: o.timestamp?.toDate?.()?.toLocaleDateString('he-IL') || '',
+    })),
+  };
+
+  const res = await groqPost([
+    { role: 'system', content: `אתה מנהל נתונים חכם של NEVO TACTICAL. ענה בעברית בצורה קצרה וממוקדת. הנה נתוני ההזמנות:\n${JSON.stringify(summary, null, 2)}` },
+    { role: 'user', content: question },
+  ]);
+  const data = await res.json();
+  return data.choices[0].message.content;
+}
+
 export async function getOrderInsights(orders) {
   const allSets = orders.flatMap(o =>
     (o.sets || []).flatMap(s => Array(s.quantity || 1).fill(s))
