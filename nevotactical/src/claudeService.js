@@ -1,58 +1,63 @@
-const ANTHROPIC_API = 'https://api.anthropic.com/v1/messages';
+const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const GROQ_MODEL = 'llama-3.1-8b-instant';
 
-function getHeaders() {
-  return {
-    'x-api-key': import.meta.env.VITE_ANTHROPIC_API_KEY,
-    'anthropic-version': '2023-06-01',
-    'anthropic-dangerous-direct-browser-access': 'true',
-    'content-type': 'application/json',
-  };
+function apiKey() {
+  return import.meta.env.VITE_GROQ_API_KEY;
 }
 
-const STORE_CONTEXT = `NEVO TACTICAL מוכרת סט טקטי מקצועי: חולצה ארוכה טקטית + מכנסי קרגו.
-מחיר הסט: ₪450 בערך. מידות זמינות: S, M, L, XL, XXL, 3XL, 4XL, 5XL.
+const STORE_CONTEXT = `אתה עוזר לקוחות של NEVO TACTICAL, חנות ציוד טקטי ישראלית.
+הם מוכרים סט טקטי מקצועי: חולצה ארוכה טקטית + מכנסי קרגו. מחיר: ₪450 בערך.
+מידות זמינות: S, M, L, XL, XXL, 3XL, 4XL, 5XL.
 משלוח: ₪50 להזמנה אחת. 2+ סטים — תיאום טלפוני. ניתן לאסוף עצמאית ללא עלות.
 ניתן לבחור מידה שונה לחולצה ולמכנסיים.`;
 
-export async function getSizeRecommendation({ height, weight, build }) {
-  const res = await fetch(ANTHROPIC_API, {
+async function groqPost(messages, stream = false) {
+  const res = await fetch(GROQ_URL, {
     method: 'POST',
-    headers: getHeaders(),
+    headers: {
+      'content-type': 'application/json',
+      'authorization': `Bearer ${apiKey()}`,
+    },
     body: JSON.stringify({
-      model: 'claude-haiku-4-5',
-      max_tokens: 256,
-      system: STORE_CONTEXT,
-      messages: [{
-        role: 'user',
-        content: `המלץ על מידת חולצה ומכנסיים לפי:
+      model: GROQ_MODEL,
+      messages,
+      stream,
+      max_tokens: stream ? 1024 : 512,
+    }),
+  });
+  if (!res.ok) {
+    const errBody = await res.text();
+    console.error('Groq error', res.status, errBody);
+    throw new Error(`API error ${res.status}`);
+  }
+  return res;
+}
+
+export async function getSizeRecommendation({ height, weight, build }) {
+  const res = await groqPost([
+    { role: 'system', content: STORE_CONTEXT },
+    {
+      role: 'user',
+      content: `המלץ על מידת חולצה ומכנסיים לפי:
 גובה: ${height} ס"מ | משקל: ${weight} ק"ג | מבנה: ${build}
 
-ענה בדיוק בפורמט הזה (שלושה שורות בלבד):
+ענה בדיוק בפורמט הזה (שלוש שורות בלבד):
 חולצה: [S/M/L/XL/XXL/3XL/4XL/5XL]
 מכנסיים: [S/M/L/XL/XXL/3XL/4XL/5XL]
 הסבר: [משפט קצר אחד]`,
-      }],
-    }),
-  });
-  if (!res.ok) throw new Error(`API error ${res.status}`);
+    },
+  ]);
   const data = await res.json();
-  return data.content[0].text;
+  return data.choices[0].message.content;
 }
 
 export async function streamChatMessage(messages, onToken) {
-  const res = await fetch(ANTHROPIC_API, {
-    method: 'POST',
-    headers: getHeaders(),
-    body: JSON.stringify({
-      model: 'claude-haiku-4-5',
-      max_tokens: 1024,
-      stream: true,
-      system: `אתה עוזר לקוחות ידידותי של NEVO TACTICAL. ${STORE_CONTEXT}
-ענה בעברית בצורה קצרה, ברורה וידידותית. אל תמציא מידע שאינו ידוע לך.`,
-      messages,
-    }),
-  });
-  if (!res.ok) throw new Error(`API error ${res.status}`);
+  const groqMessages = [
+    { role: 'system', content: `${STORE_CONTEXT}\nענה בעברית בצורה קצרה, ברורה וידידותית.` },
+    ...messages.map(m => ({ role: m.role, content: m.content })),
+  ];
+
+  const res = await groqPost(groqMessages, true);
 
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
@@ -67,13 +72,12 @@ export async function streamChatMessage(messages, onToken) {
     for (const line of lines) {
       if (!line.startsWith('data: ')) continue;
       const payload = line.slice(6).trim();
-      if (payload === '[DONE]') return;
+      if (payload === '[DONE]') continue;
       try {
         const event = JSON.parse(payload);
-        if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
-          onToken(event.delta.text);
-        }
-      } catch { /* ignore malformed SSE lines */ }
+        const text = event.choices?.[0]?.delta?.content;
+        if (text) onToken(text);
+      } catch { /* ignore */ }
     }
   }
 }
@@ -114,23 +118,17 @@ export async function getOrderInsights(orders) {
     ערים_מובילות: Object.entries(cityMap).sort((a, b) => b[1] - a[1]).slice(0, 5),
   };
 
-  const res = await fetch(ANTHROPIC_API, {
-    method: 'POST',
-    headers: getHeaders(),
-    body: JSON.stringify({
-      model: 'claude-haiku-4-5',
-      max_tokens: 800,
-      messages: [{
-        role: 'user',
-        content: `נתח את נתוני ההזמנות של NEVO TACTICAL ותן תובנות עסקיות מעשיות בעברית:
+  const res = await groqPost([
+    { role: 'system', content: STORE_CONTEXT },
+    {
+      role: 'user',
+      content: `נתח את נתוני ההזמנות של NEVO TACTICAL ותן תובנות עסקיות מעשיות בעברית:
 
 ${JSON.stringify(data, null, 2)}
 
 ענה בנקודות קצרות עם אמוג'י. כלול: מצב עסקי כללי, מידות פופולריות ומשמעותן למלאי, תובנה על משלוח/איסוף, והמלצה אחת לפעולה מיידית.`,
-      }],
-    }),
-  });
-  if (!res.ok) throw new Error(`API error ${res.status}`);
+    },
+  ]);
   const data2 = await res.json();
-  return data2.content[0].text;
+  return data2.choices[0].message.content;
 }
