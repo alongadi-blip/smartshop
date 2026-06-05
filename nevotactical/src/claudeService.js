@@ -76,6 +76,9 @@ export async function askAdminQuestion(question, orders) {
   const statusCounts = {};
   orders.forEach(o => { const st = o.status || 'new'; statusCounts[st] = (statusCounts[st] || 0) + 1; });
 
+  const cityMap = {};
+  orders.forEach(o => { const c = (o.city||'').trim(); if (c) cityMap[c] = (cityMap[c]||0)+1; });
+
   const summary = {
     סה_כ_הזמנות: orders.length,
     סה_כ_סטים: allSets.length,
@@ -84,20 +87,14 @@ export async function askAdminQuestion(question, orders) {
     סטטוסים: statusCounts,
     מידות_חולצות: shirtCounts,
     מידות_מכנסיים: pantsCounts,
-    הזמנות_פירוט: orders.map(o => ({
-      מספר: o.orderNumber,
-      שם: o.name,
-      עיר: o.city,
-      סטטוס: o.status || 'new',
-      סכום: o.total || 0,
-      סטים: (o.sets || []).map(s => `חולצה ${s.shirtSize} מכנסיים ${s.pantsSize} ×${s.quantity || 1}`),
-      תאריך: o.timestamp?.toDate?.()?.toLocaleDateString('he-IL') || '',
-    })),
+    ערים: cityMap,
+    משלוח: orders.filter(o => o.deliveryType === 'delivery').length,
+    איסוף: orders.filter(o => o.deliveryType === 'pickup').length,
   };
 
   const res = await groqPost([
-    { role: 'system', content: `אתה מנהל נתונים חכם של NEVO TACTICAL. ענה בעברית בצורה קצרה וממוקדת. הנה נתוני ההזמנות:\n${JSON.stringify(summary, null, 2)}` },
-    { role: 'user', content: question },
+    { role: 'system', content: `נתוני הזמנות NEVO TACTICAL:\n${JSON.stringify(summary)}` },
+    { role: 'user', content: `ענה בעברית קצר וממוקד: ${question}` },
   ]);
   const data = await res.json();
   return data.choices[0].message.content;
