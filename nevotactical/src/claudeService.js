@@ -93,8 +93,11 @@ export async function askAdminQuestion(question, orders) {
   };
 
   const res = await groqPost([
-    { role: 'system', content: `נתוני הזמנות NEVO TACTICAL:\n${JSON.stringify(summary)}` },
-    { role: 'user', content: `ענה בעברית קצר וממוקד: ${question}` },
+    {
+      role: 'system',
+      content: `אתה עוזר נתונים של NEVO TACTICAL. ענה בעברית פשוטה בלבד — ללא markdown, ללא כוכביות, ללא קוד, ללא מקפים מיוחדים. רק טקסט רגיל עם מספרים. נתוני ההזמנות: ${JSON.stringify(summary)}`,
+    },
+    { role: 'user', content: question },
   ]);
   const data = await res.json();
   return data.choices[0].message.content;
