@@ -7,7 +7,7 @@ import {
   deleteDoc, doc, serverTimestamp, query, orderBy, where, runTransaction, arrayUnion,
 } from 'firebase/firestore';
 import { PRODUCTS } from './products';
-import { getSizeRecommendation, streamChatMessage, getOrderInsights, askAdminQuestion } from './claudeService';
+import { streamChatMessage, getOrderInsights, askAdminQuestion } from './claudeService';
 
 
 const ADMIN_EMAIL = 'admin@nevotactical.com';
@@ -408,8 +408,7 @@ function SetConfigurator({ shirtProduct: sh, pantsProduct: pa, setPrice, onAddSe
   const [pantsSize, setPantsSize] = useState('');
   const [qty, setQty]             = useState(1);
   const [added, setAdded]         = useState(false);
-  const [tried, setTried]         = useState(false); // show validation after first attempt
-  const [showSizeAI, setShowSizeAI] = useState(false);
+  const [tried, setTried]         = useState(false);
 
   const isReady   = shirtSize && pantsSize;
   const shirtLabel = shirtSize ? `מידה ${shirtSize}` : '';
@@ -435,24 +434,8 @@ function SetConfigurator({ shirtProduct: sh, pantsProduct: pa, setPrice, onAddSe
     <div className="nt-configurator-section">
       <div className="nt-set-header">
         <span className="nt-set-label">הסט הטקטי</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', justifyContent: 'space-between' }}>
-          <span className="nt-set-sub">חולצה + מכנסיים | בחר מידה לכל פריט</span>
-          <button
-            className="btn btn-ghost btn-sm"
-            onClick={() => setShowSizeAI(true)}
-            style={{ fontSize: 11, letterSpacing: 1, display: 'flex', alignItems: 'center', gap: 5 }}
-            aria-label="מצא מידה עם בינה מלאכותית"
-          >
-            <IcSizeAI /> מצא מידה — AI
-          </button>
-        </div>
+        <span className="nt-set-sub">חולצה + מכנסיים | בחר מידה לכל פריט</span>
       </div>
-      {showSizeAI && (
-        <SizeRecommenderModal
-          onClose={() => setShowSizeAI(false)}
-          onApplySizes={(shirt, pants) => { setShirtSize(shirt); setPantsSize(pants); }}
-        />
-      )}
 
       {/* Two-panel split */}
       <div className="nt-product-split" role="group" aria-label="הגדרת סט">
@@ -592,123 +575,6 @@ function SetConfigurator({ shirtProduct: sh, pantsProduct: pa, setPrice, onAddSe
           הסט שבחרת: חולצה {shirtSize} + מכנסיים {pantsSize}
         </p>
       )}
-    </div>
-  );
-}
-
-// ─── SIZE RECOMMENDER MODAL ──────────────────────────────────────────────────
-function SizeRecommenderModal({ onClose, onApplySizes }) {
-  const [height, setHeight]   = useState('');
-  const [weight, setWeight]   = useState('');
-  const [build, setBuild]     = useState('regular');
-  const [loading, setLoading] = useState(false);
-  const [result, setResult]   = useState(null);
-  const [error, setError]     = useState('');
-
-  useEffect(() => {
-    const onKey = e => e.key === 'Escape' && onClose();
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
-
-  const handleSubmit = async () => {
-    if (!height || !weight) { setError('נא למלא גובה ומשקל'); return; }
-    setLoading(true); setError(''); setResult(null);
-    try {
-      const text = await getSizeRecommendation({ height, weight, build });
-      setResult(text);
-    } catch {
-      setError('שגיאה בקבלת המלצה. ודא שהמפתח הוגדר ונסה שוב.');
-    }
-    setLoading(false);
-  };
-
-  const parseResult = (text) => {
-    const shirtMatch = text.match(/חולצה:\s*(\w+)/);
-    const pantsMatch = text.match(/מכנסיים:\s*(\w+)/);
-    const explainMatch = text.match(/הסבר:\s*(.+)/);
-    return {
-      shirt: shirtMatch?.[1]?.trim(),
-      pants: pantsMatch?.[1]?.trim(),
-      explanation: explainMatch?.[1]?.trim() || '',
-    };
-  };
-
-  const parsed = result ? parseResult(result) : null;
-  const canApply = parsed?.shirt && parsed?.pants;
-
-  return (
-    <div className="nt-overlay" onClick={e => e.target === e.currentTarget && onClose()} role="dialog" aria-modal="true" aria-label="מציאת מידה עם AI">
-      <div className="nt-modal" style={{ maxWidth: 400 }}>
-        <div className="nt-modal-header">
-          <span className="nt-modal-title">מציאת מידה — AI</span>
-          <button className="nt-modal-close" onClick={onClose} aria-label="סגור"><IcClose /></button>
-        </div>
-        <div style={{ padding: '20px 20px 24px', direction: 'rtl' }}>
-          {!result ? (
-            <>
-              <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 20, lineHeight: 1.6 }}>
-                הזן את הפרטים שלך ו-AI ימליץ על המידה המתאימה מתוך הטווח שלנו.
-              </p>
-              <div style={{ display: 'flex', gap: 12, marginBottom: 14 }}>
-                <div style={{ flex: 1 }}>
-                  <label className="nt-field-label" htmlFor="ai-height">גובה (ס"מ)</label>
-                  <input id="ai-height" className="nt-input" type="number" min="140" max="230" placeholder="175"
-                    value={height} onChange={e => { setHeight(e.target.value); setError(''); }}
-                    style={{ textAlign: 'center' }} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label className="nt-field-label" htmlFor="ai-weight">משקל (ק"ג)</label>
-                  <input id="ai-weight" className="nt-input" type="number" min="40" max="250" placeholder="80"
-                    value={weight} onChange={e => { setWeight(e.target.value); setError(''); }}
-                    style={{ textAlign: 'center' }} />
-                </div>
-              </div>
-              <div style={{ marginBottom: 20 }}>
-                <label className="nt-field-label">מבנה גוף</label>
-                <div className="nt-size-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
-                  {[['slim', 'רזה'], ['regular', 'רגיל'], ['athletic', 'ספורטיבי'], ['large', 'גדול']].map(([val, label]) => (
-                    <button key={val} className={`nt-size-opt${build === val ? ' sel' : ''}`}
-                      onClick={() => setBuild(val)} style={{ fontSize: 11 }}>{label}</button>
-                  ))}
-                </div>
-              </div>
-              {error && <p role="alert" style={{ color: 'var(--danger)', fontSize: 12, marginBottom: 10 }}>{error}</p>}
-              <button className="btn btn-primary btn-full" onClick={handleSubmit} disabled={loading}
-                style={{ padding: 14, letterSpacing: 2, fontWeight: 800 }} aria-busy={loading}>
-                {loading ? <><span className="spinner" aria-hidden="true" /><span>מחשב...</span></> : 'המלץ על מידה'}
-              </button>
-            </>
-          ) : (
-            <>
-              {canApply && (
-                <div style={{ display: 'flex', justifyContent: 'center', gap: 32, padding: '16px 0 20px', borderBottom: '1px solid var(--border)', marginBottom: 16 }}>
-                  {[['חולצה', parsed.shirt], ['מכנסיים', parsed.pants]].map(([label, size]) => (
-                    <div key={label} style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: 1, marginBottom: 6 }}>{label}</div>
-                      <div style={{ fontFamily: 'var(--font-brand)', fontSize: 36, color: 'var(--accent)', letterSpacing: 2, lineHeight: 1 }}>{size}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {parsed?.explanation && (
-                <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 20, lineHeight: 1.7, textAlign: 'center' }}>
-                  {parsed.explanation}
-                </p>
-              )}
-              <div style={{ display: 'flex', gap: 8 }}>
-                {canApply && (
-                  <button className="btn btn-primary" style={{ flex: 2, padding: 13, letterSpacing: 1, fontWeight: 800 }}
-                    onClick={() => { onApplySizes(parsed.shirt, parsed.pants); onClose(); }}>
-                    החל מידות
-                  </button>
-                )}
-                <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setResult(null)}>נסה שוב</button>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
     </div>
   );
 }

@@ -33,41 +33,6 @@ async function groqPost(messages, stream = false) {
   return res;
 }
 
-const SIZES = ['S', 'M', 'L', 'XL', 'XXL', '3XL', '4XL', '5XL'];
-
-function calcSize(weight, build) {
-  // weight is the primary factor
-  let idx;
-  if (weight < 65)       idx = 0; // S
-  else if (weight < 76)  idx = 1; // M
-  else if (weight < 88)  idx = 2; // L
-  else if (weight < 100) idx = 3; // XL
-  else if (weight < 115) idx = 4; // XXL
-  else if (weight < 132) idx = 5; // 3XL
-  else if (weight < 152) idx = 6; // 4XL
-  else                   idx = 7; // 5XL
-
-  if (build === 'גדול/שרירי') idx = Math.min(idx + 1, 7);
-  if (build === 'קטן/רזה')    idx = Math.max(idx - 1, 0);
-  return SIZES[idx];
-}
-
-export async function getSizeRecommendation({ height, weight, build }) {
-  const h = Number(height), w = Number(weight);
-  const size = calcSize(w, build);
-
-  const res = await groqPost([
-    { role: 'system', content: 'אתה עוזר קצר ומדויק. ענה במשפט אחד בלבד בעברית.' },
-    {
-      role: 'user',
-      content: `לקוח בגובה ${h} ס"מ, משקל ${w} ק"ג, מבנה ${build} — קיבל מידה ${size}. כתוב משפט הסבר קצר ומשכנע אחד בלבד (ללא פסיקים מיותרים, ללא חזרה על המידה).`,
-    },
-  ]);
-  const data = await res.json();
-  const explanation = data.choices[0].message.content.trim();
-  return `חולצה: ${size}\nמכנסיים: ${size}\nהסבר: ${explanation}`;
-}
-
 export async function streamChatMessage(messages, onToken) {
   const groqMessages = [
     { role: 'system', content: `${STORE_CONTEXT}\nענה בעברית בצורה קצרה, ברורה וידידותית.` },
