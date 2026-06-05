@@ -33,34 +33,39 @@ async function groqPost(messages, stream = false) {
   return res;
 }
 
+const SIZES = ['S', 'M', 'L', 'XL', 'XXL', '3XL', '4XL', '5XL'];
+
+function calcSize(weight, build) {
+  // weight is the primary factor
+  let idx;
+  if (weight < 65)       idx = 0; // S
+  else if (weight < 76)  idx = 1; // M
+  else if (weight < 88)  idx = 2; // L
+  else if (weight < 100) idx = 3; // XL
+  else if (weight < 115) idx = 4; // XXL
+  else if (weight < 132) idx = 5; // 3XL
+  else if (weight < 152) idx = 6; // 4XL
+  else                   idx = 7; // 5XL
+
+  if (build === 'גדול/שרירי') idx = Math.min(idx + 1, 7);
+  if (build === 'קטן/רזה')    idx = Math.max(idx - 1, 0);
+  return SIZES[idx];
+}
+
 export async function getSizeRecommendation({ height, weight, build }) {
+  const h = Number(height), w = Number(weight);
+  const size = calcSize(w, build);
+
   const res = await groqPost([
-    { role: 'system', content: STORE_CONTEXT },
+    { role: 'system', content: 'אתה עוזר קצר ומדויק. ענה במשפט אחד בלבד בעברית.' },
     {
       role: 'user',
-      content: `טבלת מידות NEVO TACTICAL (חולצה ומכנסיים):
-S   → גובה 158-165 ס"מ, משקל 50-65 ק"ג
-M   → גובה 163-170 ס"מ, משקל 63-75 ק"ג
-L   → גובה 168-175 ס"מ, משקל 73-85 ק"ג
-XL  → גובה 173-180 ס"מ, משקל 83-97 ק"ג
-XXL → גובה 178-185 ס"מ, משקל 95-112 ק"ג
-3XL → גובה 183-190 ס"מ, משקל 108-130 ק"ג
-4XL → גובה 188-195 ס"מ, משקל 126-150 ק"ג
-5XL → גובה 193+ ס"מ,  משקל 148+ ק"ג
-
-כלל: המשקל קובע בעיקר. לבנייה "גדולה" עלה מידה אחת. לבנייה "קטנה/רזה" ירד מידה אחת.
-
-המלץ על מידה לפי:
-גובה: ${height} ס"מ | משקל: ${weight} ק"ג | מבנה: ${build}
-
-ענה בדיוק בפורמט הזה (שלוש שורות בלבד, ללא טקסט נוסף):
-חולצה: [מידה]
-מכנסיים: [מידה]
-הסבר: [משפט קצר אחד]`,
+      content: `לקוח בגובה ${h} ס"מ, משקל ${w} ק"ג, מבנה ${build} — קיבל מידה ${size}. כתוב משפט הסבר קצר ומשכנע אחד בלבד (ללא פסיקים מיותרים, ללא חזרה על המידה).`,
     },
   ]);
   const data = await res.json();
-  return data.choices[0].message.content;
+  const explanation = data.choices[0].message.content.trim();
+  return `חולצה: ${size}\nמכנסיים: ${size}\nהסבר: ${explanation}`;
 }
 
 export async function streamChatMessage(messages, onToken) {
