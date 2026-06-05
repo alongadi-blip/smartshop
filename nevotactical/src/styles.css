@@ -803,3 +803,63 @@ img { display: block; }
 @media (max-width: 380px) {
   .nt-cart-set-info { flex-direction: column; align-items: flex-start; }
 }
+
+/* ── CHAT ASSISTANT ── */
+.nt-chat-btn {
+  position: fixed; bottom: 24px; right: 24px; z-index: 1100;
+  width: 52px; height: 52px; border-radius: 50%;
+  background: var(--accent); border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.4);
+  color: #fff; transition: transform 0.15s, background 0.15s;
+}
+.nt-chat-btn:hover { background: var(--accent-hover); transform: scale(1.06); }
+
+.nt-chat-panel {
+  position: fixed; bottom: 88px; right: 24px; z-index: 1100;
+  width: 310px; height: 420px; max-height: calc(100vh - 120px);
+  background: var(--surface); border: 1px solid var(--border);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  display: flex; flex-direction: column;
+  animation: fadeUp 0.18s ease;
+}
+.nt-chat-header {
+  padding: 12px 14px;
+  background: var(--accent); color: #fff;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+}
+.nt-chat-avatar {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: rgba(255,255,255,0.2);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-brand); font-size: 11px; letter-spacing: 1px;
+}
+.nt-chat-messages {
+  flex: 1; overflow-y: auto; padding: 12px;
+  display: flex; flex-direction: column; gap: 8px;
+  direction: rtl;
+}
+.nt-chat-msg {
+  max-width: 86%; padding: 8px 12px;
+  font-size: 13px; line-height: 1.6; word-break: break-word;
+}
+.nt-chat-msg-user {
+  align-self: flex-start;
+  background: var(--surface-3); border: 1px solid var(--border);
+}
+.nt-chat-msg-assistant {
+  align-self: flex-end;
+  background: var(--accent-dim); border: 1px solid var(--accent);
+  color: var(--text);
+}
+.nt-chat-input-row {
+  border-top: 1px solid var(--border);
+  padding: 8px; display: flex; gap: 6px; direction: rtl;
+  flex-shrink: 0;
+}
+
+@media (max-width: 400px) {
+  .nt-chat-panel { width: calc(100vw - 16px); right: 8px; bottom: 80px; }
+  .nt-chat-btn   { right: 16px; bottom: 16px; }
+}

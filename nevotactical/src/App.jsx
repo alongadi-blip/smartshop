@@ -7,6 +7,8 @@ import {
   deleteDoc, doc, serverTimestamp, query, orderBy, where, runTransaction, arrayUnion,
 } from 'firebase/firestore';
 import { PRODUCTS } from './products';
+import { getSizeRecommendation, streamChatMessage, getOrderInsights } from './claudeService';
+
 
 const ADMIN_EMAIL = 'admin@nevotactical.com';
 
@@ -106,6 +108,21 @@ const IcBox = () => (
   </svg>
 );
 
+const IcSizeAI = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 8v4l3 3"/><circle cx="19" cy="5" r="3"/>
+  </svg>
+);
+const IcChat = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+  </svg>
+);
+const IcSend = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+  </svg>
+);
 const IcPrint = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <polyline points="6 9 6 2 18 2 18 9"/>
@@ -292,6 +309,8 @@ export default function App() {
 
       <Footer />
 
+      <ChatAssistant />
+
       {orderSuccess && (
         <OrderSuccessOverlay
           orderNumber={orderSuccess.orderNumber}
@@ -390,6 +409,7 @@ function SetConfigurator({ shirtProduct: sh, pantsProduct: pa, setPrice, onAddSe
   const [qty, setQty]             = useState(1);
   const [added, setAdded]         = useState(false);
   const [tried, setTried]         = useState(false); // show validation after first attempt
+  const [showSizeAI, setShowSizeAI] = useState(false);
 
   const isReady   = shirtSize && pantsSize;
   const shirtLabel = shirtSize ? `מידה ${shirtSize}` : '';
@@ -415,8 +435,24 @@ function SetConfigurator({ shirtProduct: sh, pantsProduct: pa, setPrice, onAddSe
     <div className="nt-configurator-section">
       <div className="nt-set-header">
         <span className="nt-set-label">הסט הטקטי</span>
-        <span className="nt-set-sub">חולצה + מכנסיים | בחר מידה לכל פריט</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', justifyContent: 'space-between' }}>
+          <span className="nt-set-sub">חולצה + מכנסיים | בחר מידה לכל פריט</span>
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => setShowSizeAI(true)}
+            style={{ fontSize: 11, letterSpacing: 1, display: 'flex', alignItems: 'center', gap: 5 }}
+            aria-label="מצא מידה עם בינה מלאכותית"
+          >
+            <IcSizeAI /> מצא מידה — AI
+          </button>
+        </div>
       </div>
+      {showSizeAI && (
+        <SizeRecommenderModal
+          onClose={() => setShowSizeAI(false)}
+          onApplySizes={(shirt, pants) => { setShirtSize(shirt); setPantsSize(pants); }}
+        />
+      )}
 
       {/* Two-panel split */}
       <div className="nt-product-split" role="group" aria-label="הגדרת סט">
@@ -557,6 +593,224 @@ function SetConfigurator({ shirtProduct: sh, pantsProduct: pa, setPrice, onAddSe
         </p>
       )}
     </div>
+  );
+}
+
+// ─── SIZE RECOMMENDER MODAL ──────────────────────────────────────────────────
+function SizeRecommenderModal({ onClose, onApplySizes }) {
+  const [height, setHeight]   = useState('');
+  const [weight, setWeight]   = useState('');
+  const [build, setBuild]     = useState('regular');
+  const [loading, setLoading] = useState(false);
+  const [result, setResult]   = useState(null);
+  const [error, setError]     = useState('');
+
+  useEffect(() => {
+    const onKey = e => e.key === 'Escape' && onClose();
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const handleSubmit = async () => {
+    if (!height || !weight) { setError('נא למלא גובה ומשקל'); return; }
+    setLoading(true); setError(''); setResult(null);
+    try {
+      const text = await getSizeRecommendation({ height, weight, build });
+      setResult(text);
+    } catch {
+      setError('שגיאה בקבלת המלצה. ודא שהמפתח הוגדר ונסה שוב.');
+    }
+    setLoading(false);
+  };
+
+  const parseResult = (text) => {
+    const shirtMatch = text.match(/חולצה:\s*(\w+)/);
+    const pantsMatch = text.match(/מכנסיים:\s*(\w+)/);
+    const explainMatch = text.match(/הסבר:\s*(.+)/);
+    return {
+      shirt: shirtMatch?.[1]?.trim(),
+      pants: pantsMatch?.[1]?.trim(),
+      explanation: explainMatch?.[1]?.trim() || '',
+    };
+  };
+
+  const parsed = result ? parseResult(result) : null;
+  const canApply = parsed?.shirt && parsed?.pants;
+
+  return (
+    <div className="nt-overlay" onClick={e => e.target === e.currentTarget && onClose()} role="dialog" aria-modal="true" aria-label="מציאת מידה עם AI">
+      <div className="nt-modal" style={{ maxWidth: 400 }}>
+        <div className="nt-modal-header">
+          <span className="nt-modal-title">מציאת מידה — AI</span>
+          <button className="nt-modal-close" onClick={onClose} aria-label="סגור"><IcClose /></button>
+        </div>
+        <div style={{ padding: '20px 20px 24px', direction: 'rtl' }}>
+          {!result ? (
+            <>
+              <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 20, lineHeight: 1.6 }}>
+                הזן את הפרטים שלך ו-AI ימליץ על המידה המתאימה מתוך הטווח שלנו.
+              </p>
+              <div style={{ display: 'flex', gap: 12, marginBottom: 14 }}>
+                <div style={{ flex: 1 }}>
+                  <label className="nt-field-label" htmlFor="ai-height">גובה (ס"מ)</label>
+                  <input id="ai-height" className="nt-input" type="number" min="140" max="230" placeholder="175"
+                    value={height} onChange={e => { setHeight(e.target.value); setError(''); }}
+                    style={{ textAlign: 'center' }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label className="nt-field-label" htmlFor="ai-weight">משקל (ק"ג)</label>
+                  <input id="ai-weight" className="nt-input" type="number" min="40" max="250" placeholder="80"
+                    value={weight} onChange={e => { setWeight(e.target.value); setError(''); }}
+                    style={{ textAlign: 'center' }} />
+                </div>
+              </div>
+              <div style={{ marginBottom: 20 }}>
+                <label className="nt-field-label">מבנה גוף</label>
+                <div className="nt-size-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+                  {[['slim', 'רזה'], ['regular', 'רגיל'], ['athletic', 'ספורטיבי'], ['large', 'גדול']].map(([val, label]) => (
+                    <button key={val} className={`nt-size-opt${build === val ? ' sel' : ''}`}
+                      onClick={() => setBuild(val)} style={{ fontSize: 11 }}>{label}</button>
+                  ))}
+                </div>
+              </div>
+              {error && <p role="alert" style={{ color: 'var(--danger)', fontSize: 12, marginBottom: 10 }}>{error}</p>}
+              <button className="btn btn-primary btn-full" onClick={handleSubmit} disabled={loading}
+                style={{ padding: 14, letterSpacing: 2, fontWeight: 800 }} aria-busy={loading}>
+                {loading ? <><span className="spinner" aria-hidden="true" /><span>מחשב...</span></> : 'המלץ על מידה'}
+              </button>
+            </>
+          ) : (
+            <>
+              {canApply && (
+                <div style={{ display: 'flex', justifyContent: 'center', gap: 32, padding: '16px 0 20px', borderBottom: '1px solid var(--border)', marginBottom: 16 }}>
+                  {[['חולצה', parsed.shirt], ['מכנסיים', parsed.pants]].map(([label, size]) => (
+                    <div key={label} style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: 1, marginBottom: 6 }}>{label}</div>
+                      <div style={{ fontFamily: 'var(--font-brand)', fontSize: 36, color: 'var(--accent)', letterSpacing: 2, lineHeight: 1 }}>{size}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {parsed?.explanation && (
+                <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 20, lineHeight: 1.7, textAlign: 'center' }}>
+                  {parsed.explanation}
+                </p>
+              )}
+              <div style={{ display: 'flex', gap: 8 }}>
+                {canApply && (
+                  <button className="btn btn-primary" style={{ flex: 2, padding: 13, letterSpacing: 1, fontWeight: 800 }}
+                    onClick={() => { onApplySizes(parsed.shirt, parsed.pants); onClose(); }}>
+                    החל מידות
+                  </button>
+                )}
+                <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setResult(null)}>נסה שוב</button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── CHAT ASSISTANT ───────────────────────────────────────────────────────────
+function ChatAssistant() {
+  const [open, setOpen]         = useState(false);
+  const [messages, setMessages] = useState([]);
+  const [input, setInput]       = useState('');
+  const [streaming, setStreaming] = useState(false);
+  const messagesEndRef = useRef(null);
+  const inputRef       = useRef(null);
+
+  useEffect(() => {
+    if (open) setTimeout(() => inputRef.current?.focus(), 100);
+  }, [open]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const send = async () => {
+    const text = input.trim();
+    if (!text || streaming) return;
+    setInput('');
+    const apiMessages = [...messages, { role: 'user', content: text }];
+    setMessages(prev => [...prev, { role: 'user', content: text }, { role: 'assistant', content: '' }]);
+    setStreaming(true);
+    try {
+      await streamChatMessage(
+        apiMessages,
+        (chunk) => setMessages(prev => {
+          const updated = [...prev];
+          updated[updated.length - 1] = { ...updated[updated.length - 1], content: updated[updated.length - 1].content + chunk };
+          return updated;
+        })
+      );
+    } catch {
+      setMessages(prev => { const u = [...prev]; u[u.length - 1] = { role: 'assistant', content: 'שגיאה. נסה שוב.' }; return u; });
+    }
+    setStreaming(false);
+  };
+
+  return (
+    <>
+      <button
+        className="nt-chat-btn"
+        onClick={() => setOpen(o => !o)}
+        aria-label={open ? 'סגור צ\'אט' : 'פתח שיחה עם נציג AI'}
+        title="שאל שאלה — AI"
+      >
+        {open ? <IcClose /> : <IcChat />}
+      </button>
+
+      {open && (
+        <div className="nt-chat-panel" role="dialog" aria-label="שיחה עם נציג AI" aria-modal="false">
+          <div className="nt-chat-header">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div className="nt-chat-avatar">NT</div>
+              <div>
+                <div style={{ fontFamily: 'var(--font-brand)', fontSize: 12, letterSpacing: 2 }}>NEVO TACTICAL</div>
+                <div style={{ fontSize: 11, opacity: 0.8 }}>שאל כל שאלה</div>
+              </div>
+            </div>
+            <button className="nt-modal-close" style={{ color: '#fff', opacity: 0.7 }} onClick={() => setOpen(false)} aria-label="סגור"><IcClose /></button>
+          </div>
+
+          <div className="nt-chat-messages" aria-live="polite" aria-label="הודעות">
+            {messages.length === 0 && (
+              <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 12, padding: '20px 16px', lineHeight: 1.7 }}>
+                <p style={{ marginBottom: 12, fontSize: 16 }}>שלום!</p>
+                <p>אני כאן לעזור עם שאלות על<br />מידות, משלוח, מוצרים ועוד.</p>
+              </div>
+            )}
+            {messages.map((msg, i) => (
+              <div key={i} className={`nt-chat-msg nt-chat-msg-${msg.role}`}>
+                {msg.content || (streaming && i === messages.length - 1 ? '...' : '')}
+              </div>
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
+
+          <div className="nt-chat-input-row">
+            <input
+              ref={inputRef}
+              className="nt-input"
+              placeholder="כתוב הודעה..."
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && !e.shiftKey && send()}
+              disabled={streaming}
+              style={{ flex: 1, fontSize: 13 }}
+              aria-label="הודעה"
+            />
+            <button className="btn btn-primary btn-sm" onClick={send}
+              disabled={streaming || !input.trim()} style={{ padding: '9px 13px' }} aria-label="שלח">
+              {streaming ? <span className="spinner" style={{ width: 12, height: 12, borderWidth: 2 }} aria-hidden="true" /> : <IcSend />}
+            </button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -1303,6 +1557,22 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
   const [pricesSaved, setPricesSaved]   = useState(false);
   const [pricesOpen, setPricesOpen]     = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [insightsOpen, setInsightsOpen]   = useState(false);
+  const [insights, setInsights]           = useState('');
+  const [loadingInsights, setLoadingInsights] = useState(false);
+
+  const fetchInsights = async () => {
+    setInsightsOpen(true);
+    if (insights) return; // don't re-fetch if already loaded
+    setLoadingInsights(true);
+    try {
+      const text = await getOrderInsights(orders);
+      setInsights(text);
+    } catch {
+      setInsights('שגיאה בטעינת תובנות. ודא שמפתח ה-API הוגדר ונסה שוב.');
+    }
+    setLoadingInsights(false);
+  };
   const [tab, setTab]                   = useState('new');
   const [citiesOpen, setCitiesOpen]           = useState(false);
   const [selectedCity, setSelectedCity]       = useState(null);
@@ -1569,6 +1839,9 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
                   ))}
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
+                  <button className="btn btn-ghost btn-sm" onClick={fetchInsights} title="תובנות AI על ההזמנות" style={{ fontSize: 11, letterSpacing: 1 }}>
+                    <IcSizeAI /> AI תובנות
+                  </button>
                   <button className="btn btn-ghost btn-sm" onClick={() => printLabels(orders)} title="הדפס תוויות לכל הזמנות המשלוח"><IcPrint /> תוויות</button>
                   <button className="btn btn-primary btn-sm" onClick={exportCSV}><IcDownload /> CSV</button>
                   <button className="btn btn-danger btn-sm" onClick={() => { if (window.confirm(`למחוק את כל ${orders.length} ההזמנות?`)) onDeleteAll(); }}><IcTrash /> מחק הכל</button>
@@ -1693,6 +1966,39 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
           </>
         )}
       </div>
+
+      {insightsOpen && (
+        <div className="nt-overlay" onClick={e => e.target === e.currentTarget && setInsightsOpen(false)} role="dialog" aria-modal="true" aria-label="תובנות AI">
+          <div className="nt-modal" style={{ maxWidth: 480 }}>
+            <div className="nt-modal-header">
+              <span className="nt-modal-title">תובנות AI — ניתוח הזמנות</span>
+              <button className="nt-modal-close" onClick={() => setInsightsOpen(false)} aria-label="סגור"><IcClose /></button>
+            </div>
+            <div style={{ padding: '20px 20px 24px', direction: 'rtl', minHeight: 180 }}>
+              {loadingInsights ? (
+                <div style={{ textAlign: 'center', padding: '40px 0' }}>
+                  <span className="spinner" style={{ width: 28, height: 28, borderWidth: 3 }} aria-label="טוען..." />
+                  <p style={{ color: 'var(--text-muted)', marginTop: 14, fontSize: 13, letterSpacing: 1 }}>מנתח נתונים...</p>
+                </div>
+              ) : (
+                <>
+                  <div style={{ fontSize: 13, lineHeight: 1.9, color: 'var(--text)', whiteSpace: 'pre-wrap' }}>
+                    {insights}
+                  </div>
+                  <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                      מבוסס על {orders.length} הזמנות
+                    </span>
+                    <button className="btn btn-ghost btn-sm" onClick={() => { setInsights(''); fetchInsights(); }}>
+                      <IcRefresh /> רענן
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
