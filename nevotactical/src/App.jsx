@@ -260,6 +260,10 @@ export default function App() {
       await Promise.all(orders.map(o => deleteDoc(doc(db, 'orders', o.id))));
       setOrders([]);
     };
+    const updateOrder = async (orderId, data) => {
+      await updateDoc(doc(db, 'orders', orderId), data);
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...data } : o));
+    };
     return (
       <AdminDashboard
         orders={orders} loading={loadingOrders}
@@ -270,6 +274,7 @@ export default function App() {
         onDeleteOrder={deleteOrder}
         onAddPayment={addPaymentToOrder}
         onDeleteAll={deleteAllOrders}
+        onUpdateOrder={updateOrder}
         theme={theme} onToggleTheme={toggleTheme}
       />
     );
@@ -989,13 +994,60 @@ function StatusBadge({ status }) {
 }
 
 // ─── ORDER DETAIL MODAL ───────────────────────────────────────────────────────
-function OrderDetailModal({ order: o, onClose, onUpdateStatus, onDelete, onAddPayment }) {
+const EDIT_SIZES = ['S','M','L','XL','XXL','3XL','4XL','5XL'];
+
+function OrderDetailModal({ order: o, onClose, onUpdateStatus, onDelete, onAddPayment, onUpdateOrder }) {
   const status = o.status || 'new';
   const sets   = o.sets || [];
 
   const [payAmount, setPayAmount]       = useState('');
   const [payNote, setPayNote]           = useState('');
   const [savingPayment, setSavingPayment] = useState(false);
+
+  const [editMode, setEditMode] = useState(false);
+  const [editData, setEditData] = useState(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  const startEdit = () => {
+    setEditData({
+      name:         o.name || '',
+      phone:        o.phone || '',
+      email:        o.email || '',
+      deliveryType: o.deliveryType || 'delivery',
+      city:         o.deliveryType === 'pickup' ? '' : (o.city || ''),
+      address:      o.address || '',
+      zip:          o.zip || '',
+      sets:         (o.sets || []).map(s => ({ ...s })),
+      total:        o.total || 0,
+      shipping:     o.shipping ?? 50,
+    });
+    setEditMode(true);
+  };
+
+  const cancelEdit = () => { setEditMode(false); setEditData(null); };
+
+  const saveEdit = async () => {
+    setSavingEdit(true);
+    try {
+      const cityVal = editData.deliveryType === 'pickup' ? 'איסוף עצמי' : editData.city;
+      const dataToSave = { ...editData, city: cityVal };
+      await onUpdateOrder(o.id, dataToSave);
+      setEditMode(false);
+      setEditData(null);
+    } catch { alert('שגיאה בשמירה. נסה שוב.'); }
+    setSavingEdit(false);
+  };
+
+  const setField = (field, val) => setEditData(d => ({ ...d, [field]: val }));
+  const updateSet = (i, field, val) => setEditData(d => {
+    const s = d.sets.map((set, idx) => idx === i ? { ...set, [field]: val } : set);
+    return { ...d, sets: s };
+  });
+  const removeSet = (i) => setEditData(d => ({ ...d, sets: d.sets.filter((_, idx) => idx !== i) }));
+  const addSet = () => setEditData(d => ({
+    ...d,
+    sets: [...d.sets, { shirtSize: '', pantsSize: '', quantity: 1, setPrice: d.sets[0]?.setPrice || 450 }],
+  }));
 
   const handleAddPayment = async () => {
     const amount = Number(payAmount);
@@ -1020,14 +1072,101 @@ function OrderDetailModal({ order: o, onClose, onUpdateStatus, onDelete, onAddPa
       <div className="nt-modal nt-order-modal">
         <div className="nt-modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span className="nt-modal-title">פרטי הזמנה</span>
-            <StatusBadge status={status} />
+            <span className="nt-modal-title">{editMode ? 'עריכת הזמנה' : 'פרטי הזמנה'}</span>
+            {!editMode && <StatusBadge status={status} />}
           </div>
-          <button className="nt-modal-close" onClick={onClose} aria-label="סגור"><IcClose /></button>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {!editMode && (
+              <button className="btn btn-ghost btn-sm" onClick={startEdit} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11 }} aria-label="ערוך הזמנה">
+                <IcEdit /> ערוך
+              </button>
+            )}
+            <button className="nt-modal-close" onClick={onClose} aria-label="סגור"><IcClose /></button>
+          </div>
         </div>
 
         {/* Scrollable body */}
         <div style={{ overflowY: 'auto', flex: 1, padding: '18px 18px 8px', direction: 'rtl', WebkitOverflowScrolling: 'touch' }}>
+
+          {/* ── EDIT MODE ── */}
+          {editMode && editData ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+
+              {/* Customer */}
+              <div className="nt-detail-section">
+                <p className="nt-detail-section-label">פרטי לקוח</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div><label className="nt-field-label">שם מלא</label><input className="nt-input" value={editData.name} onChange={e => setField('name', e.target.value)} /></div>
+                  <div><label className="nt-field-label">טלפון</label><input className="nt-input" type="tel" value={editData.phone} onChange={e => setField('phone', e.target.value)} dir="ltr" style={{ textAlign: 'right' }} /></div>
+                  <div><label className="nt-field-label">מייל</label><input className="nt-input" type="email" value={editData.email} onChange={e => setField('email', e.target.value)} dir="ltr" style={{ textAlign: 'right' }} /></div>
+                </div>
+              </div>
+
+              {/* Delivery */}
+              <div className="nt-detail-section">
+                <p className="nt-detail-section-label">אופן קבלה</p>
+                <div className="nt-delivery-toggle" style={{ marginBottom: 12 }}>
+                  {[['delivery','משלוח לבית'],['pickup','איסוף עצמי']].map(([v, label]) => (
+                    <button key={v} className={`nt-delivery-opt${editData.deliveryType === v ? ' active' : ''}`}
+                      onClick={() => setField('deliveryType', v)}>{label}</button>
+                  ))}
+                </div>
+                {editData.deliveryType === 'delivery' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <div style={{ flex: 1 }}><label className="nt-field-label">עיר</label><input className="nt-input" value={editData.city} onChange={e => setField('city', e.target.value)} placeholder="תל אביב" /></div>
+                      <div style={{ flex: 2 }}><label className="nt-field-label">כתובת</label><input className="nt-input" value={editData.address} onChange={e => setField('address', e.target.value)} placeholder="רחוב הרצל 1" /></div>
+                    </div>
+                    <div style={{ maxWidth: 140 }}><label className="nt-field-label">מיקוד</label><input className="nt-input" value={editData.zip} onChange={e => setField('zip', e.target.value)} placeholder="6100000" /></div>
+                  </div>
+                )}
+              </div>
+
+              {/* Sets */}
+              <div className="nt-detail-section">
+                <p className="nt-detail-section-label" style={{ marginBottom: 10 }}>סטים</p>
+                {editData.sets.map((set, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)', minWidth: 36 }}>סט {i+1}</span>
+                    <select className="nt-input" style={{ flex: 1, minWidth: 80 }} value={set.shirtSize || ''} onChange={e => updateSet(i, 'shirtSize', e.target.value)}>
+                      <option value="">חולצה</option>
+                      {EDIT_SIZES.map(sz => <option key={sz} value={sz}>{sz}</option>)}
+                    </select>
+                    <select className="nt-input" style={{ flex: 1, minWidth: 80 }} value={set.pantsSize || ''} onChange={e => updateSet(i, 'pantsSize', e.target.value)}>
+                      <option value="">מכנסיים</option>
+                      {EDIT_SIZES.map(sz => <option key={sz} value={sz}>{sz}</option>)}
+                    </select>
+                    <div className="nt-qty" style={{ flex: 'none' }}>
+                      <button className="nt-qty-btn" style={{ width: 28, height: 28 }} onClick={() => updateSet(i, 'quantity', Math.max(1, (set.quantity||1)-1))}>−</button>
+                      <div className="nt-qty-val" style={{ width: 32, height: 28, fontSize: 13 }}>{set.quantity||1}</div>
+                      <button className="nt-qty-btn" style={{ width: 28, height: 28 }} onClick={() => updateSet(i, 'quantity', (set.quantity||1)+1)}>+</button>
+                    </div>
+                    <button className="btn btn-xs" style={{ background: 'transparent', borderColor: 'var(--danger)', color: 'var(--danger)' }} onClick={() => removeSet(i)}><IcTrash /></button>
+                  </div>
+                ))}
+                <button className="btn btn-ghost btn-sm" style={{ marginTop: 4 }} onClick={addSet}>+ הוסף סט</button>
+              </div>
+
+              {/* Total */}
+              <div className="nt-detail-section">
+                <p className="nt-detail-section-label">סכום כולל (₪)</p>
+                <input className="nt-input" type="number" min="0" value={editData.total}
+                  onChange={e => setField('total', Number(e.target.value))}
+                  style={{ maxWidth: 140, textAlign: 'center' }}
+                />
+                <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
+                  חישוב אוטומטי: ₪{editData.sets.reduce((s,set) => s+(set.setPrice||450)*(set.quantity||1), 0) + (editData.deliveryType==='delivery' ? 50 : 0)}
+                  {' '}(לחץ להחיל: <button style={{ background:'none', border:'none', cursor:'pointer', color:'var(--accent)', fontSize:11, padding:0 }}
+                    onClick={() => setField('total', editData.sets.reduce((s,set)=>s+(set.setPrice||450)*(set.quantity||1),0)+(editData.deliveryType==='delivery'?50:0))}>
+                    עדכן
+                  </button>)
+                </p>
+              </div>
+            </div>
+          ) : (
+
+          /* ── DISPLAY MODE ── */
+          <>
           {/* Customer */}
           <div className="nt-detail-section">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
@@ -1100,7 +1239,10 @@ function OrderDetailModal({ order: o, onClose, onUpdateStatus, onDelete, onAddPa
             </div>
           </div>
 
-          {/* Partial Payments */}
+          </> /* end display mode */
+          )} {/* end editMode ternary */}
+
+          {/* Partial Payments — always visible */}
           <div className="nt-detail-section">
             <p className="nt-detail-section-label" style={{ marginBottom: 10 }}>תשלום חלקי</p>
 
@@ -1168,6 +1310,15 @@ function OrderDetailModal({ order: o, onClose, onUpdateStatus, onDelete, onAddPa
 
         {/* Pinned action footer */}
         <div style={{ flexShrink: 0, borderTop: '1px solid var(--border)', padding: '14px 18px 16px', background: 'var(--surface)', direction: 'rtl', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {editMode ? (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-primary" style={{ flex: 2, padding: 13, fontWeight: 800, letterSpacing: 1 }} onClick={saveEdit} disabled={savingEdit}>
+                {savingEdit ? <><span className="spinner" aria-hidden="true" /> שומר...</> : '✓ שמור שינויים'}
+              </button>
+              <button className="btn btn-ghost" style={{ flex: 1 }} onClick={cancelEdit}>ביטול</button>
+            </div>
+          ) : (
+          <>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {status === 'new' && (
               <button className="btn btn-paid" style={{ flex: 1, padding: 12, letterSpacing: 1, fontWeight: 800 }} onClick={() => onUpdateStatus(o.id, 'paid')}>₪ סמן כשולם</button>
@@ -1206,6 +1357,8 @@ function OrderDetailModal({ order: o, onClose, onUpdateStatus, onDelete, onAddPa
               <IcTrash />
             </button>
           </div>
+          </> /* end normal footer */
+          )} {/* end editMode footer ternary */}
         </div>
       </div>
     </div>
@@ -1403,7 +1556,7 @@ function ColFilterDropdown({ col, colLabel, anchor, values, selected, filterSear
 }
 
 // ─── ADMIN DASHBOARD ──────────────────────────────────────────────────────────
-function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, onSavePrices, onUpdateStatus, onDeleteOrder, onAddPayment, onDeleteAll, theme, onToggleTheme }) {
+function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, onSavePrices, onUpdateStatus, onDeleteOrder, onAddPayment, onDeleteAll, onUpdateOrder, theme, onToggleTheme }) {
   // Aggregate sets from all orders
   const allSets = orders.flatMap(o =>
     (o.sets || []).flatMap(s => Array(s.quantity || 1).fill({ shirtSize: s.shirtSize, pantsSize: s.pantsSize }))
@@ -1851,6 +2004,7 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
                 onUpdateStatus={updateStatus}
                 onDelete={orderId => { onDeleteOrder(orderId); setSelectedOrder(null); }}
                 onAddPayment={addPayment}
+                onUpdateOrder={(id, data) => { onUpdateOrder(id, data); setSelectedOrder(prev => ({ ...prev, ...data })); }}
               />
             )}
 
