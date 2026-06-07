@@ -1886,7 +1886,7 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
             )}
 
             {/* Reports */}
-            <ReportsPanel orders={orders} />
+            <ReportsPanel orders={orders} onSelectOrder={setSelectedOrder} />
 
             {/* Orders table */}
             <section>
@@ -2219,8 +2219,8 @@ function MyOrdersModal({ shirtProduct, pantsProduct, setPrice, onAddToCart, onCl
   );
 }
 
-// ─── CHART COMPONENTS ────────────────────────────────────────────────────────
-function SVGBarChart({ data, height = 90 }) {
+// ─── CHART COMPONENTS (with drilldown) ───────────────────────────────────────
+function SVGBarChart({ data, height = 90, onBarClick, activeLabel }) {
   const n = data.length;
   if (!n) return <p style={{ fontSize: 12, color: 'var(--text-muted)', padding: '8px 0' }}>אין נתונים</p>;
   const max = Math.max(...data.map(d => d.value), 1);
@@ -2230,11 +2230,17 @@ function SVGBarChart({ data, height = 90 }) {
       {data.map((d, i) => {
         const bh = Math.max(2, (d.value / max) * H);
         const x = i * spacing + (spacing - barW) / 2;
+        const isActive = activeLabel === d.label;
         return (
-          <g key={i}>
-            <rect x={x} y={H - bh} width={barW} height={bh} fill={d.color || '#5e7a28'} rx={2} opacity={0.9} />
+          <g key={i} onClick={() => onBarClick?.(d)} style={{ cursor: onBarClick && d.value > 0 ? 'pointer' : 'default' }}>
+            <rect x={x - 3} y={0} width={barW + 6} height={H + 14} fill="transparent" />
+            <rect x={x} y={H - bh} width={barW} height={bh}
+              fill={isActive ? '#c8a228' : (d.color || '#5e7a28')} rx={2}
+              opacity={activeLabel && !isActive ? 0.35 : 0.9} />
             {d.value > 0 && <text x={x + barW / 2} y={H - bh - 3} textAnchor="middle" fontSize="8" fill="var(--text-muted)">{d.value}</text>}
-            <text x={x + barW / 2} y={H + 13} textAnchor="middle" fontSize="7.5" fill="var(--text-muted)">{d.label}</text>
+            <text x={x + barW / 2} y={H + 13} textAnchor="middle" fontSize="7.5"
+              fill={isActive ? 'var(--accent)' : 'var(--text-muted)'}
+              fontWeight={isActive ? 'bold' : 'normal'}>{d.label}</text>
           </g>
         );
       })}
@@ -2242,29 +2248,35 @@ function SVGBarChart({ data, height = 90 }) {
   );
 }
 
-function HBarChart({ data, color = 'var(--accent)' }) {
+function HBarChart({ data, color = 'var(--accent)', onBarClick, activeLabel }) {
   const max = Math.max(...data.map(d => d.value), 1);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 5, direction: 'rtl' }}>
-      {data.map((d, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ minWidth: 40, textAlign: 'right', fontSize: 11, color: 'var(--text-muted)', flexShrink: 0 }}>{d.label}</div>
-          <div style={{ flex: 1, height: 16, background: 'var(--surface-3)', overflow: 'hidden', position: 'relative' }}>
-            <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: `${(d.value / max) * 100}%`, background: d.color || color, transition: 'width 0.4s ease' }} />
+      {data.map((d, i) => {
+        const isActive = activeLabel === d.label;
+        return (
+          <div key={i}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: onBarClick ? 'pointer' : 'default', opacity: activeLabel && !isActive ? 0.4 : 1, transition: 'opacity 0.2s' }}
+            onClick={() => onBarClick?.(d)}
+          >
+            <div style={{ minWidth: 40, textAlign: 'right', fontSize: 11, flexShrink: 0, fontWeight: isActive ? 800 : 400, color: isActive ? 'var(--accent)' : 'var(--text-muted)' }}>{d.label}</div>
+            <div style={{ flex: 1, height: 16, background: 'var(--surface-3)', overflow: 'hidden', position: 'relative' }}>
+              <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: `${(d.value / max) * 100}%`, background: isActive ? 'var(--gold)' : (d.color || color), transition: 'width 0.4s, background 0.2s' }} />
+            </div>
+            <div style={{ minWidth: 24, fontSize: 12, fontWeight: 700, color: isActive ? 'var(--accent)' : 'var(--text)', textAlign: 'left', flexShrink: 0 }}>{d.value}</div>
           </div>
-          <div style={{ minWidth: 24, fontSize: 12, fontWeight: 700, color: 'var(--text)', textAlign: 'left', flexShrink: 0 }}>{d.value}</div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
 
-function DonutChart({ data, size = 110 }) {
+function DonutChart({ data, size = 110, onSegmentClick, activeLabel }) {
   const total = data.reduce((s, d) => s + d.value, 0);
   if (!total) return <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>אין נתונים</p>;
   const cx = size / 2, cy = size / 2, r = size * 0.4, ir = size * 0.24;
   let a = -Math.PI / 2;
-  const arcs = data.map(d => {
+  const arcs = data.map((d, idx) => {
     const da = (d.value / total) * 2 * Math.PI;
     const ea = a + da;
     const [x1, y1] = [cx + r * Math.cos(a),  cy + r * Math.sin(a)];
@@ -2274,31 +2286,89 @@ function DonutChart({ data, size = 110 }) {
     const lg = da > Math.PI ? 1 : 0;
     const path = `M${x1} ${y1}A${r} ${r} 0 ${lg} 1 ${x2} ${y2}L${ix2} ${iy2}A${ir} ${ir} 0 ${lg} 0 ${ix1} ${iy1}Z`;
     a = ea;
-    return { path, color: d.color, label: d.label, value: d.value };
+    return { path, color: d.color, label: d.label, value: d.value, orig: d };
   });
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
       <svg width={size} height={size} style={{ flexShrink: 0 }}>
-        {arcs.map((arc, i) => <path key={i} d={arc.path} fill={arc.color} />)}
+        {arcs.map((arc, i) => {
+          const isActive = activeLabel === arc.label;
+          const scale = isActive ? 1.08 : 1;
+          return (
+            <path key={i} d={arc.path} fill={arc.color}
+              opacity={activeLabel && !isActive ? 0.3 : 1}
+              transform={isActive ? `scale(${scale}) translate(${cx*(1-scale)/scale}, ${cy*(1-scale)/scale})` : ''}
+              onClick={() => onSegmentClick?.(arc.orig)}
+              style={{ cursor: onSegmentClick ? 'pointer' : 'default', transition: 'opacity 0.2s' }} />
+          );
+        })}
         <text x={cx} y={cy + 5} textAnchor="middle" fontSize="14" fontWeight="800" fill="var(--text)">{total}</text>
       </svg>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-        {data.map((d, i) => (
-          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-            <div style={{ width: 9, height: 9, background: d.color, flexShrink: 0 }} />
-            <span style={{ color: 'var(--text-muted)' }}>{d.label}</span>
-            <span style={{ fontWeight: 700 }}>{d.value}</span>
-            <span style={{ color: 'var(--text-muted)', fontSize: 10 }}>({Math.round(d.value / total * 100)}%)</span>
-          </div>
-        ))}
+        {data.map((d, i) => {
+          const isActive = activeLabel === d.label;
+          return (
+            <div key={i}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: onSegmentClick ? 'pointer' : 'default', opacity: activeLabel && !isActive ? 0.4 : 1 }}
+              onClick={() => onSegmentClick?.(d)}
+            >
+              <div style={{ width: 9, height: 9, background: d.color, flexShrink: 0 }} />
+              <span style={{ color: isActive ? 'var(--accent)' : 'var(--text-muted)', fontWeight: isActive ? 800 : 400 }}>{d.label}</span>
+              <span style={{ fontWeight: 700 }}>{d.value}</span>
+              <span style={{ color: 'var(--text-muted)', fontSize: 10 }}>({Math.round(d.value / total * 100)}%)</span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
 }
 
+function DrillDownList({ title, orders, onSelectOrder, onClose }) {
+  return (
+    <div style={{ marginTop: 10, border: '1px solid var(--accent)', background: 'var(--surface-2)', animation: 'fadeUp 0.15s ease' }}>
+      <div style={{ padding: '9px 14px', background: 'var(--accent-dim)', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontWeight: 800, fontSize: 12, color: 'var(--accent)', letterSpacing: 1 }}>{title} — {orders.length} הזמנות</span>
+        <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', padding: 2 }} onClick={onClose}><IcClose /></button>
+      </div>
+      {orders.length === 0 ? (
+        <p style={{ padding: '12px 14px', fontSize: 13, color: 'var(--text-muted)' }}>אין הזמנות</p>
+      ) : (
+        <div style={{ maxHeight: 220, overflowY: 'auto' }}>
+          {orders.map(o => (
+            <div key={o.id} onClick={() => onSelectOrder(o)}
+              style={{ padding: '9px 14px', borderBottom: '1px solid var(--border)', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'background 0.12s' }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ color: 'var(--accent)', fontWeight: 800, fontFamily: 'var(--font-brand)', fontSize: 14 }}>#{o.orderNumber || '—'}</span>
+                <span style={{ fontSize: 13, fontWeight: 600 }}>{o.name}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <StatusBadge status={o.status || 'new'} />
+                {o.total > 0 && <span style={{ fontFamily: 'var(--font-brand)', fontSize: 14, color: 'var(--gold)' }}>₪{o.total}</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── REPORTS PANEL ────────────────────────────────────────────────────────────
-function ReportsPanel({ orders }) {
+function ReportsPanel({ orders, onSelectOrder }) {
   const [open, setOpen] = useState(false);
+  const [drillDown, setDrillDown] = useState(null);
+
+  const drill = (sectionKey, label, title, matchFn) => {
+    if (drillDown?.sectionKey === sectionKey && drillDown?.label === label) {
+      setDrillDown(null); return;
+    }
+    setDrillDown({ sectionKey, label, title, matchOrders: orders.filter(matchFn) });
+  };
+  const closeDrill = () => setDrillDown(null);
+  const activeFor  = (key) => drillDown?.sectionKey === key ? drillDown.label : null;
 
   const allSets = orders.flatMap(o => (o.sets || []).flatMap(s => Array(s.quantity || 1).fill(s)));
   const shirtCounts = {}, pantsCounts = {};
@@ -2308,10 +2378,11 @@ function ReportsPanel({ orders }) {
   });
   const SIZE_ORDER = ['S', 'M', 'L', 'XL', 'XXL', '3XL', '4XL', '5XL'];
   const shirtData = SIZE_ORDER.filter(s => shirtCounts[s]).map(s => ({ label: s, value: shirtCounts[s] }));
-  const pantsData  = SIZE_ORDER.filter(s => pantsCounts[s]).map(s => ({ label: s, value: pantsCounts[s] }));
+  const pantsData = SIZE_ORDER.filter(s => pantsCounts[s]).map(s => ({ label: s, value: pantsCounts[s] }));
 
   const STATUS_COLORS = { new: '#6b8c3a', paid: '#2e7d32', sent: '#1565c0', cancelled: '#c62828' };
   const STATUS_LABELS = { new: 'הוזמן', paid: 'שולם', sent: 'נשלח', cancelled: 'בוטל' };
+  const STATUS_KEYS   = { 'הוזמן': 'new', 'שולם': 'paid', 'נשלח': 'sent', 'בוטל': 'cancelled' };
   const statusMap = orders.reduce((acc, o) => { const s = o.status || 'new'; acc[s] = (acc[s] || 0) + 1; return acc; }, {});
   const statusData = Object.entries(statusMap).map(([s, v]) => ({ label: STATUS_LABELS[s] || s, value: v, color: STATUS_COLORS[s] || '#888' }));
 
@@ -2340,14 +2411,15 @@ function ReportsPanel({ orders }) {
     return slots;
   })();
 
-  const ordersTimeline  = timeline.map(s => ({ label: s.label, value: s.count,   color: '#5e7a28' }));
-  const revenueTimeline = timeline.map(s => ({ label: s.label, value: s.revenue, color: '#2e7d32' }));
+  const ordersTimeline  = timeline.map(s => ({ label: s.label, value: s.count,   color: '#5e7a28', key: s.key }));
+  const revenueTimeline = timeline.map(s => ({ label: s.label, value: s.revenue, color: '#2e7d32', key: s.key }));
 
   const cardStyle = { background: 'var(--surface-2)', border: '1px solid var(--border)', padding: '14px 16px' };
+  const hint = <span style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 400, letterSpacing: 0 }}> (לחץ לפירוט)</span>;
 
   return (
     <section className="nt-section-collapse" style={{ marginBottom: 24 }}>
-      <button className="nt-section-collapse-header" onClick={() => setOpen(o => !o)} aria-expanded={open}>
+      <button className="nt-section-collapse-header" onClick={() => { setOpen(o => !o); closeDrill(); }} aria-expanded={open}>
         <span className="nt-section-collapse-title">דוחות וגרפים</span>
         <span className={`nt-chevron${open ? ' open' : ''}`}><IcChevron /></span>
       </button>
@@ -2357,44 +2429,74 @@ function ReportsPanel({ orders }) {
           {/* Timeline */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div style={cardStyle}>
-              <p className="nt-cart-section-title" style={{ marginBottom: 10, fontSize: 11 }}>הזמנות — 14 ימים אחרונים</p>
-              <SVGBarChart data={ordersTimeline} height={80} />
+              <p className="nt-cart-section-title" style={{ marginBottom: 10, fontSize: 11 }}>הזמנות — 14 ימים{hint}</p>
+              <SVGBarChart data={ordersTimeline} height={80} activeLabel={activeFor('ordersDay')}
+                onBarClick={d => d.value > 0 && drill('ordersDay', d.label, `${d.label} — הזמנות`, o => {
+                  const ts = o.timestamp?.toDate?.(); if (!ts) return false;
+                  const k = new Date(ts); k.setHours(0,0,0,0); return k.getTime() === d.key;
+                })} />
+              {drillDown?.sectionKey === 'ordersDay' && <DrillDownList title={drillDown.title} orders={drillDown.matchOrders} onSelectOrder={onSelectOrder} onClose={closeDrill} />}
             </div>
             <div style={cardStyle}>
-              <p className="nt-cart-section-title" style={{ marginBottom: 10, fontSize: 11 }}>הכנסות — 14 ימים אחרונים (₪)</p>
-              <SVGBarChart data={revenueTimeline} height={80} />
+              <p className="nt-cart-section-title" style={{ marginBottom: 10, fontSize: 11 }}>הכנסות — 14 ימים (₪){hint}</p>
+              <SVGBarChart data={revenueTimeline} height={80} activeLabel={activeFor('revenueDay')}
+                onBarClick={d => d.value > 0 && drill('revenueDay', d.label, `${d.label} — הכנסות`, o => {
+                  const ts = o.timestamp?.toDate?.(); if (!ts) return false;
+                  const k = new Date(ts); k.setHours(0,0,0,0); return k.getTime() === d.key;
+                })} />
+              {drillDown?.sectionKey === 'revenueDay' && <DrillDownList title={drillDown.title} orders={drillDown.matchOrders} onSelectOrder={onSelectOrder} onClose={closeDrill} />}
             </div>
           </div>
 
           {/* Sizes */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div style={cardStyle}>
-              <p className="nt-cart-section-title" style={{ marginBottom: 10, fontSize: 11 }}>מידות חולצות</p>
-              {shirtData.length ? <HBarChart data={shirtData} /> : <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>אין נתונים</p>}
+              <p className="nt-cart-section-title" style={{ marginBottom: 10, fontSize: 11 }}>מידות חולצות{hint}</p>
+              {shirtData.length
+                ? <HBarChart data={shirtData} activeLabel={activeFor('shirt')}
+                    onBarClick={d => drill('shirt', d.label, `חולצה ${d.label}`, o => (o.sets||[]).some(s => s.shirtSize === d.label))} />
+                : <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>אין נתונים</p>}
+              {drillDown?.sectionKey === 'shirt' && <DrillDownList title={drillDown.title} orders={drillDown.matchOrders} onSelectOrder={onSelectOrder} onClose={closeDrill} />}
             </div>
             <div style={cardStyle}>
-              <p className="nt-cart-section-title" style={{ marginBottom: 10, fontSize: 11 }}>מידות מכנסיים</p>
-              {pantsData.length ? <HBarChart data={pantsData} color="var(--info)" /> : <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>אין נתונים</p>}
+              <p className="nt-cart-section-title" style={{ marginBottom: 10, fontSize: 11 }}>מידות מכנסיים{hint}</p>
+              {pantsData.length
+                ? <HBarChart data={pantsData} color="var(--info)" activeLabel={activeFor('pants')}
+                    onBarClick={d => drill('pants', d.label, `מכנסיים ${d.label}`, o => (o.sets||[]).some(s => s.pantsSize === d.label))} />
+                : <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>אין נתונים</p>}
+              {drillDown?.sectionKey === 'pants' && <DrillDownList title={drillDown.title} orders={drillDown.matchOrders} onSelectOrder={onSelectOrder} onClose={closeDrill} />}
             </div>
           </div>
 
           {/* Distributions */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div style={cardStyle}>
-              <p className="nt-cart-section-title" style={{ marginBottom: 10, fontSize: 11 }}>סטטוס הזמנות</p>
-              <DonutChart data={statusData} />
+              <p className="nt-cart-section-title" style={{ marginBottom: 10, fontSize: 11 }}>סטטוס הזמנות{hint}</p>
+              <DonutChart data={statusData} activeLabel={activeFor('status')}
+                onSegmentClick={d => {
+                  const key = STATUS_KEYS[d.label] || d.label;
+                  drill('status', d.label, d.label, o => (o.status || 'new') === key);
+                }} />
+              {drillDown?.sectionKey === 'status' && <DrillDownList title={drillDown.title} orders={drillDown.matchOrders} onSelectOrder={onSelectOrder} onClose={closeDrill} />}
             </div>
             <div style={cardStyle}>
-              <p className="nt-cart-section-title" style={{ marginBottom: 10, fontSize: 11 }}>אופן קבלה</p>
-              <DonutChart data={deliveryData} />
+              <p className="nt-cart-section-title" style={{ marginBottom: 10, fontSize: 11 }}>אופן קבלה{hint}</p>
+              <DonutChart data={deliveryData} activeLabel={activeFor('delivery')}
+                onSegmentClick={d => {
+                  const type = d.label === 'משלוח' ? 'delivery' : 'pickup';
+                  drill('delivery', d.label, d.label, o => o.deliveryType === type);
+                }} />
+              {drillDown?.sectionKey === 'delivery' && <DrillDownList title={drillDown.title} orders={drillDown.matchOrders} onSelectOrder={onSelectOrder} onClose={closeDrill} />}
             </div>
           </div>
 
           {/* Cities */}
           {cityData.length > 0 && (
             <div style={cardStyle}>
-              <p className="nt-cart-section-title" style={{ marginBottom: 10, fontSize: 11 }}>ערים מובילות</p>
-              <HBarChart data={cityData} color="var(--purple)" />
+              <p className="nt-cart-section-title" style={{ marginBottom: 10, fontSize: 11 }}>ערים מובילות{hint}</p>
+              <HBarChart data={cityData} color="var(--purple)" activeLabel={activeFor('city')}
+                onBarClick={d => drill('city', d.label, d.label, o => (o.city || '').trim() === d.label)} />
+              {drillDown?.sectionKey === 'city' && <DrillDownList title={drillDown.title} orders={drillDown.matchOrders} onSelectOrder={onSelectOrder} onClose={closeDrill} />}
             </div>
           )}
         </div>
