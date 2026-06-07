@@ -1885,6 +1885,9 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
               </section>
             )}
 
+            {/* Reports */}
+            <ReportsPanel orders={orders} />
+
             {/* Orders table */}
             <section>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
@@ -2213,6 +2216,190 @@ function MyOrdersModal({ shirtProduct, pantsProduct, setPrice, onAddToCart, onCl
         </div>
       </div>
     </div>
+  );
+}
+
+// ─── CHART COMPONENTS ────────────────────────────────────────────────────────
+function SVGBarChart({ data, height = 90 }) {
+  const n = data.length;
+  if (!n) return <p style={{ fontSize: 12, color: 'var(--text-muted)', padding: '8px 0' }}>אין נתונים</p>;
+  const max = Math.max(...data.map(d => d.value), 1);
+  const W = 280, H = height, spacing = W / n, barW = Math.max(6, spacing * 0.6);
+  return (
+    <svg viewBox={`0 -4 ${W} ${H + 30}`} style={{ width: '100%', display: 'block' }}>
+      {data.map((d, i) => {
+        const bh = Math.max(2, (d.value / max) * H);
+        const x = i * spacing + (spacing - barW) / 2;
+        return (
+          <g key={i}>
+            <rect x={x} y={H - bh} width={barW} height={bh} fill={d.color || '#5e7a28'} rx={2} opacity={0.9} />
+            {d.value > 0 && <text x={x + barW / 2} y={H - bh - 3} textAnchor="middle" fontSize="8" fill="var(--text-muted)">{d.value}</text>}
+            <text x={x + barW / 2} y={H + 13} textAnchor="middle" fontSize="7.5" fill="var(--text-muted)">{d.label}</text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+function HBarChart({ data, color = 'var(--accent)' }) {
+  const max = Math.max(...data.map(d => d.value), 1);
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 5, direction: 'rtl' }}>
+      {data.map((d, i) => (
+        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ minWidth: 40, textAlign: 'right', fontSize: 11, color: 'var(--text-muted)', flexShrink: 0 }}>{d.label}</div>
+          <div style={{ flex: 1, height: 16, background: 'var(--surface-3)', overflow: 'hidden', position: 'relative' }}>
+            <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: `${(d.value / max) * 100}%`, background: d.color || color, transition: 'width 0.4s ease' }} />
+          </div>
+          <div style={{ minWidth: 24, fontSize: 12, fontWeight: 700, color: 'var(--text)', textAlign: 'left', flexShrink: 0 }}>{d.value}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function DonutChart({ data, size = 110 }) {
+  const total = data.reduce((s, d) => s + d.value, 0);
+  if (!total) return <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>אין נתונים</p>;
+  const cx = size / 2, cy = size / 2, r = size * 0.4, ir = size * 0.24;
+  let a = -Math.PI / 2;
+  const arcs = data.map(d => {
+    const da = (d.value / total) * 2 * Math.PI;
+    const ea = a + da;
+    const [x1, y1] = [cx + r * Math.cos(a),  cy + r * Math.sin(a)];
+    const [x2, y2] = [cx + r * Math.cos(ea), cy + r * Math.sin(ea)];
+    const [ix1, iy1] = [cx + ir * Math.cos(a),  cy + ir * Math.sin(a)];
+    const [ix2, iy2] = [cx + ir * Math.cos(ea), cy + ir * Math.sin(ea)];
+    const lg = da > Math.PI ? 1 : 0;
+    const path = `M${x1} ${y1}A${r} ${r} 0 ${lg} 1 ${x2} ${y2}L${ix2} ${iy2}A${ir} ${ir} 0 ${lg} 0 ${ix1} ${iy1}Z`;
+    a = ea;
+    return { path, color: d.color, label: d.label, value: d.value };
+  });
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+      <svg width={size} height={size} style={{ flexShrink: 0 }}>
+        {arcs.map((arc, i) => <path key={i} d={arc.path} fill={arc.color} />)}
+        <text x={cx} y={cy + 5} textAnchor="middle" fontSize="14" fontWeight="800" fill="var(--text)">{total}</text>
+      </svg>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+        {data.map((d, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+            <div style={{ width: 9, height: 9, background: d.color, flexShrink: 0 }} />
+            <span style={{ color: 'var(--text-muted)' }}>{d.label}</span>
+            <span style={{ fontWeight: 700 }}>{d.value}</span>
+            <span style={{ color: 'var(--text-muted)', fontSize: 10 }}>({Math.round(d.value / total * 100)}%)</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── REPORTS PANEL ────────────────────────────────────────────────────────────
+function ReportsPanel({ orders }) {
+  const [open, setOpen] = useState(false);
+
+  const allSets = orders.flatMap(o => (o.sets || []).flatMap(s => Array(s.quantity || 1).fill(s)));
+  const shirtCounts = {}, pantsCounts = {};
+  allSets.forEach(s => {
+    if (s.shirtSize) shirtCounts[s.shirtSize] = (shirtCounts[s.shirtSize] || 0) + 1;
+    if (s.pantsSize) pantsCounts[s.pantsSize] = (pantsCounts[s.pantsSize] || 0) + 1;
+  });
+  const SIZE_ORDER = ['S', 'M', 'L', 'XL', 'XXL', '3XL', '4XL', '5XL'];
+  const shirtData = SIZE_ORDER.filter(s => shirtCounts[s]).map(s => ({ label: s, value: shirtCounts[s] }));
+  const pantsData  = SIZE_ORDER.filter(s => pantsCounts[s]).map(s => ({ label: s, value: pantsCounts[s] }));
+
+  const STATUS_COLORS = { new: '#6b8c3a', paid: '#2e7d32', sent: '#1565c0', cancelled: '#c62828' };
+  const STATUS_LABELS = { new: 'הוזמן', paid: 'שולם', sent: 'נשלח', cancelled: 'בוטל' };
+  const statusMap = orders.reduce((acc, o) => { const s = o.status || 'new'; acc[s] = (acc[s] || 0) + 1; return acc; }, {});
+  const statusData = Object.entries(statusMap).map(([s, v]) => ({ label: STATUS_LABELS[s] || s, value: v, color: STATUS_COLORS[s] || '#888' }));
+
+  const deliveryData = [
+    { label: 'משלוח', value: orders.filter(o => o.deliveryType === 'delivery').length, color: '#1565c0' },
+    { label: 'איסוף',  value: orders.filter(o => o.deliveryType === 'pickup').length,   color: '#6b35c0' },
+  ].filter(d => d.value > 0);
+
+  const cityMap = {};
+  orders.forEach(o => { const c = (o.city || '').trim(); if (c && c !== 'איסוף עצמי') cityMap[c] = (cityMap[c] || 0) + 1; });
+  const cityData = Object.entries(cityMap).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([label, value]) => ({ label, value }));
+
+  const timeline = (() => {
+    const slots = [];
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(); d.setDate(d.getDate() - i); d.setHours(0, 0, 0, 0);
+      slots.push({ key: d.getTime(), label: `${d.getDate()}/${d.getMonth() + 1}`, count: 0, revenue: 0 });
+    }
+    orders.forEach(o => {
+      const ts = o.timestamp?.toDate?.();
+      if (!ts) return;
+      const k = new Date(ts); k.setHours(0, 0, 0, 0);
+      const slot = slots.find(s => s.key === k.getTime());
+      if (slot) { slot.count++; slot.revenue += (o.total || 0); }
+    });
+    return slots;
+  })();
+
+  const ordersTimeline  = timeline.map(s => ({ label: s.label, value: s.count,   color: '#5e7a28' }));
+  const revenueTimeline = timeline.map(s => ({ label: s.label, value: s.revenue, color: '#2e7d32' }));
+
+  const cardStyle = { background: 'var(--surface-2)', border: '1px solid var(--border)', padding: '14px 16px' };
+
+  return (
+    <section className="nt-section-collapse" style={{ marginBottom: 24 }}>
+      <button className="nt-section-collapse-header" onClick={() => setOpen(o => !o)} aria-expanded={open}>
+        <span className="nt-section-collapse-title">דוחות וגרפים</span>
+        <span className={`nt-chevron${open ? ' open' : ''}`}><IcChevron /></span>
+      </button>
+      {open && (
+        <div className="nt-section-collapse-body" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+          {/* Timeline */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={cardStyle}>
+              <p className="nt-cart-section-title" style={{ marginBottom: 10, fontSize: 11 }}>הזמנות — 14 ימים אחרונים</p>
+              <SVGBarChart data={ordersTimeline} height={80} />
+            </div>
+            <div style={cardStyle}>
+              <p className="nt-cart-section-title" style={{ marginBottom: 10, fontSize: 11 }}>הכנסות — 14 ימים אחרונים (₪)</p>
+              <SVGBarChart data={revenueTimeline} height={80} />
+            </div>
+          </div>
+
+          {/* Sizes */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={cardStyle}>
+              <p className="nt-cart-section-title" style={{ marginBottom: 10, fontSize: 11 }}>מידות חולצות</p>
+              {shirtData.length ? <HBarChart data={shirtData} /> : <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>אין נתונים</p>}
+            </div>
+            <div style={cardStyle}>
+              <p className="nt-cart-section-title" style={{ marginBottom: 10, fontSize: 11 }}>מידות מכנסיים</p>
+              {pantsData.length ? <HBarChart data={pantsData} color="var(--info)" /> : <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>אין נתונים</p>}
+            </div>
+          </div>
+
+          {/* Distributions */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={cardStyle}>
+              <p className="nt-cart-section-title" style={{ marginBottom: 10, fontSize: 11 }}>סטטוס הזמנות</p>
+              <DonutChart data={statusData} />
+            </div>
+            <div style={cardStyle}>
+              <p className="nt-cart-section-title" style={{ marginBottom: 10, fontSize: 11 }}>אופן קבלה</p>
+              <DonutChart data={deliveryData} />
+            </div>
+          </div>
+
+          {/* Cities */}
+          {cityData.length > 0 && (
+            <div style={cardStyle}>
+              <p className="nt-cart-section-title" style={{ marginBottom: 10, fontSize: 11 }}>ערים מובילות</p>
+              <HBarChart data={cityData} color="var(--purple)" />
+            </div>
+          )}
+        </div>
+      )}
+    </section>
   );
 }
 
