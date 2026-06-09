@@ -1,18 +1,15 @@
-// API-Football via RapidAPI
-// Get your key at: https://rapidapi.com/api-sports/api/api-football
-const BASE_URL = 'https://api-football-v1.p.rapidapi.com/v3';
-const API_KEY = import.meta.env.VITE_RAPIDAPI_KEY;
+// API-Football via api-sports.io (direct, not RapidAPI)
+// Docs: https://www.api-football.com/documentation-v3
+const BASE_URL = 'https://v3.football.api-sports.io';
+const API_KEY = import.meta.env.VITE_APISPORTS_KEY;
 
-// FIFA World Cup 2026 — league ID (update once confirmed on API-Football)
-// For testing: use league 1 (World Cup) season 2026
 export const WC_LEAGUE_ID = 1;
 export const WC_SEASON = 2026;
 
 async function apiFetch(endpoint: string) {
   const res = await fetch(`${BASE_URL}${endpoint}`, {
     headers: {
-      'x-rapidapi-host': 'api-football-v1.p.rapidapi.com',
-      'x-rapidapi-key': API_KEY,
+      'x-apisports-key': API_KEY,
     },
   });
   if (!res.ok) throw new Error(`API-Football error: ${res.status}`);
@@ -21,7 +18,7 @@ async function apiFetch(endpoint: string) {
 
 export async function fetchGroupStageMatches() {
   const data = await apiFetch(
-    `/fixtures?league=${WC_LEAGUE_ID}&season=${WC_SEASON}&round=Group Stage`
+    `/fixtures?league=${WC_LEAGUE_ID}&season=${WC_SEASON}`
   );
   return data.response;
 }

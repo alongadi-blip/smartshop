@@ -5,6 +5,7 @@ import LoginPage from './pages/LoginPage';
 import MatchesPage from './pages/MatchesPage';
 import LeaderboardPage from './pages/LeaderboardPage';
 import OutrightPage from './pages/OutrightPage';
+import AdminPage from './pages/AdminPage';
 
 function Layout() {
   const { profile, signOut } = useAuth();
@@ -24,6 +25,7 @@ function Layout() {
           <Route path="/matches" element={<MatchesPage />} />
           <Route path="/leaderboard" element={<LeaderboardPage />} />
           <Route path="/outright" element={<OutrightPage />} />
+          <Route path="/admin" element={<AdminPage />} />
         </Routes>
       </main>
 
