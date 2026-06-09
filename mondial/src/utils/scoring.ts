@@ -28,5 +28,6 @@ export function isTournamentStarted(matches: Match[]): boolean {
   const firstMatch = matches.reduce((a, b) =>
     new Date(a.match_time) < new Date(b.match_time) ? a : b
   );
-  return new Date() >= new Date(firstMatch.match_time);
+  const lockTime = new Date(new Date(firstMatch.match_time).getTime() - 5 * 60 * 1000);
+  return new Date() >= lockTime;
 }

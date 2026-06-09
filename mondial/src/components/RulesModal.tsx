@@ -17,8 +17,8 @@ const S = {
     padding: '16px',
   },
   sheet: {
-    background: '#131C2E',
-    border: '1px solid #1E2D45',
+    background: 'var(--bg-card)',
+    border: '1px solid var(--border-card)',
     borderRadius: '20px',
     width: '100%',
     maxWidth: '480px',
@@ -32,15 +32,14 @@ const S = {
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '18px 20px 14px',
-    borderBottom: '1px solid #1E2D45',
+    borderBottom: '1px solid var(--border-card)',
   },
   title: {
     fontFamily: "'Barlow Condensed', sans-serif",
     fontWeight: 800,
     fontSize: '20px',
-    textTransform: 'uppercase' as const,
-    letterSpacing: '0.08em',
-    color: '#F1F5F9',
+    letterSpacing: '0.04em',
+    color: 'var(--text-1)',
   },
   body: {
     overflowY: 'auto' as const,
@@ -52,15 +51,14 @@ const S = {
   sectionLabel: {
     fontFamily: "'Barlow Condensed', sans-serif",
     fontWeight: 700,
-    fontSize: '11px',
-    textTransform: 'uppercase' as const,
-    letterSpacing: '0.15em',
+    fontSize: '12px',
+    letterSpacing: '0.08em',
     color: '#475569',
     marginBottom: '10px',
   },
   card: {
-    background: '#0E1828',
-    border: '1px solid #182333',
+    background: 'var(--bg-card2)',
+    border: '1px solid var(--border-2)',
     borderRadius: '14px',
     padding: '14px 16px',
   },
@@ -99,7 +97,7 @@ export default function RulesModal({ onClose }: Props) {
       <div style={S.sheet} onClick={e => e.stopPropagation()}>
 
         <div style={S.header}>
-          <span style={S.title}>How to Play</span>
+          <span style={S.title}>כיצד משחקים?</span>
           <button onClick={onClose} className="cursor-pointer transition-colors duration-200"
             style={{ color: '#334155', padding: '4px' }}
             onMouseEnter={e => (e.currentTarget.style.color = '#94A3B8')}
@@ -110,51 +108,48 @@ export default function RulesModal({ onClose }: Props) {
 
         <div style={S.body}>
 
-          {/* Match predictions */}
-          <Section label="Match Predictions">
-            <div style={{ color: '#94A3B8', fontSize: '14px', lineHeight: 1.6, marginBottom: '12px' }}>
-              Predict the exact score for every group stage match. Each match locks <strong style={{ color: '#F1F5F9' }}>5 minutes before kickoff</strong> — no changes after that.
+          <Section label="ניחושי משחקים">
+            <div style={{ color: '#94A3B8', fontSize: '14px', lineHeight: 1.7, marginBottom: '12px' }}>
+              נחש את התוצאה המדויקת לכל משחק בשלב הבתים. כל משחק ננעל <strong style={{ color: '#F1F5F9' }}>5 דקות לפני הקיקאוף</strong> — אין שינויים אחרי זה.
             </div>
             <div>
-              <ScoreRow pts="+3" label="Exact Score" sub="Correct home & away goals" color="#22C55E" />
-              <ScoreRow pts="+1" label="Correct Result" sub="Right winner or draw, wrong scoreline" color="#EAB308" />
+              <ScoreRow pts="+3" label="תוצאה מדויקת" sub="ניחשת נכון את מספר השערים לכל קבוצה" color="#22C55E" />
+              <ScoreRow pts="+1" label="תוצאה נכונה" sub="ניחשת את הניצחון / התיקו, אבל לא את הסקור המדויק" color="#EAB308" />
               <div style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '8px 0' }}>
                 <div style={{ minWidth: '52px', textAlign: 'center', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: '22px', color: '#EF4444', lineHeight: 1 }}>
                   0
                 </div>
                 <div>
-                  <p style={{ color: '#E2E8F0', fontSize: '14px', fontWeight: 600 }}>Wrong Prediction</p>
-                  <p style={{ color: '#475569', fontSize: '12px', marginTop: '2px' }}>Wrong result direction</p>
+                  <p style={{ color: '#E2E8F0', fontSize: '14px', fontWeight: 600 }}>ניחוש שגוי</p>
+                  <p style={{ color: '#475569', fontSize: '12px', marginTop: '2px' }}>ניחשת את הכיוון הלא נכון</p>
                 </div>
               </div>
             </div>
           </Section>
 
-          {/* Tournament picks */}
-          <Section label="Tournament Picks">
-            <div style={{ color: '#94A3B8', fontSize: '14px', lineHeight: 1.6, marginBottom: '12px' }}>
-              Pick the <strong style={{ color: '#F59E0B' }}>World Cup Winner</strong> and <strong style={{ color: '#3B82F6' }}>Golden Boot</strong> (top scorer). Both lock permanently when the <strong style={{ color: '#F1F5F9' }}>first match kicks off</strong>.
+          <Section label="בחירות טורניר">
+            <div style={{ color: '#94A3B8', fontSize: '14px', lineHeight: 1.7, marginBottom: '12px' }}>
+              בחר את <strong style={{ color: '#F59E0B' }}>מנצח הגביע</strong> ואת <strong style={{ color: '#3B82F6' }}>מלך השערים</strong> (מבקיע השערים הרב ביותר). שניהם ננעלים לצמיתות ברגע שה<strong style={{ color: '#F1F5F9' }}>משחק הראשון מתחיל</strong>.
             </div>
             <div>
-              <ScoreRow pts="+10" label="World Cup Winner" sub="Your team lifts the trophy" color="#F59E0B" />
+              <ScoreRow pts="+10" label="מנצח הגביע" sub="הקבוצה שבחרת מרימה את הגביע" color="#F59E0B" />
               <div style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '8px 0' }}>
                 <div style={{ minWidth: '52px', textAlign: 'center', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: '22px', color: '#3B82F6', lineHeight: 1 }}>
                   +10
                 </div>
                 <div>
-                  <p style={{ color: '#E2E8F0', fontSize: '14px', fontWeight: 600 }}>Golden Boot</p>
-                  <p style={{ color: '#475569', fontSize: '12px', marginTop: '2px' }}>Your player finishes top scorer</p>
+                  <p style={{ color: '#E2E8F0', fontSize: '14px', fontWeight: 600 }}>מלך השערים</p>
+                  <p style={{ color: '#475569', fontSize: '12px', marginTop: '2px' }}>השחקן שבחרת מסיים כמבקיע השערים המוביל</p>
                 </div>
               </div>
             </div>
           </Section>
 
-          {/* Timeline */}
-          <Section label="Key Dates">
+          <Section label="תאריכים חשובים">
             {[
-              { date: 'Jun 11 · 22:00 IL', label: 'First match — Mexico vs South Africa', color: '#22C55E' },
-              { date: 'Jun 11 · 21:55 IL', label: 'Tournament picks lock', color: '#EF4444' },
-              { date: 'Jul 19', label: 'Final — WC 2026 ends', color: '#F59E0B' },
+              { date: '11.6 · 22:00', label: 'משחק פתיחה — מקסיקו נגד דרום אפריקה', color: '#22C55E' },
+              { date: '11.6 · 21:55', label: 'נעילת בחירות הטורניר', color: '#EF4444' },
+              { date: '19.7', label: 'הגמר — סוף מונדיאל 2026', color: '#F59E0B' },
             ].map(({ date, label, color }, i, arr) => (
               <div key={date} style={{
                 display: 'flex', gap: '14px', alignItems: 'flex-start',
@@ -164,16 +159,15 @@ export default function RulesModal({ onClose }: Props) {
                 <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: color, marginTop: '6px', flexShrink: 0 }} />
                 <div>
                   <p style={{ color: '#F1F5F9', fontSize: '13px', fontWeight: 600 }}>{label}</p>
-                  <p style={{ color: '#475569', fontSize: '12px', marginTop: '2px' }}>{date}</p>
+                  <p style={{ color: '#475569', fontSize: '12px', marginTop: '2px', direction: 'ltr', textAlign: 'right' }}>{date}</p>
                 </div>
               </div>
             ))}
           </Section>
 
-          {/* Leaderboard */}
-          <Section label="Leaderboard">
-            <p style={{ color: '#94A3B8', fontSize: '14px', lineHeight: 1.6 }}>
-              Rankings update live after every match. Go to <strong style={{ color: '#F1F5F9' }}>All Predictions</strong> to see what everyone bet on each match. Tap any player to see their full history.
+          <Section label="טבלת ניקוד">
+            <p style={{ color: '#94A3B8', fontSize: '14px', lineHeight: 1.7 }}>
+              הדירוג מתעדכן בזמן אמת לאחר כל משחק. עבור ל<strong style={{ color: '#F1F5F9' }}>כל הניחושים</strong> כדי לראות מה כולם הימרו על כל משחק. לחץ על שחקן כלשהו כדי לראות את ההיסטוריה המלאה שלו.
             </p>
           </Section>
 

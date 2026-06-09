@@ -49,6 +49,7 @@ export interface OutrightPrediction {
   user_id: string;
   predicted_winner_team?: string;
   predicted_top_scorer_id?: string;
+  predicted_top_scorer_name?: string;
   winner_points: number;
   scorer_points: number;
   submitted_at: string;

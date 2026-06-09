@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
-import { Trophy, LayoutList, Star, HelpCircle } from 'lucide-react';
+import { Trophy, LayoutList, Star, Sun, Moon } from 'lucide-react';
 import { useAuth } from './hooks/useAuth';
+import { useTheme } from './lib/theme';
 import LoginPage from './pages/LoginPage';
 import MatchesPage from './pages/MatchesPage';
 import LeaderboardPage from './pages/LeaderboardPage';
@@ -11,12 +12,13 @@ import RulesModal from './components/RulesModal';
 
 function Layout() {
   const { profile, signOut } = useAuth();
+  const { theme, toggle } = useTheme();
   const [showRules, setShowRules] = useState(false);
 
   return (
-    <div className="min-h-screen" style={{ background: '#0A0F1E' }}>
+    <div className="min-h-screen" style={{ background: 'var(--bg-app)' }}>
       <header
-        style={{ background: 'linear-gradient(135deg, #0A0F1E 0%, #0D1A2B 100%)', borderBottom: '1px solid #1E2D45' }}
+        style={{ background: 'var(--bg-header)', borderBottom: '1px solid var(--border-card)' }}
         className="px-4 py-3 flex items-center justify-between sticky top-0 z-40"
       >
         <span
@@ -26,24 +28,57 @@ function Layout() {
           MONDIAL 2026
         </span>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <button
             onClick={() => setShowRules(true)}
-            className="cursor-pointer transition-colors duration-200"
-            style={{ color: '#334155' }}
-            onMouseEnter={e => (e.currentTarget.style.color = '#64748B')}
-            onMouseLeave={e => (e.currentTarget.style.color = '#334155')}
-            aria-label="How to play"
+            className="cursor-pointer transition-all duration-200"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: 'rgba(34,197,94,0.12)',
+              border: '1px solid rgba(34,197,94,0.35)',
+              borderRadius: '999px',
+              padding: '5px 12px',
+              color: '#22C55E',
+              fontFamily: "'Barlow Condensed', sans-serif",
+              fontWeight: 700,
+              fontSize: '13px',
+              letterSpacing: '0.03em',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(34,197,94,0.2)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(34,197,94,0.12)')}
+            aria-label="כיצד משחקים"
           >
-            <HelpCircle size={18} />
+            <span style={{ fontSize: '16px', lineHeight: 1 }}>?</span>
+            <span>כיצד משחקים</span>
+          </button>
+
+          <button
+            onClick={toggle}
+            className="cursor-pointer transition-all duration-200"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              background: 'var(--bg-input)',
+              border: '1px solid var(--border-card)',
+              color: 'var(--text-5)',
+            }}
+            aria-label="החלף ערכת נושא"
+          >
+            {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
           </button>
 
           <button
             onClick={signOut}
-            style={{ color: '#64748B', fontSize: '13px' }}
-            className="hover:text-slate-300 transition-colors duration-200 cursor-pointer"
+            style={{ color: 'var(--text-5)', fontSize: '13px' }}
+            className="transition-colors duration-200 cursor-pointer"
           >
-            {profile?.display_name} · Sign out
+            {profile?.display_name} · יציאה
           </button>
         </div>
       </header>
@@ -59,11 +94,11 @@ function Layout() {
       </main>
 
       <nav className="fixed bottom-0 inset-x-0 flex z-40"
-        style={{ background: '#0D1525', borderTop: '1px solid #1E2D45' }}>
+        style={{ background: 'var(--bg-nav)', borderTop: '1px solid var(--border-card)' }}>
         {[
-          { to: '/matches', icon: <LayoutList size={20} />, label: 'Matches' },
-          { to: '/leaderboard', icon: <Trophy size={20} />, label: 'Leaderboard' },
-          { to: '/outright', icon: <Star size={20} />, label: 'Tournament' },
+          { to: '/matches', icon: <LayoutList size={20} />, label: 'משחקים' },
+          { to: '/leaderboard', icon: <Trophy size={20} />, label: 'טבלה' },
+          { to: '/outright', icon: <Star size={20} />, label: 'טורניר' },
         ].map(({ to, icon, label }) => (
           <NavLink
             key={to}
@@ -90,9 +125,9 @@ function Layout() {
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: '#0A0F1E' }}>
+    <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-app)' }}>
       <div style={{ color: '#22C55E', fontFamily: "'Barlow Condensed', sans-serif", fontSize: '20px', letterSpacing: '0.1em' }}>
-        LOADING…
+        טוען…
       </div>
     </div>
   );

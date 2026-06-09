@@ -1,6 +1,7 @@
 import { useMatches, useUserPredictions } from '../hooks/useMatches';
 import { useAuth } from '../hooks/useAuth';
 import MatchCard from '../components/matches/MatchCard';
+import { GROUP_HE } from '../lib/i18n';
 import type { Match } from '../types';
 
 export default function MatchesPage() {
@@ -16,8 +17,8 @@ export default function MatchesPage() {
 
   if (loading) return (
     <div className="flex items-center justify-center py-24">
-      <span style={{ color: '#22C55E', fontFamily: "'Barlow Condensed', sans-serif", fontSize: '18px', letterSpacing: '0.1em' }}>
-        LOADING MATCHES…
+      <span style={{ color: '#22C55E', fontFamily: "'Barlow Condensed', sans-serif", fontSize: '18px', letterSpacing: '0.05em' }}>
+        טוען משחקים…
       </span>
     </div>
   );
@@ -31,14 +32,13 @@ export default function MatchesPage() {
               fontFamily: "'Barlow Condensed', sans-serif",
               fontWeight: 700,
               fontSize: '13px',
-              textTransform: 'uppercase',
-              letterSpacing: '0.12em',
+              letterSpacing: '0.05em',
               color: '#22C55E',
             }}>
-              {group}
+              {GROUP_HE[group] ?? group}
             </h2>
-            <div className="flex-1 h-px" style={{ background: '#1E2D45' }} />
-            <span style={{ color: '#334155', fontSize: '11px' }}>{groupMatches.length} matches</span>
+            <div className="flex-1 h-px" style={{ background: 'var(--border-card)' }} />
+            <span style={{ color: '#334155', fontSize: '11px' }}>{groupMatches.length} משחקים</span>
           </div>
           <div className="space-y-2">
             {groupMatches.map((match) => (
@@ -54,8 +54,8 @@ export default function MatchesPage() {
       ))}
       {matches.length === 0 && (
         <div className="text-center py-20">
-          <p style={{ color: '#334155', fontFamily: "'Barlow Condensed', sans-serif", fontSize: '18px', letterSpacing: '0.05em' }}>
-            No matches loaded yet
+          <p style={{ color: '#334155', fontFamily: "'Barlow Condensed', sans-serif", fontSize: '18px', letterSpacing: '0.03em' }}>
+            אין משחקים עדיין
           </p>
         </div>
       )}

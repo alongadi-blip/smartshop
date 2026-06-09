@@ -1,5 +1,47 @@
 @import "tailwindcss";
 
+:root {
+  --bg-app: #0A0F1E;
+  --bg-header: #0D1A2B;
+  --bg-nav: #0D1525;
+  --bg-card: #131C2E;
+  --bg-card2: #0E1828;
+  --bg-input: #1E2D45;
+  --border-card: #1E2D45;
+  --border-2: #182333;
+  --border-input: #2A3F5F;
+  --text-1: #F1F5F9;
+  --text-2: #E2E8F0;
+  --text-3: #CBD5E1;
+  --text-4: #94A3B8;
+  --text-5: #64748B;
+  --text-6: #475569;
+  --text-7: #334155;
+  --text-8: #1E2D45;
+  color-scheme: dark;
+}
+
+[data-theme="light"] {
+  --bg-app: #F0F4F8;
+  --bg-header: #FFFFFF;
+  --bg-nav: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --bg-card2: #F1F5F9;
+  --bg-input: #F8FAFC;
+  --border-card: #E2E8F0;
+  --border-2: #CBD5E1;
+  --border-input: #CBD5E1;
+  --text-1: #0F172A;
+  --text-2: #1E293B;
+  --text-3: #334155;
+  --text-4: #475569;
+  --text-5: #64748B;
+  --text-6: #94A3B8;
+  --text-7: #94A3B8;
+  --text-8: #E2E8F0;
+  color-scheme: light;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -8,8 +50,8 @@ body {
   margin: 0;
   font-family: 'Barlow', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
-  background-color: #0A0F1E;
-  color: #F1F5F9;
+  background-color: var(--bg-app);
+  color: var(--text-1);
 }
 
 #root {

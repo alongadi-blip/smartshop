@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
+import { he } from 'date-fns/locale';
 import { supabase } from '../../lib/supabase';
+import { TEAM_HE, GROUP_HE } from '../../lib/i18n';
 
 interface PlayerRow {
   id: string;
@@ -56,14 +58,14 @@ export default function PredictionsMatrix() {
 
   if (loading) return (
     <div className="flex items-center justify-center py-16">
-      <span style={{ color: '#22C55E', fontFamily: "'Barlow Condensed', sans-serif", fontSize: '16px', letterSpacing: '0.1em' }}>LOADING…</span>
+      <span style={{ color: '#22C55E', fontFamily: "'Barlow Condensed', sans-serif", fontSize: '16px', letterSpacing: '0.05em' }}>טוען…</span>
     </div>
   );
 
   if (matches.length === 0) return (
     <div className="py-16 text-center">
       <p style={{ color: '#334155', fontFamily: "'Barlow Condensed', sans-serif", fontSize: '16px' }}>
-        No locked matches yet — predictions appear here after kickoff
+        אין משחקים נעולים עדיין — הניחושים יופיעו כאן לאחר הקיקאוף
       </p>
     </div>
   );
@@ -80,8 +82,8 @@ export default function PredictionsMatrix() {
       {Object.entries(grouped).map(([group, groupMatches]) => (
         <section key={group}>
           <div className="flex items-center gap-3 mb-3 px-1">
-            <h3 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.12em', color: '#22C55E' }}>
-              {group}
+            <h3 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '12px', letterSpacing: '0.05em', color: '#22C55E' }}>
+              {GROUP_HE[group] ?? group}
             </h3>
             <div className="flex-1 h-px" style={{ background: '#1E2D45' }} />
           </div>
@@ -113,7 +115,7 @@ function MatchPredRow({ match, players, preds }: {
   const totalBets = playerPreds.filter(x => x.pred).length;
 
   return (
-    <div style={{ background: '#0E1828', border: '1px solid #182333', borderRadius: '14px', overflow: 'hidden' }}>
+    <div style={{ background: 'var(--bg-card2)', border: '1px solid var(--border-2)', borderRadius: '14px', overflow: 'hidden' }}>
       {/* Match header — tap to expand */}
       <button
         onClick={() => setOpen(o => !o)}
@@ -124,21 +126,21 @@ function MatchPredRow({ match, players, preds }: {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '14px', color: '#CBD5E1', letterSpacing: '0.02em' }}>
-                {match.home_team}
+                {TEAM_HE[match.home_team] ?? match.home_team}
               </span>
               {isFinished ? (
                 <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: '16px', color: '#F1F5F9', letterSpacing: '0.05em', flexShrink: 0 }}>
                   {match.home_score} – {match.away_score}
                 </span>
               ) : (
-                <span style={{ color: '#334155', fontSize: '13px', flexShrink: 0 }}>vs</span>
+                <span style={{ color: '#334155', fontSize: '13px', flexShrink: 0 }}>נגד</span>
               )}
               <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '14px', color: '#CBD5E1', letterSpacing: '0.02em' }}>
-                {match.away_team}
+                {TEAM_HE[match.away_team] ?? match.away_team}
               </span>
             </div>
             <div style={{ color: '#334155', fontSize: '11px', marginTop: '2px' }}>
-              {format(new Date(match.match_time), 'd MMM · HH:mm')} · {totalBets}/{players.length} bets
+              {format(new Date(match.match_time), 'd MMM · HH:mm', { locale: he })} · {totalBets}/{players.length} ניחושים
             </div>
           </div>
           <span style={{ color: '#334155', fontSize: '14px', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', flexShrink: 0 }}>▾</span>
@@ -147,7 +149,7 @@ function MatchPredRow({ match, players, preds }: {
 
       {/* Expanded predictions */}
       {open && (
-        <div style={{ borderTop: '1px solid #182333' }}>
+        <div style={{ borderTop: '1px solid var(--border-2)' }}>
           {playerPreds.map(({ player, pred }, idx) => (
             <div
               key={player.id}
@@ -194,7 +196,7 @@ function MatchPredRow({ match, players, preds }: {
               ) : (
                 <>
                   <span style={{ minWidth: '52px', textAlign: 'center', color: '#1E2D45', fontFamily: "'Barlow Condensed', sans-serif", fontSize: '15px' }}>–</span>
-                  <span style={{ minWidth: '52px', textAlign: 'center', color: '#1E2D45', fontSize: '12px', fontFamily: "'Barlow Condensed', sans-serif' " }}>no bet</span>
+                  <span style={{ minWidth: '52px', textAlign: 'center', color: '#1E2D45', fontSize: '12px', fontFamily: "'Barlow Condensed', sans-serif" }}>לא הגיש</span>
                 </>
               )}
             </div>

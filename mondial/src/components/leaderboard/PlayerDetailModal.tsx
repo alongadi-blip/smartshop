@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { format } from 'date-fns';
+import { he } from 'date-fns/locale';
 import { supabase } from '../../lib/supabase';
+import { TEAM_HE } from '../../lib/i18n';
 import type { LeaderboardEntry, Match, Prediction } from '../../types';
 
 interface Props {
@@ -39,14 +41,14 @@ export default function PlayerDetailModal({ entry, onClose }: Props) {
       <div
         className="w-full max-w-md flex flex-col"
         style={{
-          background: '#131C2E',
-          border: '1px solid #1E2D45',
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border-card)',
           borderRadius: '20px',
           maxHeight: '80vh',
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-4" style={{ borderBottom: '1px solid #1E2D45' }}>
+        <div className="flex items-center justify-between p-4" style={{ borderBottom: '1px solid var(--border-card)' }}>
           <div>
             <h2 style={{
               fontFamily: "'Barlow Condensed', sans-serif",
@@ -59,7 +61,7 @@ export default function PlayerDetailModal({ entry, onClose }: Props) {
             </h2>
             <p style={{ color: '#475569', fontSize: '13px', marginTop: '2px' }}>
               <span style={{ color: '#22C55E', fontWeight: 700 }}>{entry.total_points}</span>
-              {' pts total · '}{entry.exact_hits} exact · {entry.outcome_hits} result
+              {' נק׳ סה"כ · '}{entry.exact_hits} מדויק · {entry.outcome_hits} תוצאה
             </p>
           </div>
           <button
@@ -75,13 +77,13 @@ export default function PlayerDetailModal({ entry, onClose }: Props) {
 
         <div className="overflow-y-auto flex-1 p-4 space-y-2">
           {loading && (
-            <p style={{ textAlign: 'center', color: '#334155', padding: '32px 0', fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: '0.05em' }}>
-              LOADING…
+            <p style={{ textAlign: 'center', color: '#334155', padding: '32px 0', fontFamily: "'Barlow Condensed', sans-serif" }}>
+              טוען…
             </p>
           )}
           {!loading && history.length === 0 && (
             <p style={{ textAlign: 'center', color: '#334155', padding: '32px 0', fontFamily: "'Barlow Condensed', sans-serif" }}>
-              No scored predictions yet
+              אין ניחושים עם ניקוד עדיין
             </p>
           )}
           {history.map((p) => (
@@ -96,12 +98,12 @@ export default function PlayerDetailModal({ entry, onClose }: Props) {
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
                 }}>
-                  {p.match.home_team} vs {p.match.away_team}
+                  {TEAM_HE[p.match.home_team] ?? p.match.home_team} נגד {TEAM_HE[p.match.away_team] ?? p.match.away_team}
                 </p>
                 <p style={{ color: '#334155', fontSize: '12px', marginTop: '2px', fontFamily: "'Barlow', sans-serif" }}>
-                  {format(new Date(p.match.match_time), 'd MMM')} ·
-                  Result: <span style={{ color: '#64748B' }}>{p.match.home_score}–{p.match.away_score}</span> ·
-                  Bet: <span style={{ color: '#64748B' }}>{p.predicted_home_score}–{p.predicted_away_score}</span>
+                  {format(new Date(p.match.match_time), 'd MMM', { locale: he })} ·
+                  תוצאה: <span style={{ color: '#64748B' }}>{p.match.home_score}–{p.match.away_score}</span> ·
+                  ניחוש: <span style={{ color: '#64748B' }}>{p.predicted_home_score}–{p.predicted_away_score}</span>
                 </p>
               </div>
               <span style={{

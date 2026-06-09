@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
+import { he } from 'date-fns/locale';
 import { Lock } from 'lucide-react';
 import { isMatchLocked } from '../../utils/scoring';
+import { TEAM_HE } from '../../lib/i18n';
 import type { Match, Prediction } from '../../types';
 
 const TEAM_FLAGS: Record<string, string> = {
@@ -65,8 +67,8 @@ export default function MatchCard({ match, prediction, onSave }: Props) {
   return (
     <div
       style={{
-        background: locked ? '#0E1828' : '#131C2E',
-        border: `1px solid ${locked ? '#182333' : '#1E2D45'}`,
+        background: locked ? 'var(--bg-card2)' : 'var(--bg-card)',
+        border: `1px solid ${locked ? 'var(--border-2)' : 'var(--border-card)'}`,
         borderRadius: '16px',
         padding: '14px 16px',
         opacity: locked && !prediction ? 0.7 : 1,
@@ -75,8 +77,8 @@ export default function MatchCard({ match, prediction, onSave }: Props) {
     >
       {/* Header row */}
       <div className="flex items-center justify-between mb-3">
-        <span style={{ color: '#475569', fontSize: '11px', fontFamily: "'Barlow', sans-serif", textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-          {format(new Date(match.match_time), 'EEE d MMM · HH:mm')}
+        <span style={{ color: '#475569', fontSize: '11px', fontFamily: "'Barlow', sans-serif", letterSpacing: '0.03em' }}>
+          {format(new Date(match.match_time), 'EEE d MMM · HH:mm', { locale: he })}
         </span>
         <div className="flex items-center gap-2">
           {locked && !isFinished && <Lock size={11} color="#475569" />}
@@ -100,14 +102,14 @@ export default function MatchCard({ match, prediction, onSave }: Props) {
                 : { background: 'rgba(239,68,68,0.12)', color: '#EF4444', border: '1px solid rgba(239,68,68,0.2)' }
               ),
             }}>
-              {pts === 3 ? '+3 EXACT' : pts === 1 ? '+1 RESULT' : '0 PTS'}
+              {pts === 3 ? '+3 מדויק' : pts === 1 ? '+1 תוצאה' : '0 נק׳'}
             </span>
           )}
         </div>
       </div>
 
-      {/* Teams + Score row */}
-      <div className="flex items-center gap-3">
+      {/* Teams + Score row — keep LTR so home is always on the left visually */}
+      <div className="flex items-center gap-3" dir="ltr">
         {/* Home team */}
         <div className="flex items-center gap-2 flex-1 min-w-0">
           {homeFlag && (
@@ -118,13 +120,14 @@ export default function MatchCard({ match, prediction, onSave }: Props) {
             fontFamily: "'Barlow Condensed', sans-serif",
             fontWeight: 600,
             fontSize: '15px',
-            color: '#E2E8F0',
+            color: 'var(--text-2)',
             letterSpacing: '0.02em',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
+            direction: 'rtl',
           }}>
-            {match.home_team}
+            {TEAM_HE[match.home_team] ?? match.home_team}
           </span>
         </div>
 
@@ -162,14 +165,14 @@ export default function MatchCard({ match, prediction, onSave }: Props) {
               style={{
                 width: '40px',
                 textAlign: 'center',
-                background: '#1E2D45',
-                border: '1px solid #2A3F5F',
+                background: 'var(--bg-input)',
+                border: '1px solid var(--border-input)',
                 borderRadius: '10px',
                 padding: '6px 2px',
                 fontFamily: "'Barlow Condensed', sans-serif",
                 fontWeight: 700,
                 fontSize: '20px',
-                color: '#F1F5F9',
+                color: 'var(--text-1)',
                 outline: 'none',
               }}
               onFocus={e => (e.currentTarget.style.border = '1px solid #22C55E')}
@@ -183,14 +186,14 @@ export default function MatchCard({ match, prediction, onSave }: Props) {
               style={{
                 width: '40px',
                 textAlign: 'center',
-                background: '#1E2D45',
-                border: '1px solid #2A3F5F',
+                background: 'var(--bg-input)',
+                border: '1px solid var(--border-input)',
                 borderRadius: '10px',
                 padding: '6px 2px',
                 fontFamily: "'Barlow Condensed', sans-serif",
                 fontWeight: 700,
                 fontSize: '20px',
-                color: '#F1F5F9',
+                color: 'var(--text-1)',
                 outline: 'none',
               }}
               onFocus={e => (e.currentTarget.style.border = '1px solid #22C55E')}
@@ -211,8 +214,9 @@ export default function MatchCard({ match, prediction, onSave }: Props) {
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
             textAlign: 'right',
+            direction: 'rtl',
           }}>
-            {match.away_team}
+            {TEAM_HE[match.away_team] ?? match.away_team}
           </span>
           {awayFlag && (
             <img src={awayFlag} alt="" className="flex-shrink-0 rounded-sm shadow"
@@ -243,7 +247,7 @@ export default function MatchCard({ match, prediction, onSave }: Props) {
             boxShadow: saved ? 'none' : '0 4px 15px rgba(34,197,94,0.25)',
           }}
         >
-          {saved ? 'SAVED ✓' : saving ? 'SAVING…' : 'SAVE PREDICTION'}
+          {saved ? 'נשמר ✓' : saving ? 'שומר…' : 'שמור ניחוש'}
         </button>
       )}
     </div>

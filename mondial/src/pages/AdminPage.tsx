@@ -6,11 +6,11 @@ import { calculateMatchPoints } from '../utils/scoring';
 const ADMIN_EMAIL = 'alon.gadi@gmail.com';
 
 const inputStyle = {
-  background: '#1E2D45',
-  border: '1px solid #2A3F5F',
+  background: 'var(--bg-input)',
+  border: '1px solid var(--border-input)',
   borderRadius: '10px',
   padding: '10px 12px',
-  color: '#F1F5F9',
+  color: 'var(--text-1)',
   fontSize: '14px',
   fontFamily: "'Barlow', sans-serif",
   outline: 'none',
@@ -18,8 +18,8 @@ const inputStyle = {
 };
 
 const cardStyle = {
-  background: '#131C2E',
-  border: '1px solid #1E2D45',
+  background: 'var(--bg-card)',
+  border: '1px solid var(--border-card)',
   borderRadius: '16px',
   padding: '18px',
 };
@@ -78,7 +78,7 @@ function ManualScoreForm({ onDone }: { onDone: (msg: string) => void }) {
         onFocus={loadMatches}
         style={{ ...inputStyle, cursor: 'pointer', appearance: 'none' as const }}
       >
-        <option value="" disabled>Select a match…</option>
+        <option value="" disabled>בחר משחק…</option>
         {matches.map(m => (
           <option key={m.id} value={m.id}>
             {m.home_team} vs {m.away_team}
@@ -87,18 +87,18 @@ function ManualScoreForm({ onDone }: { onDone: (msg: string) => void }) {
         ))}
       </select>
       <div className="grid grid-cols-2 gap-3">
-        <input name="home_score" type="number" min="0" max="20" required placeholder="Home goals"
+        <input name="home_score" type="number" min="0" max="20" required placeholder="שערים - בית"
           style={inputStyle}
           onFocus={e => (e.currentTarget.style.border = '1px solid #22C55E')}
           onBlur={e => (e.currentTarget.style.border = '1px solid #2A3F5F')} />
-        <input name="away_score" type="number" min="0" max="20" required placeholder="Away goals"
+        <input name="away_score" type="number" min="0" max="20" required placeholder="שערים - חוץ"
           style={inputStyle}
           onFocus={e => (e.currentTarget.style.border = '1px solid #22C55E')}
           onBlur={e => (e.currentTarget.style.border = '1px solid #2A3F5F')} />
       </div>
       <button type="submit" className="w-full cursor-pointer"
         style={{ background: 'linear-gradient(135deg, #7C3AED, #A855F7)', color: 'white', borderRadius: '10px', padding: '10px', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '13px', letterSpacing: '0.08em', textTransform: 'uppercase', border: 'none', boxShadow: '0 4px 15px rgba(168,85,247,0.25)' }}>
-        Set Score + Calculate Points
+        הגדר תוצאה + חשב נקודות
       </button>
     </form>
   );
@@ -113,8 +113,8 @@ export default function AdminPage() {
   if (user?.email !== ADMIN_EMAIL) {
     return (
       <div className="flex items-center justify-center py-24">
-        <p style={{ color: '#334155', fontFamily: "'Barlow Condensed', sans-serif", fontSize: '18px', letterSpacing: '0.05em' }}>
-          ACCESS DENIED
+        <p style={{ color: '#334155', fontFamily: "'Barlow Condensed', sans-serif", fontSize: '18px', letterSpacing: '0.03em' }}>
+          גישה נדחתה
         </p>
       </div>
     );
@@ -216,23 +216,23 @@ export default function AdminPage() {
     <div className="max-w-2xl mx-auto px-3 py-4 pb-8 space-y-4">
       <div className="flex items-center gap-3 mb-2 px-1">
         <h1 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: '22px', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#F1F5F9' }}>
-          Admin Panel
+          פאנל ניהול
         </h1>
         <div className="flex-1 h-px" style={{ background: '#1E2D45' }} />
       </div>
 
       <div style={cardStyle}>
         <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#94A3B8', marginBottom: '12px' }}>
-          API Sync
+          סנכרון API
         </h2>
         <div className="flex gap-2 flex-wrap">
           <button onClick={handleSync} className="cursor-pointer"
             style={{ background: '#1E3A2F', border: '1px solid rgba(34,197,94,0.3)', color: '#22C55E', borderRadius: '10px', padding: '9px 16px', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '13px', textTransform: 'uppercase' }}>
-            Sync Matches
+            סנכרן משחקים
           </button>
           <button onClick={handleScoreUpdate} className="cursor-pointer"
             style={{ background: '#1A2A45', border: '1px solid rgba(59,130,246,0.3)', color: '#3B82F6', borderRadius: '10px', padding: '9px 16px', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '13px', textTransform: 'uppercase' }}>
-            Update Scores + Points
+            עדכן תוצאות + נקודות
           </button>
         </div>
         {syncStatus && (
@@ -242,28 +242,28 @@ export default function AdminPage() {
 
       <div style={cardStyle}>
         <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#94A3B8', marginBottom: '14px' }}>
-          Set Match Score
+          הגדר תוצאת משחק
         </h2>
         <ManualScoreForm onDone={setSyncStatus} />
       </div>
 
       <div style={cardStyle}>
         <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#94A3B8', marginBottom: '14px' }}>
-          Add Match Manually
+          הוסף משחק ידנית
         </h2>
         <form onSubmit={handleAddMatch} className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <input required placeholder="Home team" value={newMatch.home_team}
+            <input required placeholder="קבוצה בית" value={newMatch.home_team}
               onChange={e => setNewMatch(m => ({ ...m, home_team: e.target.value }))} style={inputStyle}
               onFocus={e => (e.currentTarget.style.border = '1px solid #22C55E')}
               onBlur={e => (e.currentTarget.style.border = '1px solid #2A3F5F')} />
-            <input required placeholder="Away team" value={newMatch.away_team}
+            <input required placeholder="קבוצה חוץ" value={newMatch.away_team}
               onChange={e => setNewMatch(m => ({ ...m, away_team: e.target.value }))} style={inputStyle}
               onFocus={e => (e.currentTarget.style.border = '1px solid #22C55E')}
               onBlur={e => (e.currentTarget.style.border = '1px solid #2A3F5F')} />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <input placeholder="Group (e.g. Group A)" value={newMatch.group_name}
+            <input placeholder="קבוצה (לדוגמה: Group A)" value={newMatch.group_name}
               onChange={e => setNewMatch(m => ({ ...m, group_name: e.target.value }))} style={inputStyle}
               onFocus={e => (e.currentTarget.style.border = '1px solid #22C55E')}
               onBlur={e => (e.currentTarget.style.border = '1px solid #2A3F5F')} />
@@ -275,7 +275,7 @@ export default function AdminPage() {
           </div>
           <button type="submit" className="w-full cursor-pointer"
             style={{ background: '#1E2D45', border: '1px solid #2A3F5F', color: '#94A3B8', borderRadius: '10px', padding: '10px', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '13px', textTransform: 'uppercase' }}>
-            Add Match
+            הוסף משחק
           </button>
           {addStatus && <p style={{ fontSize: '13px', color: addStatus.startsWith('Error') ? '#EF4444' : '#22C55E' }}>{addStatus}</p>}
         </form>

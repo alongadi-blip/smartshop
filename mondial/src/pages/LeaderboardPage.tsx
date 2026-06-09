@@ -6,7 +6,7 @@ import PredictionsMatrix from '../components/leaderboard/PredictionsMatrix';
 import type { LeaderboardEntry } from '../types';
 
 const MEDAL_COLORS = ['#F59E0B', '#94A3B8', '#CD7F32'];
-const RANK_LABELS = ['1ST', '2ND', '3RD'];
+const RANK_LABELS = ['1', '2', '3'];
 
 export default function LeaderboardPage() {
   const { entries, loading } = useLeaderboard();
@@ -16,8 +16,8 @@ export default function LeaderboardPage() {
 
   if (loading) return (
     <div className="flex items-center justify-center py-24">
-      <span style={{ color: '#22C55E', fontFamily: "'Barlow Condensed', sans-serif", fontSize: '18px', letterSpacing: '0.1em' }}>
-        LOADING…
+      <span style={{ color: '#22C55E', fontFamily: "'Barlow Condensed', sans-serif", fontSize: '18px', letterSpacing: '0.05em' }}>
+        טוען…
       </span>
     </div>
   );
@@ -29,14 +29,14 @@ export default function LeaderboardPage() {
     <div className="max-w-2xl mx-auto px-3 py-4 pb-8">
       {/* Header + Tabs */}
       <div className="flex items-center gap-3 mb-4 px-1">
-        <h1 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: '22px', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#F1F5F9' }}>
-          Leaderboard
+        <h1 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: '22px', letterSpacing: '0.03em', color: '#F1F5F9' }}>
+          טבלת ניקוד
         </h1>
         <div className="flex-1 h-px" style={{ background: '#1E2D45' }} />
       </div>
 
       {/* Tab switcher */}
-      <div className="flex mb-5" style={{ background: '#0E1828', border: '1px solid #182333', borderRadius: '12px', padding: '4px' }}>
+      <div className="flex mb-5" style={{ background: 'var(--bg-card2)', border: '1px solid var(--border-2)', borderRadius: '12px', padding: '4px' }}>
         {(['rankings', 'predictions'] as const).map(t => (
           <button
             key={t}
@@ -51,12 +51,12 @@ export default function LeaderboardPage() {
               textTransform: 'uppercase',
               letterSpacing: '0.08em',
               border: 'none',
-              background: tab === t ? '#1E2D45' : 'transparent',
-              color: tab === t ? '#F1F5F9' : '#334155',
+              background: tab === t ? 'var(--bg-input)' : 'transparent',
+              color: tab === t ? 'var(--text-1)' : 'var(--text-7)',
               boxShadow: tab === t ? '0 2px 8px rgba(0,0,0,0.3)' : 'none',
             }}
           >
-            {t === 'rankings' ? 'Rankings' : 'All Predictions'}
+            {t === 'rankings' ? 'דירוג' : 'כל הניחושים'}
           </button>
         ))}
       </div>
@@ -65,7 +65,7 @@ export default function LeaderboardPage() {
         <>
           {entries.length === 0 ? (
             <div className="text-center py-20">
-              <p style={{ color: '#334155', fontFamily: "'Barlow Condensed', sans-serif", fontSize: '18px' }}>No scores yet</p>
+              <p style={{ color: '#334155', fontFamily: "'Barlow Condensed', sans-serif", fontSize: '18px' }}>אין ניקוד עדיין</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -98,22 +98,22 @@ export default function LeaderboardPage() {
                     <div className="flex-1 min-w-0">
                       <p style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '16px', color: '#E2E8F0', letterSpacing: '0.03em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {entry.display_name}
-                        {entry.id === profile?.id && <span style={{ color: '#22C55E', fontSize: '12px', marginLeft: '8px', fontWeight: 600 }}>YOU</span>}
+                        {entry.id === profile?.id && <span style={{ color: '#22C55E', fontSize: '12px', marginRight: '8px', fontWeight: 600 }}>אתה</span>}
                       </p>
                       <p style={{ color: '#475569', fontSize: '12px', marginTop: '2px' }}>
-                        {entry.games_scored} scored · {entry.exact_hits} exact · {entry.outcome_hits} result
+                        {entry.games_scored} עם ניקוד · {entry.exact_hits} מדויק · {entry.outcome_hits} תוצאה
                       </p>
                     </div>
                     <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: '28px', color: MEDAL_COLORS[idx], letterSpacing: '0.02em', lineHeight: 1, flexShrink: 0 }}>
                       {entry.total_points}
-                      <span style={{ fontSize: '13px', fontWeight: 600, color: '#475569', marginLeft: '2px' }}>pts</span>
+                      <span style={{ fontSize: '13px', fontWeight: 600, color: '#475569', marginRight: '2px' }}>נק׳</span>
                     </div>
                   </div>
                 </button>
               ))}
 
               {rest.length > 0 && (
-                <div style={{ background: '#0E1828', border: '1px solid #182333', borderRadius: '16px', overflow: 'hidden', marginTop: '8px' }}>
+                <div style={{ background: 'var(--bg-card2)', border: '1px solid var(--border-2)', borderRadius: '16px', overflow: 'hidden', marginTop: '8px' }}>
                   {rest.map((entry, idx) => (
                     <button
                       key={entry.id}
@@ -128,11 +128,11 @@ export default function LeaderboardPage() {
                         <div className="flex-1 min-w-0">
                           <p style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 600, fontSize: '15px', color: '#94A3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {entry.display_name}
-                            {entry.id === profile?.id && <span style={{ color: '#22C55E', fontSize: '11px', marginLeft: '6px' }}>YOU</span>}
+                            {entry.id === profile?.id && <span style={{ color: '#22C55E', fontSize: '11px', marginRight: '6px' }}>אתה</span>}
                           </p>
                         </div>
                         <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '20px', color: '#64748B', flexShrink: 0 }}>
-                          {entry.total_points}<span style={{ fontSize: '12px', marginLeft: '2px' }}>pts</span>
+                          {entry.total_points}<span style={{ fontSize: '12px', marginRight: '2px' }}>נק׳</span>
                         </span>
                       </div>
                     </button>
