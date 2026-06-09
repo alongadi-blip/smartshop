@@ -4,6 +4,27 @@ import { Lock } from 'lucide-react';
 import { isMatchLocked } from '../../utils/scoring';
 import type { Match, Prediction } from '../../types';
 
+const TEAM_FLAGS: Record<string, string> = {
+  'Mexico': 'mx', 'South Korea': 'kr', 'South Africa': 'za', 'Czechia': 'cz',
+  'Canada': 'ca', 'Switzerland': 'ch', 'Qatar': 'qa', 'Bosnia and Herzegovina': 'ba',
+  'Brazil': 'br', 'Morocco': 'ma', 'Haiti': 'ht', 'United States': 'us',
+  'Australia': 'au', 'Paraguay': 'py', 'Turkey': 'tr', 'Germany': 'de',
+  'Ecuador': 'ec', 'Ivory Coast': 'ci', 'Curacao': 'cw', 'Netherlands': 'nl',
+  'Japan': 'jp', 'Tunisia': 'tn', 'Sweden': 'se', 'Belgium': 'be',
+  'Iran': 'ir', 'Egypt': 'eg', 'New Zealand': 'nz', 'Spain': 'es',
+  'Uruguay': 'uy', 'Saudi Arabia': 'sa', 'Cape Verde': 'cv', 'France': 'fr',
+  'Senegal': 'sn', 'Norway': 'no', 'Iraq': 'iq', 'Argentina': 'ar',
+  'Austria': 'at', 'Algeria': 'dz', 'Jordan': 'jo', 'Portugal': 'pt',
+  'Colombia': 'co', 'Uzbekistan': 'uz', 'DR Congo': 'cd', 'Croatia': 'hr',
+  'Panama': 'pa', 'Ghana': 'gh', 'Scotland': 'gb-sct', 'England': 'gb-eng',
+};
+
+function getFlag(team: string, stored?: string | null): string | undefined {
+  if (stored) return stored;
+  const code = TEAM_FLAGS[team];
+  return code ? `https://flagcdn.com/w40/${code}.png` : undefined;
+}
+
 interface Props {
   match: Match;
   prediction?: Prediction;
@@ -45,6 +66,9 @@ export default function MatchCard({ match, prediction, onSave }: Props) {
     </span>
   ) : null;
 
+  const homeFlag = getFlag(match.home_team, match.home_team_flag);
+  const awayFlag = getFlag(match.away_team, match.away_team_flag);
+
   return (
     <div className={`bg-white rounded-2xl shadow-sm border p-4 ${locked ? 'opacity-90' : ''}`}>
       <div className="flex items-center justify-between mb-1">
@@ -62,7 +86,7 @@ export default function MatchCard({ match, prediction, onSave }: Props) {
 
       <div className="flex items-center gap-3 mt-2">
         <div className="flex items-center gap-2 flex-1">
-          {match.home_team_flag && <img src={match.home_team_flag} alt="" className="w-8 h-5 object-cover rounded shadow-sm" />}
+          {homeFlag && <img src={homeFlag} alt="" className="w-8 h-5 object-cover rounded shadow-sm" />}
           <span className="font-semibold text-gray-800 text-sm">{match.home_team}</span>
         </div>
 
@@ -92,7 +116,7 @@ export default function MatchCard({ match, prediction, onSave }: Props) {
 
         <div className="flex items-center gap-2 flex-1 justify-end">
           <span className="font-semibold text-gray-800 text-sm text-right">{match.away_team}</span>
-          {match.away_team_flag && <img src={match.away_team_flag} alt="" className="w-8 h-5 object-cover rounded shadow-sm" />}
+          {awayFlag && <img src={awayFlag} alt="" className="w-8 h-5 object-cover rounded shadow-sm" />}
         </div>
       </div>
 
