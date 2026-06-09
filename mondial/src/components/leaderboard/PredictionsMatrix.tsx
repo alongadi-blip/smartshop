@@ -1,0 +1,206 @@
+import { useEffect, useState } from 'react';
+import { format } from 'date-fns';
+import { supabase } from '../../lib/supabase';
+
+interface PlayerRow {
+  id: string;
+  display_name: string;
+}
+
+interface MatchRow {
+  id: string;
+  home_team: string;
+  away_team: string;
+  home_score: number | null;
+  away_score: number | null;
+  match_time: string;
+  group_name: string | null;
+  status: string;
+}
+
+interface PredRow {
+  user_id: string;
+  match_id: string;
+  predicted_home_score: number;
+  predicted_away_score: number;
+  points_earned: number | null;
+}
+
+export default function PredictionsMatrix() {
+  const [players, setPlayers] = useState<PlayerRow[]>([]);
+  const [matches, setMatches] = useState<MatchRow[]>([]);
+  const [preds, setPreds] = useState<Map<string, PredRow>>(new Map());
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      const [{ data: profiles }, { data: matchData }, { data: predData }] = await Promise.all([
+        supabase.from('profiles').select('id, display_name').order('display_name'),
+        supabase.from('matches').select('id, home_team, away_team, home_score, away_score, match_time, group_name, status')
+          .order('match_time', { ascending: true }),
+        supabase.from('predictions').select('user_id, match_id, predicted_home_score, predicted_away_score, points_earned'),
+      ]);
+
+      setPlayers(profiles ?? []);
+      // Only show locked/finished matches
+      const locked = (matchData ?? []).filter(m => new Date(m.match_time) <= new Date(Date.now() + 5 * 60 * 1000));
+      setMatches(locked);
+
+      const map = new Map<string, PredRow>();
+      (predData ?? []).forEach(p => map.set(`${p.user_id}:${p.match_id}`, p));
+      setPreds(map);
+      setLoading(false);
+    }
+    load();
+  }, []);
+
+  if (loading) return (
+    <div className="flex items-center justify-center py-16">
+      <span style={{ color: '#22C55E', fontFamily: "'Barlow Condensed', sans-serif", fontSize: '16px', letterSpacing: '0.1em' }}>LOADING…</span>
+    </div>
+  );
+
+  if (matches.length === 0) return (
+    <div className="py-16 text-center">
+      <p style={{ color: '#334155', fontFamily: "'Barlow Condensed', sans-serif", fontSize: '16px' }}>
+        No locked matches yet — predictions appear here after kickoff
+      </p>
+    </div>
+  );
+
+  // Group matches
+  const grouped = matches.reduce<Record<string, MatchRow[]>>((acc, m) => {
+    const key = m.group_name ?? 'Other';
+    acc[key] = [...(acc[key] ?? []), m];
+    return acc;
+  }, {});
+
+  return (
+    <div className="space-y-6">
+      {Object.entries(grouped).map(([group, groupMatches]) => (
+        <section key={group}>
+          <div className="flex items-center gap-3 mb-3 px-1">
+            <h3 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.12em', color: '#22C55E' }}>
+              {group}
+            </h3>
+            <div className="flex-1 h-px" style={{ background: '#1E2D45' }} />
+          </div>
+
+          <div className="space-y-2">
+            {groupMatches.map(match => (
+              <MatchPredRow key={match.id} match={match} players={players} preds={preds} />
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function MatchPredRow({ match, players, preds }: {
+  match: MatchRow;
+  players: PlayerRow[];
+  preds: Map<string, PredRow>;
+}) {
+  const [open, setOpen] = useState(false);
+  const isFinished = match.status === 'finished';
+
+  const playerPreds = players.map(p => ({
+    player: p,
+    pred: preds.get(`${p.id}:${match.id}`),
+  }));
+
+  const totalBets = playerPreds.filter(x => x.pred).length;
+
+  return (
+    <div style={{ background: '#0E1828', border: '1px solid #182333', borderRadius: '14px', overflow: 'hidden' }}>
+      {/* Match header — tap to expand */}
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full text-left cursor-pointer"
+        style={{ padding: '12px 14px' }}
+      >
+        <div className="flex items-center gap-2">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '14px', color: '#CBD5E1', letterSpacing: '0.02em' }}>
+                {match.home_team}
+              </span>
+              {isFinished ? (
+                <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: '16px', color: '#F1F5F9', letterSpacing: '0.05em', flexShrink: 0 }}>
+                  {match.home_score} – {match.away_score}
+                </span>
+              ) : (
+                <span style={{ color: '#334155', fontSize: '13px', flexShrink: 0 }}>vs</span>
+              )}
+              <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '14px', color: '#CBD5E1', letterSpacing: '0.02em' }}>
+                {match.away_team}
+              </span>
+            </div>
+            <div style={{ color: '#334155', fontSize: '11px', marginTop: '2px' }}>
+              {format(new Date(match.match_time), 'd MMM · HH:mm')} · {totalBets}/{players.length} bets
+            </div>
+          </div>
+          <span style={{ color: '#334155', fontSize: '14px', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', flexShrink: 0 }}>▾</span>
+        </div>
+      </button>
+
+      {/* Expanded predictions */}
+      {open && (
+        <div style={{ borderTop: '1px solid #182333' }}>
+          {playerPreds.map(({ player, pred }, idx) => (
+            <div
+              key={player.id}
+              className="flex items-center gap-3"
+              style={{
+                padding: '9px 14px',
+                borderBottom: idx < playerPreds.length - 1 ? '1px solid #0A1020' : 'none',
+                background: pred && pred.points_earned === 3 ? 'rgba(34,197,94,0.05)' : 'transparent',
+              }}
+            >
+              <span style={{ fontFamily: "'Barlow', sans-serif", fontSize: '13px', color: '#64748B', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {player.display_name}
+              </span>
+
+              {pred ? (
+                <>
+                  <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '16px', color: '#E2E8F0', letterSpacing: '0.05em', minWidth: '52px', textAlign: 'center' }}>
+                    {pred.predicted_home_score} – {pred.predicted_away_score}
+                  </span>
+
+                  {pred.points_earned !== null && pred.points_earned !== undefined ? (
+                    <span style={{
+                      fontFamily: "'Barlow Condensed', sans-serif",
+                      fontWeight: 700,
+                      fontSize: '12px',
+                      padding: '2px 8px',
+                      borderRadius: '999px',
+                      letterSpacing: '0.05em',
+                      minWidth: '52px',
+                      textAlign: 'center',
+                      ...(pred.points_earned === 3
+                        ? { background: 'rgba(34,197,94,0.15)', color: '#22C55E', border: '1px solid rgba(34,197,94,0.3)' }
+                        : pred.points_earned === 1
+                        ? { background: 'rgba(234,179,8,0.15)', color: '#EAB308', border: '1px solid rgba(234,179,8,0.3)' }
+                        : { background: 'rgba(239,68,68,0.1)', color: '#EF4444', border: '1px solid rgba(239,68,68,0.2)' }
+                      ),
+                    }}>
+                      {pred.points_earned === 3 ? '+3' : pred.points_earned === 1 ? '+1' : '0'}
+                    </span>
+                  ) : (
+                    <span style={{ minWidth: '52px', textAlign: 'center', color: '#1E2D45', fontSize: '12px' }}>–</span>
+                  )}
+                </>
+              ) : (
+                <>
+                  <span style={{ minWidth: '52px', textAlign: 'center', color: '#1E2D45', fontFamily: "'Barlow Condensed', sans-serif", fontSize: '15px' }}>–</span>
+                  <span style={{ minWidth: '52px', textAlign: 'center', color: '#1E2D45', fontSize: '12px', fontFamily: "'Barlow Condensed', sans-serif' " }}>no bet</span>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
