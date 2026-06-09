@@ -62,7 +62,7 @@ export default function MatchCard({ match, prediction, onSave }: Props) {
 
       <div className="flex items-center gap-3 mt-2">
         <div className="flex items-center gap-2 flex-1">
-          {match.home_team_flag && <img src={match.home_team_flag} alt="" className="w-7 h-7 rounded-full object-cover" />}
+          {match.home_team_flag && <img src={match.home_team_flag} alt="" className="w-8 h-5 object-cover rounded shadow-sm" />}
           <span className="font-semibold text-gray-800 text-sm">{match.home_team}</span>
         </div>
 
@@ -92,7 +92,7 @@ export default function MatchCard({ match, prediction, onSave }: Props) {
 
         <div className="flex items-center gap-2 flex-1 justify-end">
           <span className="font-semibold text-gray-800 text-sm text-right">{match.away_team}</span>
-          {match.away_team_flag && <img src={match.away_team_flag} alt="" className="w-7 h-7 rounded-full object-cover" />}
+          {match.away_team_flag && <img src={match.away_team_flag} alt="" className="w-8 h-5 object-cover rounded shadow-sm" />}
         </div>
       </div>
 
