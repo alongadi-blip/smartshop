@@ -5,7 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 const ADMIN_EMAIL = 'alon.gadi@gmail.com';
 
 export default function AdminPage() {
-  const { profile, user } = useAuth();
+  const { user } = useAuth();
   const [syncStatus, setSyncStatus] = useState('');
   const [match, setMatch] = useState({
     home_team: '', away_team: '', group_name: '', match_time: '', api_match_id: ''
