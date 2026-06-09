@@ -2,10 +2,8 @@ name: MONDIAL — Auto Score Update
 
 on:
   schedule:
-    # Every 4 hours starting June 11 (tournament start)
     - cron: '0 */4 * * *'
   workflow_dispatch:
-    # Allow manual trigger from GitHub Actions tab
 
 jobs:
   update-scores:
@@ -15,11 +13,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-
-      - name: Install dependencies
-        working-directory: mondial
-        run: npm install @supabase/supabase-js --no-save
+          node-version: '22'
 
       - name: Update scores and calculate points
         working-directory: mondial
