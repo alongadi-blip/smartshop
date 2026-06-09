@@ -33,8 +33,8 @@ interface Props {
 
 export default function MatchCard({ match, prediction, onSave }: Props) {
   const locked = isMatchLocked(match.match_time);
-  const [home, setHome] = useState(prediction?.predicted_home_score ?? '');
-  const [away, setAway] = useState(prediction?.predicted_away_score ?? '');
+  const [home, setHome] = useState<number | ''>(prediction?.predicted_home_score ?? '');
+  const [away, setAway] = useState<number | ''>(prediction?.predicted_away_score ?? '');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -55,78 +55,195 @@ export default function MatchCard({ match, prediction, onSave }: Props) {
     setTimeout(() => setSaved(false), 2000);
   }
 
-  const pointsBadge = prediction?.points_earned !== undefined && prediction.points_earned !== null ? (
-    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-      prediction.points_earned === 3 ? 'bg-green-100 text-green-700' :
-      prediction.points_earned === 1 ? 'bg-yellow-100 text-yellow-700' :
-      'bg-red-100 text-red-600'
-    }`}>
-      {prediction.points_earned === 3 ? '+3 Exact!' :
-       prediction.points_earned === 1 ? '+1 Result' : '0 pts'}
-    </span>
-  ) : null;
-
   const homeFlag = getFlag(match.home_team, match.home_team_flag);
   const awayFlag = getFlag(match.away_team, match.away_team_flag);
 
+  const pts = prediction?.points_earned;
+  const hasPoints = pts !== undefined && pts !== null;
+  const isFinished = match.status === 'finished';
+
   return (
-    <div className={`bg-white rounded-2xl shadow-sm border p-4 ${locked ? 'opacity-90' : ''}`}>
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-xs text-gray-400">{format(new Date(match.match_time), 'EEE d MMM · HH:mm')}</span>
+    <div
+      style={{
+        background: locked ? '#0E1828' : '#131C2E',
+        border: `1px solid ${locked ? '#182333' : '#1E2D45'}`,
+        borderRadius: '16px',
+        padding: '14px 16px',
+        opacity: locked && !prediction ? 0.7 : 1,
+        transition: 'all 0.2s',
+      }}
+    >
+      {/* Header row */}
+      <div className="flex items-center justify-between mb-3">
+        <span style={{ color: '#475569', fontSize: '11px', fontFamily: "'Barlow', sans-serif", textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          {format(new Date(match.match_time), 'EEE d MMM · HH:mm')}
+        </span>
         <div className="flex items-center gap-2">
-          {locked && <Lock size={13} className="text-gray-400" />}
-          {pointsBadge}
-          {match.status === 'finished' && (
-            <span className="text-xs font-bold text-gray-700">
+          {locked && !isFinished && <Lock size={11} color="#475569" />}
+          {isFinished && (
+            <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '15px', color: '#94A3B8', letterSpacing: '0.02em' }}>
               {match.home_score} – {match.away_score}
+            </span>
+          )}
+          {hasPoints && (
+            <span style={{
+              fontSize: '11px',
+              fontWeight: 700,
+              padding: '2px 8px',
+              borderRadius: '999px',
+              fontFamily: "'Barlow Condensed', sans-serif",
+              letterSpacing: '0.05em',
+              ...(pts === 3
+                ? { background: 'rgba(34,197,94,0.15)', color: '#22C55E', border: '1px solid rgba(34,197,94,0.3)' }
+                : pts === 1
+                ? { background: 'rgba(234,179,8,0.15)', color: '#EAB308', border: '1px solid rgba(234,179,8,0.3)' }
+                : { background: 'rgba(239,68,68,0.12)', color: '#EF4444', border: '1px solid rgba(239,68,68,0.2)' }
+              ),
+            }}>
+              {pts === 3 ? '+3 EXACT' : pts === 1 ? '+1 RESULT' : '0 PTS'}
             </span>
           )}
         </div>
       </div>
 
-      <div className="flex items-center gap-3 mt-2">
-        <div className="flex items-center gap-2 flex-1">
-          {homeFlag && <img src={homeFlag} alt="" className="w-8 h-5 object-cover rounded shadow-sm" />}
-          <span className="font-semibold text-gray-800 text-sm">{match.home_team}</span>
+      {/* Teams + Score row */}
+      <div className="flex items-center gap-3">
+        {/* Home team */}
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          {homeFlag && (
+            <img src={homeFlag} alt="" className="flex-shrink-0 rounded-sm shadow"
+              style={{ width: '28px', height: '18px', objectFit: 'cover' }} />
+          )}
+          <span style={{
+            fontFamily: "'Barlow Condensed', sans-serif",
+            fontWeight: 600,
+            fontSize: '15px',
+            color: '#E2E8F0',
+            letterSpacing: '0.02em',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}>
+            {match.home_team}
+          </span>
         </div>
 
+        {/* Score inputs or locked display */}
         {locked ? (
-          <div className="flex items-center gap-1 text-lg font-bold text-gray-400">
-            <span>{home !== '' ? home : '?'}</span>
-            <span className="text-gray-300">–</span>
-            <span>{away !== '' ? away : '?'}</span>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <span style={{
+              fontFamily: "'Barlow Condensed', sans-serif",
+              fontWeight: 700,
+              fontSize: '22px',
+              color: home !== '' ? '#F1F5F9' : '#334155',
+              minWidth: '22px',
+              textAlign: 'center',
+            }}>
+              {home !== '' ? home : '?'}
+            </span>
+            <span style={{ color: '#334155', fontWeight: 700, fontSize: '18px', marginInline: '2px' }}>–</span>
+            <span style={{
+              fontFamily: "'Barlow Condensed', sans-serif",
+              fontWeight: 700,
+              fontSize: '22px',
+              color: away !== '' ? '#F1F5F9' : '#334155',
+              minWidth: '22px',
+              textAlign: 'center',
+            }}>
+              {away !== '' ? away : '?'}
+            </span>
           </div>
         ) : (
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5 flex-shrink-0">
             <input
               type="number" min="0" max="20"
               value={home}
               onChange={(e) => setHome(e.target.value === '' ? '' : Number(e.target.value))}
-              className="w-10 text-center border border-gray-200 rounded-lg py-1 text-lg font-bold focus:outline-none focus:ring-2 focus:ring-green-400"
+              style={{
+                width: '40px',
+                textAlign: 'center',
+                background: '#1E2D45',
+                border: '1px solid #2A3F5F',
+                borderRadius: '10px',
+                padding: '6px 2px',
+                fontFamily: "'Barlow Condensed', sans-serif",
+                fontWeight: 700,
+                fontSize: '20px',
+                color: '#F1F5F9',
+                outline: 'none',
+              }}
+              onFocus={e => (e.currentTarget.style.border = '1px solid #22C55E')}
+              onBlur={e => (e.currentTarget.style.border = '1px solid #2A3F5F')}
             />
-            <span className="text-gray-400 font-bold">–</span>
+            <span style={{ color: '#334155', fontWeight: 700, fontSize: '16px' }}>–</span>
             <input
               type="number" min="0" max="20"
               value={away}
               onChange={(e) => setAway(e.target.value === '' ? '' : Number(e.target.value))}
-              className="w-10 text-center border border-gray-200 rounded-lg py-1 text-lg font-bold focus:outline-none focus:ring-2 focus:ring-green-400"
+              style={{
+                width: '40px',
+                textAlign: 'center',
+                background: '#1E2D45',
+                border: '1px solid #2A3F5F',
+                borderRadius: '10px',
+                padding: '6px 2px',
+                fontFamily: "'Barlow Condensed', sans-serif",
+                fontWeight: 700,
+                fontSize: '20px',
+                color: '#F1F5F9',
+                outline: 'none',
+              }}
+              onFocus={e => (e.currentTarget.style.border = '1px solid #22C55E')}
+              onBlur={e => (e.currentTarget.style.border = '1px solid #2A3F5F')}
             />
           </div>
         )}
 
-        <div className="flex items-center gap-2 flex-1 justify-end">
-          <span className="font-semibold text-gray-800 text-sm text-right">{match.away_team}</span>
-          {awayFlag && <img src={awayFlag} alt="" className="w-8 h-5 object-cover rounded shadow-sm" />}
+        {/* Away team */}
+        <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
+          <span style={{
+            fontFamily: "'Barlow Condensed', sans-serif",
+            fontWeight: 600,
+            fontSize: '15px',
+            color: '#E2E8F0',
+            letterSpacing: '0.02em',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            textAlign: 'right',
+          }}>
+            {match.away_team}
+          </span>
+          {awayFlag && (
+            <img src={awayFlag} alt="" className="flex-shrink-0 rounded-sm shadow"
+              style={{ width: '28px', height: '18px', objectFit: 'cover' }} />
+          )}
         </div>
       </div>
 
+      {/* Save button */}
       {!locked && (
         <button
           onClick={handleSave}
           disabled={saving || home === '' || away === ''}
-          className="mt-3 w-full bg-green-600 hover:bg-green-700 disabled:opacity-40 text-white text-sm font-semibold rounded-xl py-2 transition"
+          className="cursor-pointer transition-all duration-200 disabled:opacity-40"
+          style={{
+            marginTop: '12px',
+            width: '100%',
+            background: saved ? 'rgba(34,197,94,0.2)' : 'linear-gradient(135deg, #16A34A, #22C55E)',
+            color: saved ? '#22C55E' : 'white',
+            border: saved ? '1px solid rgba(34,197,94,0.4)' : 'none',
+            borderRadius: '12px',
+            padding: '10px',
+            fontFamily: "'Barlow Condensed', sans-serif",
+            fontWeight: 700,
+            fontSize: '14px',
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            boxShadow: saved ? 'none' : '0 4px 15px rgba(34,197,94,0.25)',
+          }}
         >
-          {saved ? 'Saved ✓' : saving ? 'Saving…' : 'Save Prediction'}
+          {saved ? 'SAVED ✓' : saving ? 'SAVING…' : 'SAVE PREDICTION'}
         </button>
       )}
     </div>

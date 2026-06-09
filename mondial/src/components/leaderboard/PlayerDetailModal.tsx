@@ -31,43 +31,93 @@ export default function PlayerDetailModal({ entry, onClose }: Props) {
   }, [entry.id]);
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50 p-4" onClick={onClose}>
+    <div
+      className="fixed inset-0 flex items-end justify-center z-50 p-4"
+      style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
+      onClick={onClose}
+    >
       <div
-        className="bg-white rounded-2xl w-full max-w-md max-h-[80vh] flex flex-col"
+        className="w-full max-w-md flex flex-col"
+        style={{
+          background: '#131C2E',
+          border: '1px solid #1E2D45',
+          borderRadius: '20px',
+          maxHeight: '80vh',
+        }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-4 border-b">
+        <div className="flex items-center justify-between p-4" style={{ borderBottom: '1px solid #1E2D45' }}>
           <div>
-            <h2 className="font-bold text-gray-900">{entry.display_name}</h2>
-            <p className="text-sm text-gray-500">{entry.total_points} pts total</p>
+            <h2 style={{
+              fontFamily: "'Barlow Condensed', sans-serif",
+              fontWeight: 700,
+              fontSize: '18px',
+              color: '#F1F5F9',
+              letterSpacing: '0.03em',
+            }}>
+              {entry.display_name}
+            </h2>
+            <p style={{ color: '#475569', fontSize: '13px', marginTop: '2px' }}>
+              <span style={{ color: '#22C55E', fontWeight: 700 }}>{entry.total_points}</span>
+              {' pts total · '}{entry.exact_hits} exact · {entry.outcome_hits} result
+            </p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <button
+            onClick={onClose}
+            className="cursor-pointer transition-colors duration-200"
+            style={{ color: '#334155', padding: '4px' }}
+            onMouseEnter={e => (e.currentTarget.style.color = '#94A3B8')}
+            onMouseLeave={e => (e.currentTarget.style.color = '#334155')}
+          >
             <X size={20} />
           </button>
         </div>
 
         <div className="overflow-y-auto flex-1 p-4 space-y-2">
-          {loading && <p className="text-center text-gray-400 py-8">Loading…</p>}
+          {loading && (
+            <p style={{ textAlign: 'center', color: '#334155', padding: '32px 0', fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: '0.05em' }}>
+              LOADING…
+            </p>
+          )}
           {!loading && history.length === 0 && (
-            <p className="text-center text-gray-400 py-8">No scored predictions yet.</p>
+            <p style={{ textAlign: 'center', color: '#334155', padding: '32px 0', fontFamily: "'Barlow Condensed', sans-serif" }}>
+              No scored predictions yet
+            </p>
           )}
           {history.map((p) => (
-            <div key={p.id} className="flex items-center gap-3 py-2 border-b last:border-b-0">
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-800">
+            <div key={p.id} className="flex items-center gap-3 py-2" style={{ borderBottom: '1px solid #0E1828' }}>
+              <div className="flex-1 min-w-0">
+                <p style={{
+                  fontFamily: "'Barlow Condensed', sans-serif",
+                  fontWeight: 600,
+                  fontSize: '15px',
+                  color: '#94A3B8',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}>
                   {p.match.home_team} vs {p.match.away_team}
                 </p>
-                <p className="text-xs text-gray-400">
+                <p style={{ color: '#334155', fontSize: '12px', marginTop: '2px', fontFamily: "'Barlow', sans-serif" }}>
                   {format(new Date(p.match.match_time), 'd MMM')} ·
-                  Actual: {p.match.home_score}–{p.match.away_score} ·
-                  Bet: {p.predicted_home_score}–{p.predicted_away_score}
+                  Result: <span style={{ color: '#64748B' }}>{p.match.home_score}–{p.match.away_score}</span> ·
+                  Bet: <span style={{ color: '#64748B' }}>{p.predicted_home_score}–{p.predicted_away_score}</span>
                 </p>
               </div>
-              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                p.points_earned === 3 ? 'bg-green-100 text-green-700' :
-                p.points_earned === 1 ? 'bg-yellow-100 text-yellow-700' :
-                'bg-red-100 text-red-600'
-              }`}>
+              <span style={{
+                fontFamily: "'Barlow Condensed', sans-serif",
+                fontWeight: 700,
+                fontSize: '13px',
+                padding: '3px 10px',
+                borderRadius: '999px',
+                letterSpacing: '0.05em',
+                ...(p.points_earned === 3
+                  ? { background: 'rgba(34,197,94,0.15)', color: '#22C55E', border: '1px solid rgba(34,197,94,0.3)' }
+                  : p.points_earned === 1
+                  ? { background: 'rgba(234,179,8,0.15)', color: '#EAB308', border: '1px solid rgba(234,179,8,0.3)' }
+                  : { background: 'rgba(239,68,68,0.12)', color: '#EF4444', border: '1px solid rgba(239,68,68,0.2)' }
+                ),
+              }}>
                 {p.points_earned === 3 ? '+3' : p.points_earned === 1 ? '+1' : '0'}
               </span>
             </div>

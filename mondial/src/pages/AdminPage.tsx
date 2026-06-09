@@ -13,7 +13,13 @@ export default function AdminPage() {
   const [addStatus, setAddStatus] = useState('');
 
   if (user?.email !== ADMIN_EMAIL) {
-    return <div className="p-8 text-center text-gray-400">Access denied.</div>;
+    return (
+      <div className="flex items-center justify-center py-24">
+        <p style={{ color: '#334155', fontFamily: "'Barlow Condensed', sans-serif", fontSize: '18px', letterSpacing: '0.05em' }}>
+          ACCESS DENIED
+        </p>
+      </div>
+    );
   }
 
   async function handleSync() {
@@ -27,7 +33,7 @@ export default function AdminPage() {
       const fixtures = data.response ?? [];
 
       if (fixtures.length === 0) {
-        setSyncStatus('API returned 0 fixtures — data not available yet. Try again on June 11.');
+        setSyncStatus('API returned 0 fixtures — data not available yet.');
         return;
       }
 
@@ -67,28 +73,8 @@ export default function AdminPage() {
     }
   }
 
-  async function handleAddMatch(e: React.FormEvent) {
-    e.preventDefault();
-    setAddStatus('Adding...');
-    const { error } = await supabase.from('matches').insert({
-      api_match_id: match.api_match_id || `manual-${Date.now()}`,
-      home_team: match.home_team,
-      away_team: match.away_team,
-      group_name: match.group_name,
-      stage: 'group',
-      match_time: match.match_time,
-      status: 'scheduled',
-    });
-    if (error) {
-      setAddStatus(`Error: ${error.message}`);
-    } else {
-      setAddStatus('Match added!');
-      setMatch({ home_team: '', away_team: '', group_name: '', match_time: '', api_match_id: '' });
-    }
-  }
-
   async function handleScoreUpdate() {
-    setSyncStatus('Updating scores for finished matches...');
+    setSyncStatus('Updating scores...');
     try {
       const { data: scheduled } = await supabase
         .from('matches')
@@ -127,62 +113,176 @@ export default function AdminPage() {
     }
   }
 
+  async function handleAddMatch(e: React.FormEvent) {
+    e.preventDefault();
+    setAddStatus('Adding...');
+    const { error } = await supabase.from('matches').insert({
+      api_match_id: match.api_match_id || `manual-${Date.now()}`,
+      home_team: match.home_team,
+      away_team: match.away_team,
+      group_name: match.group_name,
+      stage: 'group',
+      match_time: match.match_time,
+      status: 'scheduled',
+    });
+    if (error) {
+      setAddStatus(`Error: ${error.message}`);
+    } else {
+      setAddStatus('Match added!');
+      setMatch({ home_team: '', away_team: '', group_name: '', match_time: '', api_match_id: '' });
+    }
+  }
+
+  const inputStyle = {
+    background: '#1E2D45',
+    border: '1px solid #2A3F5F',
+    borderRadius: '10px',
+    padding: '10px 12px',
+    color: '#F1F5F9',
+    fontSize: '14px',
+    fontFamily: "'Barlow', sans-serif",
+    outline: 'none',
+    width: '100%',
+  };
+
+  const cardStyle = {
+    background: '#131C2E',
+    border: '1px solid #1E2D45',
+    borderRadius: '16px',
+    padding: '18px',
+  };
+
   return (
-    <div className="max-w-2xl mx-auto p-4 pb-24 space-y-6">
-      <h1 className="text-xl font-bold text-gray-900">Admin Panel</h1>
+    <div className="max-w-2xl mx-auto px-3 py-4 pb-8 space-y-4">
+      <div className="flex items-center gap-3 mb-2 px-1">
+        <h1 style={{
+          fontFamily: "'Barlow Condensed', sans-serif",
+          fontWeight: 800,
+          fontSize: '22px',
+          textTransform: 'uppercase',
+          letterSpacing: '0.08em',
+          color: '#F1F5F9',
+        }}>
+          Admin Panel
+        </h1>
+        <div className="flex-1 h-px" style={{ background: '#1E2D45' }} />
+      </div>
 
       {/* API Sync */}
-      <div className="bg-white rounded-2xl border shadow-sm p-5 space-y-3">
-        <h2 className="font-semibold text-gray-800">API-Football Sync</h2>
-        <p className="text-sm text-gray-500">
-          Pulls all WC 2026 fixtures from api-sports.io. Works once they upload the data (around June 11).
+      <div style={cardStyle}>
+        <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#94A3B8', marginBottom: '12px' }}>
+          API Sync
+        </h2>
+        <p style={{ color: '#475569', fontSize: '13px', marginBottom: '14px', fontFamily: "'Barlow', sans-serif" }}>
+          Pull WC 2026 fixtures and scores from api-sports.io.
         </p>
         <div className="flex gap-2">
           <button
             onClick={handleSync}
-            className="bg-green-600 hover:bg-green-700 text-white rounded-xl px-4 py-2 text-sm font-semibold transition"
+            className="cursor-pointer transition-colors duration-200"
+            style={{
+              background: '#1E3A2F',
+              border: '1px solid rgba(34,197,94,0.3)',
+              color: '#22C55E',
+              borderRadius: '10px',
+              padding: '9px 16px',
+              fontFamily: "'Barlow Condensed', sans-serif",
+              fontWeight: 700,
+              fontSize: '13px',
+              letterSpacing: '0.05em',
+              textTransform: 'uppercase',
+            }}
           >
-            Sync Matches from API
+            Sync Matches
           </button>
           <button
             onClick={handleScoreUpdate}
-            className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-4 py-2 text-sm font-semibold transition"
+            className="cursor-pointer transition-colors duration-200"
+            style={{
+              background: '#1A2A45',
+              border: '1px solid rgba(59,130,246,0.3)',
+              color: '#3B82F6',
+              borderRadius: '10px',
+              padding: '9px 16px',
+              fontFamily: "'Barlow Condensed', sans-serif",
+              fontWeight: 700,
+              fontSize: '13px',
+              letterSpacing: '0.05em',
+              textTransform: 'uppercase',
+            }}
           >
             Update Scores
           </button>
         </div>
         {syncStatus && (
-          <p className={`text-sm font-medium ${syncStatus.startsWith('Error') ? 'text-red-600' : 'text-green-700'}`}>
+          <p style={{
+            marginTop: '12px',
+            fontSize: '13px',
+            fontFamily: "'Barlow', sans-serif",
+            color: syncStatus.startsWith('Error') ? '#EF4444' : '#22C55E',
+          }}>
             {syncStatus}
           </p>
         )}
       </div>
 
       {/* Manual match add */}
-      <div className="bg-white rounded-2xl border shadow-sm p-5">
-        <h2 className="font-semibold text-gray-800 mb-4">Add Match Manually</h2>
+      <div style={cardStyle}>
+        <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#94A3B8', marginBottom: '14px' }}>
+          Add Match Manually
+        </h2>
         <form onSubmit={handleAddMatch} className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <input required placeholder="Home team" value={match.home_team}
               onChange={e => setMatch(m => ({ ...m, home_team: e.target.value }))}
-              className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+              style={inputStyle}
+              onFocus={e => (e.currentTarget.style.border = '1px solid #22C55E')}
+              onBlur={e => (e.currentTarget.style.border = '1px solid #2A3F5F')} />
             <input required placeholder="Away team" value={match.away_team}
               onChange={e => setMatch(m => ({ ...m, away_team: e.target.value }))}
-              className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+              style={inputStyle}
+              onFocus={e => (e.currentTarget.style.border = '1px solid #22C55E')}
+              onBlur={e => (e.currentTarget.style.border = '1px solid #2A3F5F')} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <input placeholder="Group (e.g. Group A)" value={match.group_name}
               onChange={e => setMatch(m => ({ ...m, group_name: e.target.value }))}
-              className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+              style={inputStyle}
+              onFocus={e => (e.currentTarget.style.border = '1px solid #22C55E')}
+              onBlur={e => (e.currentTarget.style.border = '1px solid #2A3F5F')} />
             <input required type="datetime-local" value={match.match_time}
               onChange={e => setMatch(m => ({ ...m, match_time: e.target.value }))}
-              className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+              style={{ ...inputStyle, colorScheme: 'dark' }}
+              onFocus={e => (e.currentTarget.style.border = '1px solid #22C55E')}
+              onBlur={e => (e.currentTarget.style.border = '1px solid #2A3F5F')} />
           </div>
-          <button type="submit"
-            className="w-full bg-gray-800 hover:bg-gray-900 text-white rounded-xl py-2 text-sm font-semibold transition">
+          <button
+            type="submit"
+            className="w-full cursor-pointer transition-all duration-200"
+            style={{
+              background: '#1E2D45',
+              border: '1px solid #2A3F5F',
+              color: '#94A3B8',
+              borderRadius: '10px',
+              padding: '10px',
+              fontFamily: "'Barlow Condensed', sans-serif",
+              fontWeight: 700,
+              fontSize: '13px',
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+            }}
+          >
             Add Match
           </button>
-          {addStatus && <p className="text-sm text-green-700 font-medium">{addStatus}</p>}
+          {addStatus && (
+            <p style={{
+              fontSize: '13px',
+              color: addStatus.startsWith('Error') ? '#EF4444' : '#22C55E',
+              fontFamily: "'Barlow', sans-serif",
+            }}>
+              {addStatus}
+            </p>
+          )}
         </form>
       </div>
     </div>

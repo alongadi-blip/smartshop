@@ -14,14 +14,33 @@ export default function MatchesPage() {
     return acc;
   }, {});
 
-  if (loading) return <div className="p-8 text-center text-gray-400">Loading matches…</div>;
+  if (loading) return (
+    <div className="flex items-center justify-center py-24">
+      <span style={{ color: '#22C55E', fontFamily: "'Barlow Condensed', sans-serif", fontSize: '18px', letterSpacing: '0.1em' }}>
+        LOADING MATCHES…
+      </span>
+    </div>
+  );
 
   return (
-    <div className="max-w-2xl mx-auto p-4 space-y-6 pb-24">
+    <div className="max-w-2xl mx-auto px-3 py-4 space-y-6 pb-8">
       {Object.entries(grouped).map(([group, groupMatches]) => (
         <section key={group}>
-          <h2 className="text-sm font-bold uppercase tracking-widest text-gray-500 mb-3">{group}</h2>
-          <div className="space-y-3">
+          <div className="flex items-center gap-3 mb-3 px-1">
+            <h2 style={{
+              fontFamily: "'Barlow Condensed', sans-serif",
+              fontWeight: 700,
+              fontSize: '13px',
+              textTransform: 'uppercase',
+              letterSpacing: '0.12em',
+              color: '#22C55E',
+            }}>
+              {group}
+            </h2>
+            <div className="flex-1 h-px" style={{ background: '#1E2D45' }} />
+            <span style={{ color: '#334155', fontSize: '11px' }}>{groupMatches.length} matches</span>
+          </div>
+          <div className="space-y-2">
             {groupMatches.map((match) => (
               <MatchCard
                 key={match.id}
@@ -34,9 +53,11 @@ export default function MatchesPage() {
         </section>
       ))}
       {matches.length === 0 && (
-        <p className="text-center text-gray-400 py-12">
-          No matches loaded yet. Admin needs to sync from API-Football.
-        </p>
+        <div className="text-center py-20">
+          <p style={{ color: '#334155', fontFamily: "'Barlow Condensed', sans-serif", fontSize: '18px', letterSpacing: '0.05em' }}>
+            No matches loaded yet
+          </p>
+        </div>
       )}
     </div>
   );
