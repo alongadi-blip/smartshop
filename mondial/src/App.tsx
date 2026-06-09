@@ -1,28 +1,51 @@
+import { useState } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
-import { Trophy, LayoutList, Star } from 'lucide-react';
+import { Trophy, LayoutList, Star, HelpCircle } from 'lucide-react';
 import { useAuth } from './hooks/useAuth';
 import LoginPage from './pages/LoginPage';
 import MatchesPage from './pages/MatchesPage';
 import LeaderboardPage from './pages/LeaderboardPage';
 import OutrightPage from './pages/OutrightPage';
 import AdminPage from './pages/AdminPage';
+import RulesModal from './components/RulesModal';
 
 function Layout() {
   const { profile, signOut } = useAuth();
+  const [showRules, setShowRules] = useState(false);
 
   return (
     <div className="min-h-screen" style={{ background: '#0A0F1E' }}>
-      <header style={{ background: 'linear-gradient(135deg, #0A0F1E 0%, #0D1A2B 100%)', borderBottom: '1px solid #1E2D45' }}
-        className="px-4 py-3 flex items-center justify-between sticky top-0 z-40">
-        <span style={{ fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: '0.05em', color: '#22C55E' }}
-          className="font-bold text-xl uppercase tracking-wider">
+      <header
+        style={{ background: 'linear-gradient(135deg, #0A0F1E 0%, #0D1A2B 100%)', borderBottom: '1px solid #1E2D45' }}
+        className="px-4 py-3 flex items-center justify-between sticky top-0 z-40"
+      >
+        <span
+          style={{ fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: '0.05em', color: '#22C55E' }}
+          className="font-bold text-xl uppercase tracking-wider"
+        >
           MONDIAL 2026
         </span>
-        <button onClick={signOut}
-          style={{ color: '#64748B', fontSize: '13px' }}
-          className="hover:text-slate-300 transition-colors duration-200 cursor-pointer">
-          {profile?.display_name} · Sign out
-        </button>
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowRules(true)}
+            className="cursor-pointer transition-colors duration-200"
+            style={{ color: '#334155' }}
+            onMouseEnter={e => (e.currentTarget.style.color = '#64748B')}
+            onMouseLeave={e => (e.currentTarget.style.color = '#334155')}
+            aria-label="How to play"
+          >
+            <HelpCircle size={18} />
+          </button>
+
+          <button
+            onClick={signOut}
+            style={{ color: '#64748B', fontSize: '13px' }}
+            className="hover:text-slate-300 transition-colors duration-200 cursor-pointer"
+          >
+            {profile?.display_name} · Sign out
+          </button>
+        </div>
       </header>
 
       <main className="pt-2 pb-24">
@@ -45,11 +68,7 @@ function Layout() {
           <NavLink
             key={to}
             to={to}
-            className={({ isActive }) =>
-              `flex-1 flex flex-col items-center py-3 gap-1 transition-colors duration-200 cursor-pointer ${
-                isActive ? '' : ''
-              }`
-            }
+            className="flex-1 flex flex-col items-center py-3 gap-1 transition-colors duration-200 cursor-pointer"
             style={({ isActive }) => ({
               color: isActive ? '#22C55E' : '#475569',
               fontSize: '11px',
@@ -62,6 +81,8 @@ function Layout() {
           </NavLink>
         ))}
       </nav>
+
+      {showRules && <RulesModal onClose={() => setShowRules(false)} />}
     </div>
   );
 }
