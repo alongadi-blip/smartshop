@@ -4,7 +4,6 @@ import { he } from 'date-fns/locale';
 import { useMatches, useUserPredictions } from '../hooks/useMatches';
 import { useAuth } from '../hooks/useAuth';
 import MatchCard from '../components/matches/MatchCard';
-import GroupStandings from '../components/matches/GroupStandings';
 import type { Match } from '../types';
 
 function dateKey(matchTime: string): string {
@@ -131,8 +130,6 @@ export default function MatchesPage() {
         )}
       </div>
 
-      {/* Group standings section */}
-      <GroupStandings matches={matches} />
     </div>
   );
 }

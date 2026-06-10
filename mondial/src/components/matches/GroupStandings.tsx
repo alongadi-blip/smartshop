@@ -66,10 +66,12 @@ const HDR: React.CSSProperties = {
   letterSpacing: '0.04em',
 };
 
-export default function GroupStandings({ matches }: { matches: Match[] }) {
+export default function GroupStandings({ matches, defaultOpen, hideHeader }: { matches: Match[]; defaultOpen?: boolean; hideHeader?: boolean }) {
   const standings = buildStandings(matches);
   const groups = Object.keys(standings).sort();
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set(groups)); // all collapsed by default
+  const [collapsed, setCollapsed] = useState<Set<string>>(() =>
+    defaultOpen ? new Set() : new Set(groups)
+  );
 
   if (groups.length === 0) return null;
 
@@ -84,19 +86,21 @@ export default function GroupStandings({ matches }: { matches: Match[] }) {
   return (
     <div style={{ marginTop: '28px' }}>
       {/* Section header */}
-      <div className="flex items-center gap-3 px-1 mb-3">
-        <h2 style={{
-          fontFamily: "'Barlow Condensed', sans-serif",
-          fontWeight: 800,
-          fontSize: '15px',
-          letterSpacing: '0.05em',
-          color: 'var(--text-1)',
-          margin: 0,
-        }}>
-          טבלאות הבתים
-        </h2>
-        <div className="flex-1 h-px" style={{ background: 'var(--border-card)' }} />
-      </div>
+      {!hideHeader && (
+        <div className="flex items-center gap-3 px-1 mb-3">
+          <h2 style={{
+            fontFamily: "'Barlow Condensed', sans-serif",
+            fontWeight: 800,
+            fontSize: '15px',
+            letterSpacing: '0.05em',
+            color: 'var(--text-1)',
+            margin: 0,
+          }}>
+            טבלאות הבתים
+          </h2>
+          <div className="flex-1 h-px" style={{ background: 'var(--border-card)' }} />
+        </div>
+      )}
 
       <div className="space-y-2">
         {groups.map(group => {

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
-import { Trophy, LayoutList, Star, Sun, Moon } from 'lucide-react';
+import { Trophy, LayoutList, Star, Sun, Moon, Grid2X2 } from 'lucide-react';
 import { useAuth } from './hooks/useAuth';
 import { useTheme } from './lib/theme';
 import LoginPage from './pages/LoginPage';
@@ -8,6 +8,7 @@ import MatchesPage from './pages/MatchesPage';
 import LeaderboardPage from './pages/LeaderboardPage';
 import OutrightPage from './pages/OutrightPage';
 import AdminPage from './pages/AdminPage';
+import GroupsPage from './pages/GroupsPage';
 import RulesModal from './components/RulesModal';
 
 function Layout() {
@@ -87,6 +88,7 @@ function Layout() {
         <Routes>
           <Route path="/" element={<Navigate to="/matches" replace />} />
           <Route path="/matches" element={<MatchesPage />} />
+          <Route path="/groups" element={<GroupsPage />} />
           <Route path="/leaderboard" element={<LeaderboardPage />} />
           <Route path="/outright" element={<OutrightPage />} />
           <Route path="/admin" element={<AdminPage />} />
@@ -97,6 +99,7 @@ function Layout() {
         style={{ background: 'var(--bg-nav)', borderTop: '1px solid var(--border-card)' }}>
         {[
           { to: '/matches', icon: <LayoutList size={20} />, label: 'משחקים' },
+          { to: '/groups', icon: <Grid2X2 size={20} />, label: 'בתים' },
           { to: '/leaderboard', icon: <Trophy size={20} />, label: 'טבלה' },
           { to: '/outright', icon: <Star size={20} />, label: 'טורניר' },
         ].map(({ to, icon, label }) => (
