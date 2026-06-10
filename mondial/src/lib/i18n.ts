@@ -1,3 +1,24 @@
+export const TEAM_FLAGS: Record<string, string> = {
+  'Mexico': 'mx', 'South Korea': 'kr', 'South Africa': 'za', 'Czechia': 'cz',
+  'Canada': 'ca', 'Switzerland': 'ch', 'Qatar': 'qa', 'Bosnia and Herzegovina': 'ba',
+  'Brazil': 'br', 'Morocco': 'ma', 'Haiti': 'ht', 'United States': 'us',
+  'Australia': 'au', 'Paraguay': 'py', 'Turkey': 'tr', 'Germany': 'de',
+  'Ecuador': 'ec', 'Ivory Coast': 'ci', 'Curacao': 'cw', 'Netherlands': 'nl',
+  'Japan': 'jp', 'Tunisia': 'tn', 'Sweden': 'se', 'Belgium': 'be',
+  'Iran': 'ir', 'Egypt': 'eg', 'New Zealand': 'nz', 'Spain': 'es',
+  'Uruguay': 'uy', 'Saudi Arabia': 'sa', 'Cape Verde': 'cv', 'France': 'fr',
+  'Senegal': 'sn', 'Norway': 'no', 'Iraq': 'iq', 'Argentina': 'ar',
+  'Austria': 'at', 'Algeria': 'dz', 'Jordan': 'jo', 'Portugal': 'pt',
+  'Colombia': 'co', 'Uzbekistan': 'uz', 'DR Congo': 'cd', 'Croatia': 'hr',
+  'Panama': 'pa', 'Ghana': 'gh', 'Scotland': 'gb-sct', 'England': 'gb-eng',
+};
+
+export function teamFlag(team: string, stored?: string | null): string | undefined {
+  if (stored) return stored;
+  const code = TEAM_FLAGS[team];
+  return code ? `https://flagcdn.com/w40/${code}.png` : undefined;
+}
+
 export const TEAM_HE: Record<string, string> = {
   'Mexico': 'מקסיקו',
   'South Korea': 'דרום קוריאה',

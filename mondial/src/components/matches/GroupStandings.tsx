@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { TEAM_HE, GROUP_HE } from '../../lib/i18n';
+import { TEAM_HE, GROUP_HE, teamFlag } from '../../lib/i18n';
 import type { Match } from '../../types';
 
 interface TeamStat {
@@ -196,20 +196,34 @@ export default function GroupStandings({ matches, defaultOpen, hideHeader }: { m
                         }}>
                           {i + 1}
                         </span>
-                        <span style={{
+                        <div style={{
                           flex: 1,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '7px',
                           paddingRight: '8px',
                           paddingLeft: '4px',
-                          fontFamily: "'Barlow Condensed', sans-serif",
-                          fontWeight: 600,
-                          fontSize: '14px',
-                          color: 'var(--text-2)',
                           overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
                         }}>
-                          {TEAM_HE[t.team] ?? t.team}
-                        </span>
+                          {teamFlag(t.team) && (
+                            <img
+                              src={teamFlag(t.team)}
+                              alt=""
+                              style={{ width: '22px', height: '14px', objectFit: 'cover', borderRadius: '2px', flexShrink: 0 }}
+                            />
+                          )}
+                          <span style={{
+                            fontFamily: "'Barlow Condensed', sans-serif",
+                            fontWeight: 600,
+                            fontSize: '14px',
+                            color: 'var(--text-2)',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}>
+                            {TEAM_HE[t.team] ?? t.team}
+                          </span>
+                        </div>
                         <span style={{ ...COL, color: 'var(--text-5)' }}>{t.played}</span>
                         <span style={{ ...COL, color: t.won > 0 ? '#22C55E' : 'var(--text-6)' }}>{t.won}</span>
                         <span style={{ ...COL, color: t.drawn > 0 ? '#EAB308' : 'var(--text-6)' }}>{t.drawn}</span>
