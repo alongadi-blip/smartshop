@@ -1,14 +1,12 @@
-// Automated score updater + new-match syncer — GitHub Actions, every 4 hours
-// Strategy: one API call per run (all fixtures) instead of N individual calls.
-// Group stage matches already in DB → update score/status only.
-// Knockout stage matches not yet in DB → insert automatically.
+// Automated score updater — GitHub Actions, every 4 hours
+// Data source: ESPN public API (no auth required)
+// Strategy: fetch all WC 2026 fixtures in one call, match to DB by team pair (order-independent).
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
-const APISPORTS_KEY = process.env.APISPORTS_KEY;
 
-if (!SUPABASE_URL || !SUPABASE_KEY || !APISPORTS_KEY) {
-  console.error('Missing env vars: SUPABASE_URL, SUPABASE_SERVICE_KEY, APISPORTS_KEY');
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+  console.error('Missing env vars: SUPABASE_URL, SUPABASE_SERVICE_KEY');
   process.exit(1);
 }
 
@@ -42,21 +40,35 @@ async function sbInsert(table, body) {
   if (!res.ok) throw new Error(`INSERT ${table} → ${res.status}: ${await res.text()}`);
 }
 
-const STATUS_MAP = {
-  'FT': 'finished', 'AET': 'finished', 'PEN': 'finished',
-  '1H': 'live', 'HT': 'live', '2H': 'live', 'ET': 'live', 'P': 'live',
-  'NS': 'scheduled', 'TBD': 'scheduled',
-  'PST': 'postponed', 'CANC': 'postponed',
+// ESPN team name → our DB team name
+const ESPN_TO_DB = {
+  'Bosnia-Herzegovina': 'Bosnia and Herzegovina',
+  'Congo DR': 'DR Congo',
+  'Curaçao': 'Curacao',
+  'Türkiye': 'Turkey',
+};
+function norm(name) { return ESPN_TO_DB[name] ?? name; }
+
+// ESPN status string → our DB status
+function toStatus(espnName) {
+  if (['STATUS_FULL_TIME', 'STATUS_FINAL_AET', 'STATUS_FINAL_PEN', 'STATUS_FULL_PEN'].includes(espnName)) return 'finished';
+  if (['STATUS_IN_PROGRESS', 'STATUS_HALFTIME', 'STATUS_EXTRA_TIME', 'STATUS_SHOOTOUT'].includes(espnName)) return 'live';
+  return 'scheduled';
+}
+
+// ESPN season slug → our DB stage enum
+const SLUG_TO_STAGE = {
+  'group-stage': 'group',
+  'round-of-32': 'round_of_16',
+  'round-of-16': 'quarter_final',
+  'quarterfinals': 'quarter_final',
+  'semifinals': 'semi_final',
+  'third-place': 'third_place',
+  'final': 'final',
 };
 
-// Maps api-sports league.round strings → our stage enum
-const ROUND_TO_STAGE = {
-  'Round of 16': 'round_of_16',
-  'Quarter-finals': 'quarter_final',
-  'Semi-finals': 'semi_final',
-  '3rd Place For 3rd Place': 'third_place',
-  'Final': 'final',
-};
+// Placeholder patterns — teams not yet determined
+const TBD_PATTERN = /Winner|Place|Loser|Runner|Group [A-L] |Round of|Quarterfinal|Semifinal/;
 
 function calcPoints(hs, as_, ph, pa) {
   if (ph === hs && pa === as_) return 3;
@@ -67,59 +79,82 @@ function calcPoints(hs, as_, ph, pa) {
 async function run() {
   console.log(`[${new Date().toISOString()}] Starting sync...`);
 
-  // 1 API request for the entire run
-  const apiRes = await fetch(
-    'https://v3.football.api-sports.io/fixtures?league=1&season=2026',
-    { headers: { 'x-apisports-key': APISPORTS_KEY } }
-  );
+  // One API call: all WC 2026 matches
+  const espnUrl = 'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=200&dates=20260611-20260720';
+  const apiRes = await fetch(espnUrl);
+  if (!apiRes.ok) throw new Error(`ESPN API error: ${apiRes.status}`);
   const apiData = await apiRes.json();
-  const fixtures = apiData.response ?? [];
-  console.log(`Fetched ${fixtures.length} fixtures from API`);
+  const events = apiData.events ?? [];
+  console.log(`Fetched ${events.length} events from ESPN`);
 
-  if (fixtures.length === 0) { console.log('No fixtures returned. Done.'); return; }
+  if (events.length === 0) { console.log('No events returned. Done.'); return; }
 
-  // Load all current DB matches keyed by api_match_id
-  const dbMatches = await sbGet('matches?select=id,api_match_id,status,home_score,away_score');
-  const dbMap = new Map(dbMatches.map(m => [m.api_match_id, m]));
+  // Load all DB matches
+  const dbMatches = await sbGet('matches?select=id,home_team,away_team,status,home_score,away_score,stage');
+  // Key: sorted team names joined — order-independent lookup
+  const dbByPair = new Map(
+    dbMatches.map(m => [[m.home_team, m.away_team].sort().join('|||'), m])
+  );
+  console.log(`Loaded ${dbMatches.length} matches from DB`);
 
-  let newMatches = 0, updatedMatches = 0, pointsCalculated = 0;
+  let newCount = 0, updatedCount = 0, pointsCount = 0;
 
-  for (const fixture of fixtures) {
-    const { fixture: f, teams, goals, league } = fixture;
-    const apiId = String(f.id);
-    const newStatus = STATUS_MAP[f.status?.short] ?? 'scheduled';
-    const homeScore = goals.home;
-    const awayScore = goals.away;
+  for (const event of events) {
+    const comp = event.competitions?.[0];
+    if (!comp) continue;
 
-    const existing = dbMap.get(apiId);
+    const homeComp = comp.competitors.find(c => c.homeAway === 'home');
+    const awayComp = comp.competitors.find(c => c.homeAway === 'away');
+    if (!homeComp || !awayComp) continue;
+
+    const espnHome = homeComp.team.displayName;
+    const espnAway = awayComp.team.displayName;
+
+    // Skip TBD knockout matches
+    if (TBD_PATTERN.test(espnHome) || TBD_PATTERN.test(espnAway)) continue;
+
+    const dbHome = norm(espnHome);
+    const dbAway = norm(espnAway);
+    const newStatus = toStatus(comp.status.type.name);
+
+    // Scores only meaningful when live/finished (scheduled shows 0-0 in ESPN)
+    const hasScore = newStatus !== 'scheduled';
+    const espnHomeScore = hasScore ? parseInt(homeComp.score, 10) : null;
+    const espnAwayScore = hasScore ? parseInt(awayComp.score, 10) : null;
+
+    // Order-independent lookup
+    const pairKey = [dbHome, dbAway].sort().join('|||');
+    const existing = dbByPair.get(pairKey);
 
     if (!existing) {
-      // New match — knockout stage (group stage was pre-seeded)
-      const stage = ROUND_TO_STAGE[league.round] ?? 'group';
+      // New knockout match — insert
+      const slug = event.season?.slug ?? '';
+      const stage = SLUG_TO_STAGE[slug] ?? 'round_of_16';
       try {
         await sbInsert('matches', {
-          api_match_id: apiId,
-          home_team: teams.home.name,
-          away_team: teams.away.name,
-          home_team_flag: teams.home.logo,
-          away_team_flag: teams.away.logo,
-          group_name: league.round,
+          home_team: dbHome,
+          away_team: dbAway,
           stage,
-          match_time: f.date,
-          home_score: homeScore,
-          away_score: awayScore,
+          match_time: event.date,
+          home_score: espnHomeScore,
+          away_score: espnAwayScore,
           status: newStatus,
           updated_at: new Date().toISOString(),
         });
-        newMatches++;
-        console.log(`  + ${league.round}: ${teams.home.name} vs ${teams.away.name}`);
+        newCount++;
+        console.log(`  + [${stage}] ${dbHome} vs ${dbAway}`);
       } catch (e) {
-        console.error(`  ✗ Insert failed: ${e.message}`);
+        console.error(`  ✗ Insert failed for ${dbHome} vs ${dbAway}: ${e.message}`);
       }
       continue;
     }
 
-    // Existing match — only update if score/status changed
+    // Determine correct score orientation relative to the DB record
+    // ESPN home team might differ from DB home team
+    const isReversed = existing.home_team !== dbHome;
+    const homeScore = isReversed ? espnAwayScore : espnHomeScore;
+    const awayScore = isReversed ? espnHomeScore : espnAwayScore;
+
     const scoreChanged = homeScore !== existing.home_score || awayScore !== existing.away_score;
     const statusChanged = newStatus !== existing.status;
     if (!scoreChanged && !statusChanged) continue;
@@ -131,30 +166,30 @@ async function run() {
         status: newStatus,
         updated_at: new Date().toISOString(),
       });
-      updatedMatches++;
-      console.log(`  ✓ ${teams.home.name} ${homeScore ?? '?'}-${awayScore ?? '?'} ${teams.away.name} [${newStatus}]`);
+      updatedCount++;
+      console.log(`  ✓ ${existing.home_team} ${homeScore ?? '?'}–${awayScore ?? '?'} ${existing.away_team} [${newStatus}]`);
     } catch (e) {
-      console.error(`  ✗ Update failed: ${e.message}`);
+      console.error(`  ✗ Update failed for ${existing.home_team} vs ${existing.away_team}: ${e.message}`);
       continue;
     }
 
-    // Calculate points for matches that just finished
+    // Calculate points when match just finished
     if (newStatus === 'finished' && existing.status !== 'finished' && homeScore !== null && awayScore !== null) {
       try {
         const preds = await sbGet(`predictions?match_id=eq.${existing.id}&select=id,predicted_home_score,predicted_away_score`);
         for (const pred of preds) {
           const pts = calcPoints(homeScore, awayScore, pred.predicted_home_score, pred.predicted_away_score);
           await sbPatch('predictions', pred.id, { points_earned: pts });
-          pointsCalculated++;
+          pointsCount++;
         }
-        console.log(`    → scored ${preds.length} predictions`);
+        if (preds.length > 0) console.log(`    → scored ${preds.length} predictions`);
       } catch (e) {
         console.error(`    ✗ Points calc failed: ${e.message}`);
       }
     }
   }
 
-  console.log(`\nDone. ${newMatches} new matches added, ${updatedMatches} scores updated, ${pointsCalculated} predictions scored.`);
+  console.log(`\nDone. ${newCount} new matches added, ${updatedCount} scores updated, ${pointsCount} predictions scored.`);
 }
 
 run().catch(err => { console.error('Fatal:', err); process.exit(1); });
