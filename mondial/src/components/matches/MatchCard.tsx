@@ -33,7 +33,6 @@ export default function MatchCard({ match, prediction, onSave }: Props) {
     await onSave(h, a);
     setSaving(false);
     setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
   }
 
   const homeFlag = getFlag(match.home_team, match.home_team_flag);
@@ -226,7 +225,7 @@ export default function MatchCard({ match, prediction, onSave }: Props) {
             boxShadow: saved ? 'none' : '0 4px 15px rgba(34,197,94,0.25)',
           }}
         >
-          {saved ? 'נשמר ✓' : saving ? 'שומר…' : 'שמור ניחוש'}
+          {saved ? 'נשמר ✓' : saving ? 'שומר…' : prediction ? 'ערוך ניחוש' : 'שמור ניחוש'}
         </button>
       )}
     </div>
