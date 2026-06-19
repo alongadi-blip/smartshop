@@ -61,7 +61,7 @@ export default function MatchCard({ match, prediction, onSave }: Props) {
         <div className="flex items-center gap-2">
           {locked && !isFinished && <Lock size={11} color="#475569" />}
           {isFinished && (
-            <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '15px', color: '#94A3B8', letterSpacing: '0.02em' }}>
+            <span dir="ltr" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '15px', color: '#94A3B8', letterSpacing: '0.02em' }}>
               {match.home_score} – {match.away_score}
             </span>
           )}
