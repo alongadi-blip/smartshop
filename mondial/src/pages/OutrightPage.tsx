@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useMatches } from '../hooks/useMatches';
-import { isTournamentStarted } from '../utils/scoring';
+import { isOutrightLocked } from '../utils/scoring';
 import { TEAM_HE } from '../lib/i18n';
 import type { Player, OutrightPrediction } from '../types';
 
@@ -15,7 +15,7 @@ export default function OutrightPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  const locked = isTournamentStarted(matches);
+  const locked = isOutrightLocked(matches);
 
   useEffect(() => {
     supabase.from('matches').select('home_team, away_team').then(({ data }) => {
@@ -81,8 +81,8 @@ export default function OutrightPage() {
 
       <p style={{ color: locked ? '#EF4444' : '#475569', fontSize: '13px', marginBottom: '20px', paddingInline: '4px' }}>
         {locked
-          ? 'נעול — הטורניר התחיל.'
-          : '+10 נקודות לכל ניחוש נכון · ננעל בקיקאוף הראשון'}
+          ? 'נעול — שלב המוקדמות הסתיים.'
+          : '+10 נקודות לכל ניחוש נכון · ניתן לשנות עד סיום שלב המוקדמות'}
       </p>
 
       <div className="space-y-3">
