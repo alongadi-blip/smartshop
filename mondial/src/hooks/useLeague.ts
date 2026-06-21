@@ -43,10 +43,6 @@ export function useLeague() {
 
     if (error) return { league: null, error: error.message };
 
-    await supabase
-      .from('league_members')
-      .insert({ league_id: league.id, user_id: profile.id });
-
     await ctx.refreshLeagues();
     ctx.setSelectedLeague(league);
     return { league, error: null };
