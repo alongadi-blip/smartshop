@@ -135,7 +135,6 @@ function LeagueManager() {
   }
 
   async function deleteLeague(id: string) {
-    if (!confirm('למחוק ליגה זו? פעולה זו אינה הפיכה.')) return;
     await supabase.from('leagues').delete().eq('id', id);
     await refreshLeagues();
   }
