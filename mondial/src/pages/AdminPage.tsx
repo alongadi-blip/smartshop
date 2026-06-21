@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useLeague } from '../hooks/useLeague';
@@ -107,12 +107,24 @@ function ManualScoreForm({ onDone }: { onDone: (msg: string) => void }) {
 // ─── League management section ───────────────────────────────────────────────
 
 function LeagueManager() {
-  const { userLeagues, createLeague, fetchLeagueMembers, refreshLeagues } = useLeague();
+  const { createLeague, fetchLeagueMembers } = useLeague();
+  const { user } = useAuth();
+  const [allLeagues, setAllLeagues] = useState<League[]>([]);
   const [newName, setNewName] = useState('');
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [members, setMembers] = useState<Record<string, LeagueMember[]>>({});
+
+  useEffect(() => {
+    fetchAdminLeagues();
+  }, [user?.id]);
+
+  async function fetchAdminLeagues() {
+    if (!user?.id) return;
+    const { data } = await supabase.from('leagues').select('*').eq('created_by', user.id).order('created_at', { ascending: false });
+    setAllLeagues(data ?? []);
+  }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -123,6 +135,7 @@ function LeagueManager() {
     setCreating(false);
     if (error) { setCreateError(error); return; }
     setNewName('');
+    fetchAdminLeagues();
   }
 
   async function toggleLeague(league: League) {
@@ -136,7 +149,7 @@ function LeagueManager() {
 
   async function deleteLeague(id: string) {
     await supabase.from('leagues').delete().eq('id', id);
-    await refreshLeagues();
+    fetchAdminLeagues();
   }
 
   function copyInviteLink(code: string) {
@@ -166,10 +179,10 @@ function LeagueManager() {
       {createError && <p style={{ color: '#EF4444', fontSize: '12px' }}>{createError}</p>}
 
       {/* Existing leagues */}
-      {userLeagues.length === 0 && (
+      {allLeagues.length === 0 && (
         <p style={{ color: '#334155', fontSize: '13px', fontFamily: "'Barlow', sans-serif" }}>אין ליגות עדיין.</p>
       )}
-      {userLeagues.map(league => (
+      {allLeagues.map(league => (
         <div key={league.id} style={{ background: 'var(--bg-card2)', border: '1px solid var(--border-2)', borderRadius: '12px', overflow: 'hidden' }}>
           <div className="flex items-center gap-2 p-3">
             <button onClick={() => toggleLeague(league)} className="flex-1 text-right cursor-pointer">
