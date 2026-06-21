@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { useMatches, useUserPredictions } from '../hooks/useMatches';
 import { useAuth } from '../hooks/useAuth';
+import { useLeagueContext } from '../contexts/LeagueContext';
 import MatchCard from '../components/matches/MatchCard';
 import type { Match } from '../types';
 
@@ -20,7 +21,8 @@ function dateLabel(matchTime: string): string {
 export default function MatchesPage() {
   const { matches, loading } = useMatches();
   const { profile } = useAuth();
-  const { predictions, savePrediction } = useUserPredictions(profile?.id);
+  const { selectedLeague } = useLeagueContext();
+  const { predictions, savePrediction } = useUserPredictions(profile?.id, selectedLeague?.id);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
   // Collapse past dates once matches load
@@ -112,7 +114,10 @@ export default function MatchesPage() {
                       key={match.id}
                       match={match}
                       prediction={predictions[match.id]}
-                      onSave={(home, away) => savePrediction(match.id, home, away)}
+                      leagueId={selectedLeague?.id}
+                      onSave={(home, away, etHome, etAway, penWinner) =>
+                        savePrediction(match.id, home, away, etHome, etAway, penWinner)
+                      }
                     />
                   ))}
                 </div>

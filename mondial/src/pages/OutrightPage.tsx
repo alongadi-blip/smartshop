@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useMatches } from '../hooks/useMatches';
+import { useLeagueContext } from '../contexts/LeagueContext';
 import { isOutrightLocked } from '../utils/scoring';
 import { TEAM_HE } from '../lib/i18n';
 import type { Player, OutrightPrediction } from '../types';
@@ -9,6 +10,7 @@ import type { Player, OutrightPrediction } from '../types';
 export default function OutrightPage() {
   const { profile } = useAuth();
   const { matches } = useMatches();
+  const { selectedLeague } = useLeagueContext();
   const [teams, setTeams] = useState<string[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
   const [outright, setOutright] = useState<Partial<OutrightPrediction>>({});
@@ -29,24 +31,29 @@ export default function OutrightPage() {
     });
 
     if (profile?.id) {
-      supabase.from('outright_predictions').select('*').eq('user_id', profile.id).single()
-        .then(({ data }) => { if (data) setOutright(data); });
+      let q = supabase.from('outright_predictions').select('*').eq('user_id', profile.id);
+      if (selectedLeague) q = q.eq('league_id', selectedLeague.id);
+      else q = q.is('league_id', null);
+      q.limit(1).single().then(({ data }) => { if (data) setOutright(data); });
     }
-  }, [profile?.id]);
+  }, [profile?.id, selectedLeague?.id]);
 
   async function handleSave() {
     if (!profile?.id || locked) return;
     setSaving(true);
-    await supabase.from('outright_predictions').upsert({
+    const payload: any = {
       user_id: profile.id,
       predicted_winner_team: outright.predicted_winner_team,
       predicted_top_scorer_id: outright.predicted_top_scorer_id ?? null,
       predicted_top_scorer_name: outright.predicted_top_scorer_name ?? null,
       updated_at: new Date().toISOString(),
-    }, { onConflict: 'user_id' });
+    };
+    if (selectedLeague) payload.league_id = selectedLeague.id;
+
+    const conflictCol = selectedLeague ? 'user_id,league_id' : 'user_id';
+    await supabase.from('outright_predictions').upsert(payload, { onConflict: conflictCol });
     setSaving(false);
     setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
   }
 
   const selectStyle = {
@@ -66,16 +73,16 @@ export default function OutrightPage() {
   return (
     <div className="max-w-2xl mx-auto px-3 py-4 pb-8">
       <div className="flex items-center gap-3 mb-2 px-1">
-        <h1 style={{
-          fontFamily: "'Barlow Condensed', sans-serif",
-          fontWeight: 800,
-          fontSize: '22px',
-          textTransform: 'uppercase',
-          letterSpacing: '0.08em',
-          color: '#F1F5F9',
-        }}>
-          בחירות טורניר
-        </h1>
+        <div>
+          <h1 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: '22px', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#F1F5F9', margin: 0 }}>
+            בחירות טורניר
+          </h1>
+          {selectedLeague && (
+            <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: '12px', color: '#22C55E', marginTop: '2px', letterSpacing: '0.05em' }}>
+              {selectedLeague.name}
+            </div>
+          )}
+        </div>
         <div className="flex-1 h-px" style={{ background: '#1E2D45' }} />
       </div>
 
@@ -88,16 +95,7 @@ export default function OutrightPage() {
       <div className="space-y-3">
         {/* Winner */}
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)', borderRadius: '16px', padding: '16px' }}>
-          <label style={{
-            display: 'block',
-            fontFamily: "'Barlow Condensed', sans-serif",
-            fontWeight: 700,
-            fontSize: '13px',
-            textTransform: 'uppercase',
-            letterSpacing: '0.1em',
-            color: '#F59E0B',
-            marginBottom: '12px',
-          }}>
+          <label style={{ display: 'block', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#F59E0B', marginBottom: '12px' }}>
             מנצח הגביע
           </label>
           <div style={{ position: 'relative' }}>
@@ -115,16 +113,7 @@ export default function OutrightPage() {
 
         {/* Top Scorer */}
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)', borderRadius: '16px', padding: '16px' }}>
-          <label style={{
-            display: 'block',
-            fontFamily: "'Barlow Condensed', sans-serif",
-            fontWeight: 700,
-            fontSize: '13px',
-            textTransform: 'uppercase',
-            letterSpacing: '0.1em',
-            color: '#3B82F6',
-            marginBottom: '12px',
-          }}>
+          <label style={{ display: 'block', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#3B82F6', marginBottom: '12px' }}>
             מלך השערים
           </label>
           {players.length > 0 ? (
@@ -146,10 +135,7 @@ export default function OutrightPage() {
               placeholder="הכנס שם שחקן (לדוגמה: Mbappé)"
               value={outright.predicted_top_scorer_name ?? ''}
               onChange={(e) => setOutright((o) => ({ ...o, predicted_top_scorer_name: e.target.value, predicted_top_scorer_id: undefined }))}
-              style={{
-                ...selectStyle,
-                cursor: locked ? 'not-allowed' : 'text',
-              }}
+              style={{ ...selectStyle, cursor: locked ? 'not-allowed' : 'text' }}
               onFocus={e => { if (!locked) e.currentTarget.style.border = '1px solid #3B82F6'; }}
               onBlur={e => (e.currentTarget.style.border = '1px solid #2A3F5F')}
             />
@@ -164,12 +150,7 @@ export default function OutrightPage() {
               { label: 'מלך שערים נכון', pts: '+10 נק׳', color: '#3B82F6' },
             ].map(({ label, pts, color }) => (
               <div key={label} className="flex-1 text-center">
-                <div style={{
-                  fontFamily: "'Barlow Condensed', sans-serif",
-                  fontWeight: 800,
-                  fontSize: '20px',
-                  color,
-                }}>
+                <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: '20px', color }}>
                   {pts}
                 </div>
                 <div style={{ color: '#475569', fontSize: '11px', marginTop: '2px' }}>{label}</div>

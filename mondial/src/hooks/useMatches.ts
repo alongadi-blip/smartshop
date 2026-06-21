@@ -9,7 +9,6 @@ export function useMatches() {
   useEffect(() => {
     fetchMatches();
 
-    // Live updates via Supabase Realtime
     const channel = supabase
       .channel('matches')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, () => {
@@ -32,35 +31,60 @@ export function useMatches() {
   return { matches, loading };
 }
 
-export function useUserPredictions(userId: string | undefined) {
+export function useUserPredictions(userId: string | undefined, leagueId?: string | null) {
   const [predictions, setPredictions] = useState<Record<string, Prediction>>({});
 
   useEffect(() => {
     if (!userId) return;
-    supabase
-      .from('predictions')
-      .select('*')
-      .eq('user_id', userId)
-      .then(({ data }) => {
-        const map: Record<string, Prediction> = {};
-        (data ?? []).forEach((p) => { map[p.match_id] = p; });
-        setPredictions(map);
-      });
-  }, [userId]);
+    let q = supabase.from('predictions').select('*').eq('user_id', userId);
+    if (leagueId) q = q.eq('league_id', leagueId);
+    else q = q.is('league_id', null);
+    q.then(({ data }) => {
+      const map: Record<string, Prediction> = {};
+      (data ?? []).forEach((p) => { map[p.match_id] = p; });
+      setPredictions(map);
+    });
+  }, [userId, leagueId]);
 
-  async function savePrediction(matchId: string, home: number, away: number) {
+  async function savePrediction(
+    matchId: string,
+    home: number,
+    away: number,
+    etHome?: number,
+    etAway?: number,
+    penaltyWinner?: string
+  ) {
     if (!userId) return;
+
+    const payload: any = {
+      user_id: userId,
+      match_id: matchId,
+      predicted_home_score: home,
+      predicted_away_score: away,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (leagueId) {
+      payload.league_id = leagueId;
+      if (etHome !== undefined && etAway !== undefined) {
+        payload.predicted_et_home_score = etHome;
+        payload.predicted_et_away_score = etAway;
+      }
+      if (penaltyWinner !== undefined) {
+        payload.predicted_penalty_winner = penaltyWinner || null;
+      }
+    }
+
+    const conflictCol = leagueId
+      ? 'user_id,match_id,league_id'
+      : 'user_id,match_id';
+
     const { data } = await supabase
       .from('predictions')
-      .upsert({
-        user_id: userId,
-        match_id: matchId,
-        predicted_home_score: home,
-        predicted_away_score: away,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'user_id,match_id' })
+      .upsert(payload, { onConflict: conflictCol })
       .select()
       .single();
+
     if (data) setPredictions((prev) => ({ ...prev, [matchId]: data }));
   }
 

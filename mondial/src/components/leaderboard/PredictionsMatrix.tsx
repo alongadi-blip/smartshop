@@ -28,7 +28,7 @@ interface PredRow {
   points_earned: number | null;
 }
 
-export default function PredictionsMatrix() {
+export default function PredictionsMatrix({ leagueId }: { leagueId?: string }) {
   const [players, setPlayers] = useState<PlayerRow[]>([]);
   const [matches, setMatches] = useState<MatchRow[]>([]);
   const [preds, setPreds] = useState<Map<string, PredRow>>(new Map());
@@ -36,14 +36,28 @@ export default function PredictionsMatrix() {
 
   useEffect(() => {
     async function load() {
-      const [{ data: profiles }, { data: matchData }, { data: predData }] = await Promise.all([
-        supabase.from('profiles').select('id, display_name').order('display_name'),
+      // Fetch players: league members if leagueId, otherwise all profiles
+      const playersQ = leagueId
+        ? supabase.from('league_members').select('user_id, profiles(id, display_name)').eq('league_id', leagueId)
+        : supabase.from('profiles').select('id, display_name').order('display_name');
+
+      let predsQ = supabase.from('predictions').select('user_id, match_id, predicted_home_score, predicted_away_score, points_earned');
+      if (leagueId) predsQ = predsQ.eq('league_id', leagueId);
+      else predsQ = predsQ.is('league_id', null);
+
+      const [{ data: profilesRaw }, { data: matchData }, { data: predData }] = await Promise.all([
+        playersQ,
         supabase.from('matches').select('id, home_team, away_team, home_score, away_score, match_time, group_name, status')
           .order('match_time', { ascending: true }),
-        supabase.from('predictions').select('user_id, match_id, predicted_home_score, predicted_away_score, points_earned'),
+        predsQ,
       ]);
 
-      setPlayers(profiles ?? []);
+      // Normalize to same shape regardless of query type
+      const profiles: PlayerRow[] = leagueId
+        ? (profilesRaw ?? []).map((m: any) => ({ id: m.profiles?.id ?? m.user_id, display_name: m.profiles?.display_name ?? '?' }))
+        : (profilesRaw ?? []) as PlayerRow[];
+
+      setPlayers(profiles);
       // Only show locked/finished matches
       const locked = (matchData ?? []).filter(m => new Date(m.match_time) <= new Date(Date.now() + 5 * 60 * 1000));
       setMatches(locked);

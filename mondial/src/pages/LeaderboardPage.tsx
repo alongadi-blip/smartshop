@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useLeaderboard } from '../hooks/useLeaderboard';
 import { useAuth } from '../hooks/useAuth';
+import { useLeagueContext } from '../contexts/LeagueContext';
 import PlayerDetailModal from '../components/leaderboard/PlayerDetailModal';
 import PredictionsMatrix from '../components/leaderboard/PredictionsMatrix';
 import type { LeaderboardEntry } from '../types';
@@ -9,7 +10,8 @@ const MEDAL_COLORS = ['#F59E0B', '#94A3B8', '#CD7F32'];
 const RANK_LABELS = ['1', '2', '3'];
 
 export default function LeaderboardPage() {
-  const { entries, loading } = useLeaderboard();
+  const { selectedLeague } = useLeagueContext();
+  const { entries, loading } = useLeaderboard(selectedLeague?.id);
   const { profile } = useAuth();
   const [selected, setSelected] = useState<LeaderboardEntry | null>(null);
   const [tab, setTab] = useState<'rankings' | 'predictions'>('rankings');
@@ -27,11 +29,18 @@ export default function LeaderboardPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-3 py-4 pb-8">
-      {/* Header + Tabs */}
+      {/* Header */}
       <div className="flex items-center gap-3 mb-4 px-1">
-        <h1 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: '22px', letterSpacing: '0.03em', color: '#F1F5F9' }}>
-          טבלת ניקוד
-        </h1>
+        <div>
+          <h1 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: '22px', letterSpacing: '0.03em', color: '#F1F5F9', margin: 0 }}>
+            טבלת ניקוד
+          </h1>
+          {selectedLeague && (
+            <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: '12px', color: '#22C55E', marginTop: '2px', letterSpacing: '0.05em' }}>
+              {selectedLeague.name}
+            </div>
+          )}
+        </div>
         <div className="flex-1 h-px" style={{ background: '#1E2D45' }} />
       </div>
 
@@ -65,7 +74,9 @@ export default function LeaderboardPage() {
         <>
           {entries.length === 0 ? (
             <div className="text-center py-20">
-              <p style={{ color: '#334155', fontFamily: "'Barlow Condensed', sans-serif", fontSize: '18px' }}>אין ניקוד עדיין</p>
+              <p style={{ color: '#334155', fontFamily: "'Barlow Condensed', sans-serif", fontSize: '18px' }}>
+                {selectedLeague ? 'אין ניחושים בליגה זו עדיין' : 'אין ניקוד עדיין'}
+              </p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -144,7 +155,7 @@ export default function LeaderboardPage() {
         </>
       )}
 
-      {tab === 'predictions' && <PredictionsMatrix />}
+      {tab === 'predictions' && <PredictionsMatrix leagueId={selectedLeague?.id} />}
 
       {selected && (
         <PlayerDetailModal entry={selected} onClose={() => setSelected(null)} />

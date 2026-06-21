@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
+import { useLeague } from '../hooks/useLeague';
 import { calculateMatchPoints } from '../utils/scoring';
+import type { League, LeagueMember } from '../types';
 
 const ADMIN_EMAIL = 'alon.gadi@gmail.com';
 
@@ -24,6 +26,8 @@ const cardStyle = {
   padding: '18px',
 };
 
+// ─── Manual score form ────────────────────────────────────────────────────────
+
 function ManualScoreForm({ onDone }: { onDone: (msg: string) => void }) {
   const [matches, setMatches] = useState<any[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -32,7 +36,7 @@ function ManualScoreForm({ onDone }: { onDone: (msg: string) => void }) {
     if (loaded) return;
     const { data } = await supabase
       .from('matches')
-      .select('id, home_team, away_team, home_score, away_score, status')
+      .select('id, home_team, away_team, home_score, away_score, status, stage')
       .order('match_time', { ascending: true });
     setMatches(data ?? []);
     setLoaded(true);
@@ -72,27 +76,23 @@ function ManualScoreForm({ onDone }: { onDone: (msg: string) => void }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
       <select
-        name="match_id"
-        required
-        defaultValue=""
+        name="match_id" required defaultValue=""
         onFocus={loadMatches}
         style={{ ...inputStyle, cursor: 'pointer', appearance: 'none' as const }}
       >
         <option value="" disabled>בחר משחק…</option>
         {matches.map(m => (
           <option key={m.id} value={m.id}>
-            {m.home_team} vs {m.away_team}
+            [{m.stage}] {m.home_team} vs {m.away_team}
             {m.status === 'finished' ? ` [${m.home_score}-${m.away_score}]` : ''}
           </option>
         ))}
       </select>
       <div className="grid grid-cols-2 gap-3">
-        <input name="home_score" type="number" min="0" max="20" required placeholder="שערים - בית"
-          style={inputStyle}
+        <input name="home_score" type="number" min="0" max="20" required placeholder="שערים - בית" style={inputStyle}
           onFocus={e => (e.currentTarget.style.border = '1px solid #22C55E')}
           onBlur={e => (e.currentTarget.style.border = '1px solid #2A3F5F')} />
-        <input name="away_score" type="number" min="0" max="20" required placeholder="שערים - חוץ"
-          style={inputStyle}
+        <input name="away_score" type="number" min="0" max="20" required placeholder="שערים - חוץ" style={inputStyle}
           onFocus={e => (e.currentTarget.style.border = '1px solid #22C55E')}
           onBlur={e => (e.currentTarget.style.border = '1px solid #2A3F5F')} />
       </div>
@@ -104,9 +104,122 @@ function ManualScoreForm({ onDone }: { onDone: (msg: string) => void }) {
   );
 }
 
+// ─── League management section ───────────────────────────────────────────────
+
+function LeagueManager() {
+  const { userLeagues, createLeague, fetchLeagueMembers, refreshLeagues } = useLeague();
+  const [newName, setNewName] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState('');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [members, setMembers] = useState<Record<string, LeagueMember[]>>({});
+
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newName.trim()) return;
+    setCreating(true);
+    setCreateError('');
+    const { error } = await createLeague(newName.trim());
+    setCreating(false);
+    if (error) { setCreateError(error); return; }
+    setNewName('');
+  }
+
+  async function toggleLeague(league: League) {
+    if (expandedId === league.id) { setExpandedId(null); return; }
+    setExpandedId(league.id);
+    if (!members[league.id]) {
+      const m = await fetchLeagueMembers(league.id);
+      setMembers(prev => ({ ...prev, [league.id]: m }));
+    }
+  }
+
+  async function deleteLeague(id: string) {
+    if (!confirm('למחוק ליגה זו? פעולה זו אינה הפיכה.')) return;
+    await supabase.from('leagues').delete().eq('id', id);
+    await refreshLeagues();
+  }
+
+  function copyInviteLink(code: string) {
+    const url = `${window.location.origin}/join/${code}`;
+    navigator.clipboard.writeText(url);
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* Create league */}
+      <form onSubmit={handleCreate} className="flex gap-2">
+        <input
+          type="text"
+          value={newName}
+          onChange={e => setNewName(e.target.value)}
+          placeholder="שם הליגה החדשה…"
+          maxLength={40}
+          style={{ ...inputStyle, flex: 1 }}
+          onFocus={e => (e.currentTarget.style.border = '1px solid #22C55E')}
+          onBlur={e => (e.currentTarget.style.border = '1px solid #2A3F5F')}
+        />
+        <button type="submit" disabled={creating || !newName.trim()} className="cursor-pointer disabled:opacity-40"
+          style={{ background: 'linear-gradient(135deg, #16A34A, #22C55E)', border: 'none', borderRadius: '10px', padding: '10px 14px', color: 'white', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '13px', letterSpacing: '0.05em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+          {creating ? '…' : 'צור ליגה'}
+        </button>
+      </form>
+      {createError && <p style={{ color: '#EF4444', fontSize: '12px' }}>{createError}</p>}
+
+      {/* Existing leagues */}
+      {userLeagues.length === 0 && (
+        <p style={{ color: '#334155', fontSize: '13px', fontFamily: "'Barlow', sans-serif" }}>אין ליגות עדיין.</p>
+      )}
+      {userLeagues.map(league => (
+        <div key={league.id} style={{ background: 'var(--bg-card2)', border: '1px solid var(--border-2)', borderRadius: '12px', overflow: 'hidden' }}>
+          <div className="flex items-center gap-2 p-3">
+            <button onClick={() => toggleLeague(league)} className="flex-1 text-right cursor-pointer">
+              <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '15px', color: '#E2E8F0' }}>
+                {league.name}
+              </div>
+              <div style={{ color: '#475569', fontSize: '11px', marginTop: '2px', fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: '0.05em' }}>
+                קוד: <span style={{ color: '#818CF8' }}>{league.invite_code}</span>
+              </div>
+            </button>
+            <button onClick={() => copyInviteLink(league.invite_code)} className="cursor-pointer"
+              style={{ padding: '5px 10px', background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.3)', borderRadius: '8px', color: '#818CF8', fontSize: '11px', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 600, letterSpacing: '0.03em', whiteSpace: 'nowrap' }}>
+              העתק לינק
+            </button>
+            <button onClick={() => deleteLeague(league.id)} className="cursor-pointer"
+              style={{ padding: '5px 8px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '8px', color: '#EF4444', fontSize: '11px', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 600 }}>
+              מחק
+            </button>
+          </div>
+
+          {expandedId === league.id && (
+            <div style={{ borderTop: '1px solid var(--border-2)' }}>
+              {(members[league.id] ?? []).length === 0 ? (
+                <p style={{ padding: '10px 14px', color: '#334155', fontSize: '13px' }}>אין חברים עדיין.</p>
+              ) : (
+                (members[league.id] ?? []).map((m, idx) => (
+                  <div key={m.id} style={{ padding: '8px 14px', borderBottom: idx < (members[league.id] ?? []).length - 1 ? '1px solid #0A1020' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontFamily: "'Barlow', sans-serif", fontSize: '13px', color: '#94A3B8' }}>
+                      {m.profiles?.display_name ?? '?'}
+                    </span>
+                    <span style={{ color: '#334155', fontSize: '11px' }}>
+                      {new Date(m.joined_at).toLocaleDateString('he-IL')}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Main AdminPage ───────────────────────────────────────────────────────────
+
 export default function AdminPage() {
   const { user } = useAuth();
-  const [syncStatus, setSyncStatus] = useState('');
+  const [status, setSyncStatus] = useState('');
   const [newMatch, setNewMatch] = useState({ home_team: '', away_team: '', group_name: '', match_time: '', api_match_id: '' });
   const [addStatus, setAddStatus] = useState('');
 
@@ -118,85 +231,6 @@ export default function AdminPage() {
         </p>
       </div>
     );
-  }
-
-  async function handleSync() {
-    setSyncStatus('Fetching from API-Football...');
-    try {
-      const res = await fetch('https://v3.football.api-sports.io/fixtures?league=1&season=2026',
-        { headers: { 'x-apisports-key': import.meta.env.VITE_APISPORTS_KEY } });
-      const data = await res.json();
-      const fixtures = data.response ?? [];
-      if (fixtures.length === 0) { setSyncStatus('API returned 0 fixtures.'); return; }
-
-      const statusMap: Record<string, string> = {
-        'NS': 'scheduled', 'TBD': 'scheduled', '1H': 'live', 'HT': 'live', '2H': 'live',
-        'ET': 'live', 'P': 'live', 'FT': 'finished', 'AET': 'finished', 'PEN': 'finished',
-        'PST': 'postponed', 'CANC': 'postponed',
-      };
-
-      let upserted = 0;
-      for (const fixture of fixtures) {
-        const { fixture: f, teams, goals, league } = fixture;
-        await supabase.from('matches').upsert({
-          api_match_id: String(f.id), home_team: teams.home.name, away_team: teams.away.name,
-          home_team_flag: teams.home.logo, away_team_flag: teams.away.logo,
-          group_name: league.round, stage: 'group', match_time: f.date,
-          home_score: goals.home, away_score: goals.away,
-          status: statusMap[f.status?.short] ?? 'scheduled', updated_at: new Date().toISOString(),
-        }, { onConflict: 'api_match_id' });
-        upserted++;
-      }
-      setSyncStatus(`Done! Synced ${upserted} matches.`);
-    } catch (e: any) { setSyncStatus(`Error: ${e.message}`); }
-  }
-
-  async function handleScoreUpdate() {
-    setSyncStatus('Updating scores and calculating points...');
-    try {
-      const { data: notFinished } = await supabase
-        .from('matches').select('api_match_id, id')
-        .neq('status', 'finished').not('api_match_id', 'like', 'manual-%');
-
-      let matchesUpdated = 0, pointsUpdated = 0;
-
-      for (const m of notFinished ?? []) {
-        const res = await fetch(`https://v3.football.api-sports.io/fixtures?id=${m.api_match_id}`,
-          { headers: { 'x-apisports-key': import.meta.env.VITE_APISPORTS_KEY } });
-        const data = await res.json();
-        const fixture = data.response?.[0];
-        if (!fixture) continue;
-
-        const statusMap: Record<string, string> = {
-          'FT': 'finished', 'AET': 'finished', 'PEN': 'finished',
-          '1H': 'live', 'HT': 'live', '2H': 'live',
-        };
-        const newStatus = statusMap[fixture.fixture.status?.short];
-        if (!newStatus) continue;
-
-        const homeScore = fixture.goals.home;
-        const awayScore = fixture.goals.away;
-
-        await supabase.from('matches').update({
-          home_score: homeScore, away_score: awayScore,
-          status: newStatus, updated_at: new Date().toISOString(),
-        }).eq('id', m.id);
-        matchesUpdated++;
-
-        if (newStatus === 'finished' && homeScore !== null && awayScore !== null) {
-          const { data: preds } = await supabase
-            .from('predictions').select('id, predicted_home_score, predicted_away_score')
-            .eq('match_id', m.id);
-
-          for (const pred of preds ?? []) {
-            const pts = calculateMatchPoints({ home_score: homeScore, away_score: awayScore } as any, pred as any);
-            await supabase.from('predictions').update({ points_earned: pts }).eq('id', pred.id);
-            pointsUpdated++;
-          }
-        }
-      }
-      setSyncStatus(`Done! ${matchesUpdated} matches updated, ${pointsUpdated} predictions scored.`);
-    } catch (e: any) { setSyncStatus(`Error: ${e.message}`); }
   }
 
   async function handleAddMatch(e: React.FormEvent) {
@@ -221,32 +255,26 @@ export default function AdminPage() {
         <div className="flex-1 h-px" style={{ background: '#1E2D45' }} />
       </div>
 
+      {/* ── League management ── */}
       <div style={cardStyle}>
-        <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#94A3B8', marginBottom: '12px' }}>
-          סנכרון API
+        <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#818CF8', marginBottom: '14px' }}>
+          ניהול ליגות
         </h2>
-        <div className="flex gap-2 flex-wrap">
-          <button onClick={handleSync} className="cursor-pointer"
-            style={{ background: '#1E3A2F', border: '1px solid rgba(34,197,94,0.3)', color: '#22C55E', borderRadius: '10px', padding: '9px 16px', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '13px', textTransform: 'uppercase' }}>
-            סנכרן משחקים
-          </button>
-          <button onClick={handleScoreUpdate} className="cursor-pointer"
-            style={{ background: '#1A2A45', border: '1px solid rgba(59,130,246,0.3)', color: '#3B82F6', borderRadius: '10px', padding: '9px 16px', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '13px', textTransform: 'uppercase' }}>
-            עדכן תוצאות + נקודות
-          </button>
-        </div>
-        {syncStatus && (
-          <p style={{ marginTop: '12px', fontSize: '13px', color: syncStatus.startsWith('Error') ? '#EF4444' : '#22C55E' }}>{syncStatus}</p>
-        )}
+        <LeagueManager />
       </div>
 
+      {/* ── Manual score ── */}
       <div style={cardStyle}>
         <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#94A3B8', marginBottom: '14px' }}>
           הגדר תוצאת משחק
         </h2>
         <ManualScoreForm onDone={setSyncStatus} />
+        {status && (
+          <p style={{ marginTop: '10px', fontSize: '13px', color: status.startsWith('Error') ? '#EF4444' : '#22C55E' }}>{status}</p>
+        )}
       </div>
 
+      {/* ── Add match manually ── */}
       <div style={cardStyle}>
         <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#94A3B8', marginBottom: '14px' }}>
           הוסף משחק ידנית
@@ -263,7 +291,7 @@ export default function AdminPage() {
               onBlur={e => (e.currentTarget.style.border = '1px solid #2A3F5F')} />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <input placeholder="קבוצה (לדוגמה: Group A)" value={newMatch.group_name}
+            <input placeholder="Group A" value={newMatch.group_name}
               onChange={e => setNewMatch(m => ({ ...m, group_name: e.target.value }))} style={inputStyle}
               onFocus={e => (e.currentTarget.style.border = '1px solid #22C55E')}
               onBlur={e => (e.currentTarget.style.border = '1px solid #2A3F5F')} />

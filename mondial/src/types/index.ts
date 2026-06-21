@@ -7,7 +7,14 @@ export interface Profile {
 }
 
 export type MatchStatus = 'scheduled' | 'live' | 'finished' | 'postponed';
-export type MatchStage = 'group' | 'round_of_16' | 'quarter_final' | 'semi_final' | 'third_place' | 'final';
+export type MatchStage =
+  | 'group'
+  | 'round_of_32'
+  | 'round_of_16'
+  | 'quarter_final'
+  | 'semi_final'
+  | 'third_place'
+  | 'final';
 
 export interface Match {
   id: string;
@@ -22,6 +29,11 @@ export interface Match {
   home_score?: number;
   away_score?: number;
   status: MatchStatus;
+  // Knockout extra-time / penalty data
+  went_to_et?: boolean;
+  et_home_score?: number;
+  et_away_score?: number;
+  penalty_winner?: string;
 }
 
 export interface Player {
@@ -37,9 +49,15 @@ export interface Prediction {
   id: string;
   user_id: string;
   match_id: string;
+  league_id?: string;
   predicted_home_score: number;
   predicted_away_score: number;
+  predicted_et_home_score?: number;
+  predicted_et_away_score?: number;
+  predicted_penalty_winner?: string;
   points_earned?: number;
+  et_points_earned?: number;
+  penalty_points_earned?: number;
   submitted_at: string;
   updated_at: string;
 }
@@ -47,6 +65,7 @@ export interface Prediction {
 export interface OutrightPrediction {
   id: string;
   user_id: string;
+  league_id?: string;
   predicted_winner_team?: string;
   predicted_top_scorer_id?: string;
   predicted_top_scorer_name?: string;
@@ -54,6 +73,22 @@ export interface OutrightPrediction {
   scorer_points: number;
   submitted_at: string;
   updated_at: string;
+}
+
+export interface League {
+  id: string;
+  name: string;
+  invite_code: string;
+  created_by: string;
+  created_at: string;
+}
+
+export interface LeagueMember {
+  id: string;
+  league_id: string;
+  user_id: string;
+  joined_at: string;
+  profiles?: { display_name: string; avatar_url?: string };
 }
 
 export interface LeaderboardEntry {

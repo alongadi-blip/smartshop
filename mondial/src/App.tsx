@@ -1,15 +1,101 @@
 import { useState } from 'react';
-import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
-import { Trophy, LayoutList, Star, Sun, Moon, Grid2X2 } from 'lucide-react';
+import { BrowserRouter, Routes, Route, NavLink, Navigate, useNavigate } from 'react-router-dom';
+import { Trophy, LayoutList, Star, Sun, Moon, Grid2X2, ChevronDown } from 'lucide-react';
 import { useAuth } from './hooks/useAuth';
 import { useTheme } from './lib/theme';
+import { LeagueProvider, useLeagueContext } from './contexts/LeagueContext';
 import LoginPage from './pages/LoginPage';
 import MatchesPage from './pages/MatchesPage';
 import LeaderboardPage from './pages/LeaderboardPage';
 import OutrightPage from './pages/OutrightPage';
 import AdminPage from './pages/AdminPage';
 import GroupsPage from './pages/GroupsPage';
+import JoinLeaguePage from './pages/JoinLeaguePage';
+import LeagueSelectorPage from './pages/LeagueSelectorPage';
 import RulesModal from './components/RulesModal';
+
+// League picker in the header
+function LeaguePicker() {
+  const { selectedLeague, userLeagues, setSelectedLeague } = useLeagueContext();
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+
+  if (userLeagues.length === 0) return null;
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="cursor-pointer flex items-center gap-1.5 transition-all duration-200"
+        style={{
+          background: 'rgba(99,102,241,0.12)',
+          border: '1px solid rgba(99,102,241,0.3)',
+          borderRadius: '999px',
+          padding: '5px 10px',
+          color: '#818CF8',
+          fontFamily: "'Barlow Condensed', sans-serif",
+          fontWeight: 600,
+          fontSize: '12px',
+          letterSpacing: '0.03em',
+          maxWidth: '120px',
+        }}
+      >
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {selectedLeague?.name ?? 'ליגה'}
+        </span>
+        <ChevronDown size={12} />
+      </button>
+
+      {open && (
+        <>
+          {/* Backdrop */}
+          <div style={{ position: 'fixed', inset: 0, zIndex: 49 }} onClick={() => setOpen(false)} />
+          {/* Dropdown */}
+          <div style={{
+            position: 'absolute',
+            top: 'calc(100% + 6px)',
+            left: 0,
+            minWidth: '160px',
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border-card)',
+            borderRadius: '12px',
+            overflow: 'hidden',
+            zIndex: 50,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+          }}>
+            {userLeagues.map((league, idx) => (
+              <button
+                key={league.id}
+                onClick={() => { setSelectedLeague(league); setOpen(false); }}
+                className="w-full text-right cursor-pointer transition-colors duration-150"
+                style={{
+                  padding: '10px 14px',
+                  borderBottom: idx < userLeagues.length - 1 ? '1px solid var(--border-2)' : 'none',
+                  background: selectedLeague?.id === league.id ? 'rgba(99,102,241,0.12)' : 'transparent',
+                  color: selectedLeague?.id === league.id ? '#818CF8' : '#94A3B8',
+                  fontFamily: "'Barlow Condensed', sans-serif",
+                  fontWeight: 600,
+                  fontSize: '13px',
+                  letterSpacing: '0.03em',
+                  direction: 'rtl',
+                }}
+              >
+                {league.name}
+              </button>
+            ))}
+            <button
+              onClick={() => { setOpen(false); navigate('/league-select'); }}
+              className="w-full cursor-pointer"
+              style={{ padding: '9px 14px', color: '#475569', fontFamily: "'Barlow Condensed', sans-serif", fontSize: '12px', borderTop: '1px solid var(--border-2)', background: 'transparent', direction: 'rtl', letterSpacing: '0.03em' }}
+            >
+              + הצטרף לליגה
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 function Layout() {
   const { profile, signOut } = useAuth();
@@ -30,22 +116,17 @@ function Layout() {
         </span>
 
         <div className="flex items-center gap-2">
+          <LeaguePicker />
+
           <button
             onClick={() => setShowRules(true)}
             className="cursor-pointer transition-all duration-200"
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              background: 'rgba(34,197,94,0.12)',
-              border: '1px solid rgba(34,197,94,0.35)',
-              borderRadius: '999px',
-              padding: '5px 12px',
-              color: '#22C55E',
-              fontFamily: "'Barlow Condensed', sans-serif",
-              fontWeight: 700,
-              fontSize: '13px',
-              letterSpacing: '0.03em',
+              display: 'flex', alignItems: 'center', gap: '6px',
+              background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.35)',
+              borderRadius: '999px', padding: '5px 12px',
+              color: '#22C55E', fontFamily: "'Barlow Condensed', sans-serif",
+              fontWeight: 700, fontSize: '13px', letterSpacing: '0.03em',
             }}
             onMouseEnter={e => (e.currentTarget.style.background = 'rgba(34,197,94,0.2)')}
             onMouseLeave={e => (e.currentTarget.style.background = 'rgba(34,197,94,0.12)')}
@@ -58,17 +139,7 @@ function Layout() {
           <button
             onClick={toggle}
             className="cursor-pointer transition-all duration-200"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '32px',
-              height: '32px',
-              borderRadius: '50%',
-              background: 'var(--bg-input)',
-              border: '1px solid var(--border-card)',
-              color: 'var(--text-5)',
-            }}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '50%', background: 'var(--bg-input)', border: '1px solid var(--border-card)', color: 'var(--text-5)' }}
             aria-label="החלף ערכת נושא"
           >
             {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
@@ -92,6 +163,8 @@ function Layout() {
           <Route path="/leaderboard" element={<LeaderboardPage />} />
           <Route path="/outright" element={<OutrightPage />} />
           <Route path="/admin" element={<AdminPage />} />
+          <Route path="/join/:code" element={<JoinLeaguePage />} />
+          <Route path="/league-select" element={<LeagueSelectorPage />} />
         </Routes>
       </main>
 
@@ -138,11 +211,20 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function AppWithLeague() {
+  const { user } = useAuth();
+  return (
+    <LeagueProvider userId={user?.id}>
+      <Layout />
+    </LeagueProvider>
+  );
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <AuthGuard>
-        <Layout />
+        <AppWithLeague />
       </AuthGuard>
     </BrowserRouter>
   );
