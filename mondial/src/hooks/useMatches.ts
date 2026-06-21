@@ -37,8 +37,10 @@ export function useUserPredictions(userId: string | undefined, leagueId?: string
   useEffect(() => {
     if (!userId) return;
     let q = supabase.from('predictions').select('*').eq('user_id', userId);
-    if (leagueId) q = q.eq('league_id', leagueId);
-    // When no leagueId: return all predictions (group stage has no league_id column yet)
+    if (leagueId) {
+      // Group stage predictions (league_id IS NULL) + league-specific knockout predictions
+      q = q.or(`league_id.is.null,league_id.eq.${leagueId}`);
+    }
     q.then(({ data }) => {
       const map: Record<string, Prediction> = {};
       (data ?? []).forEach((p) => { map[p.match_id] = p; });

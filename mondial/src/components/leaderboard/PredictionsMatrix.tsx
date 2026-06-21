@@ -35,6 +35,7 @@ export default function PredictionsMatrix({ leagueId }: { leagueId?: string }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true);
     async function load() {
       // Fetch players: league members if leagueId, otherwise all profiles
       const playersQ = leagueId
@@ -42,8 +43,9 @@ export default function PredictionsMatrix({ leagueId }: { leagueId?: string }) {
         : supabase.from('profiles').select('id, display_name').order('display_name');
 
       let predsQ = supabase.from('predictions').select('user_id, match_id, predicted_home_score, predicted_away_score, points_earned');
-      if (leagueId) predsQ = predsQ.eq('league_id', leagueId);
-      // When no league: return all (group stage has no league_id column yet)
+      if (leagueId) {
+        predsQ = predsQ.or(`league_id.is.null,league_id.eq.${leagueId}`);
+      }
 
       const [{ data: profilesRaw }, { data: matchData }, { data: predData }] = await Promise.all([
         playersQ,
@@ -68,7 +70,7 @@ export default function PredictionsMatrix({ leagueId }: { leagueId?: string }) {
       setLoading(false);
     }
     load();
-  }, []);
+  }, [leagueId]);
 
   if (loading) return (
     <div className="flex items-center justify-center py-16">
