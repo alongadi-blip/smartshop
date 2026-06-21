@@ -53,7 +53,6 @@ const S = {
     fontWeight: 700,
     fontSize: '12px',
     letterSpacing: '0.08em',
-    color: '#475569',
     marginBottom: '10px',
   },
   card: {
@@ -64,23 +63,19 @@ const S = {
   },
 };
 
-function Section({ label, children }: { label: string; children: React.ReactNode }) {
+function Section({ label, labelColor = '#475569', children }: { label: string; labelColor?: string; children: React.ReactNode }) {
   return (
     <div>
-      <p style={S.sectionLabel}>{label}</p>
+      <p style={{ ...S.sectionLabel, color: labelColor }}>{label}</p>
       <div style={S.card}>{children}</div>
     </div>
   );
 }
 
-function ScoreRow({ pts, label, sub, color }: { pts: string; label: string; sub?: string; color: string }) {
+function ScoreRow({ pts, label, sub, color, last }: { pts: string; label: string; sub?: string; color: string; last?: boolean }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '8px 0', borderBottom: '1px solid #0A1020' }}>
-      <div style={{
-        minWidth: '52px', textAlign: 'center',
-        fontFamily: "'Barlow Condensed', sans-serif",
-        fontWeight: 800, fontSize: '22px', color, lineHeight: 1,
-      }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '8px 0', borderBottom: last ? 'none' : '1px solid #0A1020' }}>
+      <div style={{ minWidth: '52px', textAlign: 'center', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: '22px', color, lineHeight: 1 }}>
         {pts}
       </div>
       <div>
@@ -89,6 +84,10 @@ function ScoreRow({ pts, label, sub, color }: { pts: string; label: string; sub?
       </div>
     </div>
   );
+}
+
+function Dot({ color }: { color: string }) {
+  return <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: color, marginTop: '6px', flexShrink: 0 }} />;
 }
 
 export default function RulesModal({ onClose }: Props) {
@@ -108,55 +107,70 @@ export default function RulesModal({ onClose }: Props) {
 
         <div style={S.body}>
 
-          <Section label="ניחושי משחקים">
+          {/* ── שלב הבתים ── */}
+          <Section label="שלב הבתים — ניחושי משחקים" labelColor="#22C55E">
             <div style={{ color: '#94A3B8', fontSize: '14px', lineHeight: 1.7, marginBottom: '12px' }}>
-              נחש את התוצאה המדויקת לכל משחק בשלב הבתים. כל משחק ננעל <strong style={{ color: '#F1F5F9' }}>5 דקות לפני הקיקאוף</strong> — אין שינויים אחרי זה.
+              נחש את התוצאה המדויקת לכל משחק. כל משחק ננעל{' '}
+              <strong style={{ color: '#F1F5F9' }}>5 דקות לפני הקיקאוף</strong> — אין שינויים אחרי זה.
             </div>
-            <div>
-              <ScoreRow pts="+3" label="תוצאה מדויקת" sub="ניחשת נכון את מספר השערים לכל קבוצה" color="#22C55E" />
-              <ScoreRow pts="+1" label="תוצאה נכונה" sub="ניחשת את הניצחון / התיקו, אבל לא את הסקור המדויק" color="#EAB308" />
-              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '8px 0' }}>
-                <div style={{ minWidth: '52px', textAlign: 'center', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: '22px', color: '#EF4444', lineHeight: 1 }}>
-                  0
-                </div>
-                <div>
-                  <p style={{ color: '#E2E8F0', fontSize: '14px', fontWeight: 600 }}>ניחוש שגוי</p>
-                  <p style={{ color: '#475569', fontSize: '12px', marginTop: '2px' }}>ניחשת את הכיוון הלא נכון</p>
-                </div>
-              </div>
+            <ScoreRow pts="+3" label="תוצאה מדויקת" sub="ניחשת נכון את מספר השערים לכל קבוצה" color="#22C55E" />
+            <ScoreRow pts="+1" label="כיוון נכון" sub="ניחשת ניצחון / תיקו, אבל לא את הסקור המדויק" color="#EAB308" />
+            <ScoreRow pts="0" label="ניחוש שגוי" sub="ניחשת את הכיוון הלא נכון" color="#EF4444" last />
+          </Section>
+
+          {/* ── שלב הנוקאוט ── */}
+          <Section label="שלב הנוקאוט — מסיבוב 32 עד הגמר" labelColor="#818CF8">
+            <div style={{ color: '#94A3B8', fontSize: '14px', lineHeight: 1.7, marginBottom: '14px' }}>
+              לכל משחק נוקאוט יש <strong style={{ color: '#F1F5F9' }}>3 שדות ניחוש</strong> שמופיעים מהרגע הראשון:
+            </div>
+
+            {/* 90 דקות */}
+            <div style={{ marginBottom: '12px' }}>
+              <p style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '11px', letterSpacing: '0.08em', color: '#22C55E', marginBottom: '6px' }}>
+                90 דקות
+              </p>
+              <ScoreRow pts="+3" label="תוצאה מדויקת אחרי 90 דקות" color="#22C55E" />
+              <ScoreRow pts="+1" label="כיוון נכון אחרי 90 דקות" color="#EAB308" last />
+            </div>
+
+            {/* הארכה */}
+            <div style={{ marginBottom: '12px', paddingTop: '10px', borderTop: '1px solid #0A1020' }}>
+              <p style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '11px', letterSpacing: '0.08em', color: '#818CF8', marginBottom: '6px' }}>
+                הארכה (אם יגיע להארכה)
+              </p>
+              <ScoreRow pts="+3" label="תוצאה מדויקת — מכריע בהארכה" sub="ניחשת נכון את הסקור הסופי אחרי 120 דקות" color="#818CF8" />
+              <ScoreRow pts="+2" label="תיקו מדויק בהארכה" sub="ניחשת נכון את הסקור שהוביל לפנדלים" color="#A78BFA" last />
+            </div>
+
+            {/* פנדלים */}
+            <div style={{ paddingTop: '10px', borderTop: '1px solid #0A1020' }}>
+              <p style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '11px', letterSpacing: '0.08em', color: '#F59E0B', marginBottom: '6px' }}>
+                פנדלים (אם יגיע לפנדלים)
+              </p>
+              <ScoreRow pts="+1" label="ניחשת את המנצחת בפנדלים" color="#F59E0B" last />
             </div>
           </Section>
 
-          <Section label="בחירות טורניר">
+          {/* ── בחירות טורניר ── */}
+          <Section label="בחירות טורניר" labelColor="#F59E0B">
             <div style={{ color: '#94A3B8', fontSize: '14px', lineHeight: 1.7, marginBottom: '12px' }}>
-              בחר את <strong style={{ color: '#F59E0B' }}>מנצח הגביע</strong> ואת <strong style={{ color: '#3B82F6' }}>מלך השערים</strong> (מבקיע השערים הרב ביותר). שניהם ננעלים לצמיתות ברגע שה<strong style={{ color: '#F1F5F9' }}>משחק הראשון מתחיל</strong>.
+              בחר <strong style={{ color: '#F59E0B' }}>מנצח הגביע</strong> ו<strong style={{ color: '#3B82F6' }}>מלך השערים</strong>.
+              ניתן לשנות עד סיום שלב הבתים (<strong style={{ color: '#F1F5F9' }}>29.6</strong>).
             </div>
-            <div>
-              <ScoreRow pts="+10" label="מנצח הגביע" sub="הקבוצה שבחרת מרימה את הגביע" color="#F59E0B" />
-              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '8px 0' }}>
-                <div style={{ minWidth: '52px', textAlign: 'center', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: '22px', color: '#3B82F6', lineHeight: 1 }}>
-                  +10
-                </div>
-                <div>
-                  <p style={{ color: '#E2E8F0', fontSize: '14px', fontWeight: 600 }}>מלך השערים</p>
-                  <p style={{ color: '#475569', fontSize: '12px', marginTop: '2px' }}>השחקן שבחרת מסיים כמבקיע השערים המוביל</p>
-                </div>
-              </div>
-            </div>
+            <ScoreRow pts="+10" label="מנצח הגביע" sub="הקבוצה שבחרת מרימה את הגביע" color="#F59E0B" />
+            <ScoreRow pts="+10" label="מלך השערים" sub="השחקן שבחרת מסיים כמבקיע השערים המוביל" color="#3B82F6" last />
           </Section>
 
-          <Section label="תאריכים חשובים">
+          {/* ── תאריכים ── */}
+          <Section label="תאריכים חשובים" labelColor="#475569">
             {[
-              { date: '11.6 · 22:00', label: 'משחק פתיחה — מקסיקו נגד דרום אפריקה', color: '#22C55E' },
-              { date: '11.6 · 21:55', label: 'נעילת בחירות הטורניר', color: '#EF4444' },
-              { date: '19.7', label: 'הגמר — סוף מונדיאל 2026', color: '#F59E0B' },
+              { date: '11.6.2026', label: 'פתיחה — מקסיקו נגד דרום אפריקה', color: '#22C55E' },
+              { date: '29.6.2026', label: 'סיום שלב הבתים · נעילת בחירות הטורניר', color: '#EF4444' },
+              { date: '4.7.2026', label: 'פתיחת שלב הנוקאוט — סיבוב 32', color: '#818CF8' },
+              { date: '19.7.2026', label: 'הגמר — סוף מונדיאל 2026', color: '#F59E0B' },
             ].map(({ date, label, color }, i, arr) => (
-              <div key={date} style={{
-                display: 'flex', gap: '14px', alignItems: 'flex-start',
-                padding: '9px 0',
-                borderBottom: i < arr.length - 1 ? '1px solid #0A1020' : 'none',
-              }}>
-                <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: color, marginTop: '6px', flexShrink: 0 }} />
+              <div key={date} style={{ display: 'flex', gap: '14px', alignItems: 'flex-start', padding: '9px 0', borderBottom: i < arr.length - 1 ? '1px solid #0A1020' : 'none' }}>
+                <Dot color={color} />
                 <div>
                   <p style={{ color: '#F1F5F9', fontSize: '13px', fontWeight: 600 }}>{label}</p>
                   <p style={{ color: '#475569', fontSize: '12px', marginTop: '2px', direction: 'ltr', textAlign: 'right' }}>{date}</p>
@@ -165,9 +179,10 @@ export default function RulesModal({ onClose }: Props) {
             ))}
           </Section>
 
-          <Section label="טבלת ניקוד">
+          {/* ── ליגות ── */}
+          <Section label="ליגות" labelColor="#475569">
             <p style={{ color: '#94A3B8', fontSize: '14px', lineHeight: 1.7 }}>
-              הדירוג מתעדכן בזמן אמת לאחר כל משחק. עבור ל<strong style={{ color: '#F1F5F9' }}>כל הניחושים</strong> כדי לראות מה כולם הימרו על כל משחק. לחץ על שחקן כלשהו כדי לראות את ההיסטוריה המלאה שלו.
+              התחרות מתנהלת <strong style={{ color: '#F1F5F9' }}>בתוך ליגות פרטיות</strong>. הצטרף דרך לינק הזמנה שקיבלת. טבלת הניקוד, הניחושים וכל הנתונים — גלויים <strong style={{ color: '#F1F5F9' }}>רק לחברי הליגה שלך</strong>.
             </p>
           </Section>
 
