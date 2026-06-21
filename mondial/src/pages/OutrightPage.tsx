@@ -33,7 +33,7 @@ export default function OutrightPage() {
     if (profile?.id) {
       let q = supabase.from('outright_predictions').select('*').eq('user_id', profile.id);
       if (selectedLeague) q = q.eq('league_id', selectedLeague.id);
-      else q = q.is('league_id', null);
+      // When no league: fetch all (group stage has no league_id column yet)
       q.limit(1).single().then(({ data }) => { if (data) setOutright(data); });
     }
   }, [profile?.id, selectedLeague?.id]);

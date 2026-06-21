@@ -38,7 +38,7 @@ export function useUserPredictions(userId: string | undefined, leagueId?: string
     if (!userId) return;
     let q = supabase.from('predictions').select('*').eq('user_id', userId);
     if (leagueId) q = q.eq('league_id', leagueId);
-    else q = q.is('league_id', null);
+    // When no leagueId: return all predictions (group stage has no league_id column yet)
     q.then(({ data }) => {
       const map: Record<string, Prediction> = {};
       (data ?? []).forEach((p) => { map[p.match_id] = p; });

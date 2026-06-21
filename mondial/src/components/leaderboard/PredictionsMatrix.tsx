@@ -43,7 +43,7 @@ export default function PredictionsMatrix({ leagueId }: { leagueId?: string }) {
 
       let predsQ = supabase.from('predictions').select('user_id, match_id, predicted_home_score, predicted_away_score, points_earned');
       if (leagueId) predsQ = predsQ.eq('league_id', leagueId);
-      else predsQ = predsQ.is('league_id', null);
+      // When no league: return all (group stage has no league_id column yet)
 
       const [{ data: profilesRaw }, { data: matchData }, { data: predData }] = await Promise.all([
         playersQ,

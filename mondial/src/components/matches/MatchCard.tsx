@@ -101,7 +101,7 @@ export default function MatchCard({ match, prediction, leagueId, onSave }: Props
         .select('predicted_home_score, predicted_away_score, predicted_et_home_score, predicted_et_away_score, predicted_penalty_winner, points_earned, et_points_earned, penalty_points_earned, profiles(display_name)')
         .eq('match_id', match.id);
       if (leagueId) q = q.eq('league_id', leagueId);
-      else q = q.is('league_id', null);
+      // When no league: show all predictions (group stage has no league_id column yet)
 
       const { data } = await q;
       const loaded: UserPred[] = (data ?? []).map((p: any) => ({
