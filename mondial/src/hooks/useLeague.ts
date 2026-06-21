@@ -35,9 +35,18 @@ export function useLeague() {
   async function createLeague(name: string): Promise<{ league: League | null; error: string | null }> {
     if (!profile?.id) return { league: null, error: 'לא מחובר' };
 
+    const trimmed = name.trim();
+    const { data: existing } = await supabase
+      .from('leagues')
+      .select('id')
+      .ilike('name', trimmed)
+      .limit(1)
+      .single();
+    if (existing) return { league: null, error: `ליגה בשם "${trimmed}" כבר קיימת` };
+
     const { data: league, error } = await supabase
       .from('leagues')
-      .insert({ name: name.trim(), created_by: profile.id })
+      .insert({ name: trimmed, created_by: profile.id })
       .select()
       .single();
 
