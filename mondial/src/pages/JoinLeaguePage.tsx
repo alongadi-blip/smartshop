@@ -20,7 +20,12 @@ export default function JoinLeaguePage() {
       if (!found) { setNotFound(true); return; }
       setLeague(found);
       const member = userLeagues.some(l => l.id === found.id);
-      setAlreadyMember(member);
+      if (member) {
+        // Already a member — go straight to matches
+        navigate('/matches', { replace: true });
+        return;
+      }
+      setAlreadyMember(false);
     });
   }, [code, userLeagues.length]);
 
