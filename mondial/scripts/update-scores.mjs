@@ -1,6 +1,7 @@
 // Automated score updater — GitHub Actions, every 4 hours
 // Data source: ESPN public API (no auth required)
-// Strategy: fetch all WC 2026 fixtures in one call, match to DB by team pair (order-independent).
+// Matching strategy: api_match_id first, team-pair fallback
+// Auto-inserts new knockout matches when ESPN reveals them (post group stage)
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -56,16 +57,39 @@ function toStatus(espnName) {
   return 'scheduled';
 }
 
-// ESPN season slug → our DB stage enum (WC 2026 has Round of 32 first)
+// ESPN slug/name → our DB stage enum
 const SLUG_TO_STAGE = {
   'group-stage':    'group',
   'round-of-32':   'round_of_32',
   'round-of-16':   'round_of_16',
   'quarterfinals':  'quarter_final',
+  'quarterfinal':   'quarter_final',
   'semifinals':     'semi_final',
+  'semifinal':      'semi_final',
   'third-place':    'third_place',
+  'third-place-playoff': 'third_place',
   'final':          'final',
 };
+
+// Detect stage from ESPN event — tries multiple fields
+function detectStage(event, comp) {
+  const candidates = [
+    comp?.type?.slug,
+    comp?.type?.name,
+    event.season?.slug,
+    event.season?.type?.slug,
+    comp?.notes?.[0]?.headline,
+  ].filter(Boolean).map(s => s.toLowerCase().replace(/\s+/g, '-'));
+
+  for (const c of candidates) {
+    if (SLUG_TO_STAGE[c]) return SLUG_TO_STAGE[c];
+    // Try partial match (e.g. "round-of-32-..." still contains "round-of-32")
+    for (const [slug, stage] of Object.entries(SLUG_TO_STAGE)) {
+      if (slug !== 'group-stage' && c.includes(slug)) return stage;
+    }
+  }
+  return null; // unknown — will log and skip
+}
 
 // Placeholder patterns — teams not yet determined
 const TBD_PATTERN = /Winner|Place|Loser|Runner|Group [A-L] |Round of|Quarterfinal|Semifinal/;
@@ -81,8 +105,7 @@ function calcPoints(hs, as_, ph, pa) {
 function calcEtPoints(etH, etA, predEtH, predEtA) {
   if (predEtH === undefined || predEtH === null || predEtA === undefined || predEtA === null) return 0;
   if (predEtH === etH && predEtA === etA) {
-    // 2pts if ET draw (went to penalties), 3pts if decisive in ET
-    return (etH === etA) ? 2 : 3;
+    return (etH === etA) ? 2 : 3; // draw → pens = 2pts, decisive ET = 3pts
   }
   return 0;
 }
@@ -93,13 +116,10 @@ function calcPenPoints(penWinner, predPenWinner) {
   return penWinner === predPenWinner ? 1 : 0;
 }
 
-// Extract 90-min score from ESPN linescores
-// ESPN provides period data: P1 (0-45), P2 (45-90), P3 (ET1), P4 (ET2)
-// Periods are per-competitor: homeTeam.linescores, awayTeam.linescores
+// Extract 90-min score from ESPN linescores (P1 + P2 only, not ET periods)
 function get90minScore(homeComp, awayComp) {
   const hLines = homeComp.linescores ?? [];
   const aLines = awayComp.linescores ?? [];
-  // Sum periods 1 and 2 only
   const hReg = hLines.slice(0, 2).reduce((s, p) => s + (parseInt(p.value, 10) || 0), 0);
   const aReg = aLines.slice(0, 2).reduce((s, p) => s + (parseInt(p.value, 10) || 0), 0);
   return { hReg, aReg };
@@ -117,11 +137,11 @@ async function run() {
 
   if (events.length === 0) { console.log('No events returned. Done.'); return; }
 
-  // Load all DB matches
-  const dbMatches = await sbGet('matches?select=id,home_team,away_team,status,home_score,away_score,stage,went_to_et,et_home_score,et_away_score,penalty_winner');
-  const dbByPair = new Map(
-    dbMatches.map(m => [[m.home_team, m.away_team].sort().join('|||'), m])
-  );
+  // Load all DB matches (include api_match_id for primary matching)
+  const dbMatches = await sbGet('matches?select=id,api_match_id,home_team,away_team,status,home_score,away_score,stage,went_to_et,et_home_score,et_away_score,penalty_winner');
+  // Two indexes: by ESPN event ID (primary) and by sorted team pair (fallback)
+  const dbById   = new Map(dbMatches.filter(m => m.api_match_id).map(m => [m.api_match_id, m]));
+  const dbByPair = new Map(dbMatches.map(m => [[m.home_team, m.away_team].sort().join('|||'), m]));
   console.log(`Loaded ${dbMatches.length} matches from DB`);
 
   let newCount = 0, updatedCount = 0, pointsCount = 0;
@@ -141,23 +161,33 @@ async function run() {
 
     const dbHome = norm(espnHome);
     const dbAway = norm(espnAway);
+    const espnId  = String(event.id);
     const newStatus = toStatus(comp.status.type.name);
     const espnStatusName = comp.status.type.name;
-
     const hasScore = newStatus !== 'scheduled';
 
-    const pairKey = [dbHome, dbAway].sort().join('|||');
-    const existing = dbByPair.get(pairKey);
-    const isKnockout = existing?.stage !== 'group' || SLUG_TO_STAGE[event.season?.slug ?? ''] !== 'group';
+    // Match by ESPN ID first, then team pair
+    const existing = dbById.get(espnId) ?? dbByPair.get([dbHome, dbAway].sort().join('|||'));
 
     if (!existing) {
-      // New knockout match — insert
-      const slug = event.season?.slug ?? '';
-      const stage = SLUG_TO_STAGE[slug] ?? 'round_of_32';
+      // ── New knockout match — auto-insert ───────────────────────────
+      const stage = detectStage(event, comp);
+      if (!stage || stage === 'group') {
+        // Log the ESPN data so we can debug stage detection if needed
+        console.log(`  ? Unknown stage for ${dbHome} vs ${dbAway} — ESPN data: season.slug="${event.season?.slug}", type="${comp?.type?.name}"`);
+        continue;
+      }
+
+      const homeFlag = homeComp.team.flag ?? homeComp.team.logo ?? null;
+      const awayFlag = awayComp.team.flag ?? awayComp.team.logo ?? null;
+
       try {
         await sbInsert('matches', {
-          home_team: dbHome,
-          away_team: dbAway,
+          api_match_id: espnId,
+          home_team:      dbHome,
+          away_team:      dbAway,
+          home_team_flag: homeFlag,
+          away_team_flag: awayFlag,
           stage,
           match_time: event.date,
           home_score: hasScore ? parseInt(homeComp.score, 10) : null,
@@ -166,69 +196,62 @@ async function run() {
           updated_at: new Date().toISOString(),
         });
         newCount++;
-        console.log(`  + [${stage}] ${dbHome} vs ${dbAway}`);
+        console.log(`  + [${stage}] ${dbHome} vs ${dbAway} (ESPN id: ${espnId})`);
       } catch (e) {
         console.error(`  ✗ Insert failed for ${dbHome} vs ${dbAway}: ${e.message}`);
       }
       continue;
     }
 
+    // ── Update existing match ────────────────────────────────────────
     const isReversed = existing.home_team !== dbHome;
+    const isKnockout = existing.stage !== 'group';
 
-    // Determine scores based on match situation
     let homeScore, awayScore, wentToEt = false, etHomeScore = null, etAwayScore = null, penWinner = null;
 
     if (!hasScore) {
-      // Scheduled — skip score update
       if (existing.status === newStatus) continue;
       homeScore = existing.home_score;
       awayScore = existing.away_score;
     } else if (isKnockout && (espnStatusName === 'STATUS_FINAL_AET' || espnStatusName === 'STATUS_FINAL_PEN')) {
-      // Knockout match that went to ET
       wentToEt = true;
 
-      // Try to get 90-min score from linescores
       const { hReg, aReg } = get90minScore(homeComp, awayComp);
       const espnFinalH = parseInt(homeComp.score, 10);
       const espnFinalA = parseInt(awayComp.score, 10);
 
-      // ESPN final score = score after ET (or after pens which doesn't change goal tally)
       const finalEtH = isReversed ? espnFinalA : espnFinalH;
       const finalEtA = isReversed ? espnFinalH : espnFinalA;
       etHomeScore = finalEtH;
       etAwayScore = finalEtA;
 
-      // If linescores available, use 90min; otherwise assume the ET total is the final score after ET
       if (homeComp.linescores?.length >= 2) {
         homeScore = isReversed ? aReg : hReg;
         awayScore = isReversed ? hReg : aReg;
       } else {
-        // Fallback: use ESPN's final score as 90min (will be corrected if linescores not available)
         homeScore = finalEtH;
         awayScore = finalEtA;
       }
 
-      // Penalty winner: find winner flag on competitors
       if (espnStatusName === 'STATUS_FINAL_PEN') {
         const winner = comp.competitors.find(c => c.winner === true);
-        if (winner) {
-          penWinner = norm(winner.team.displayName);
-        }
+        if (winner) penWinner = norm(winner.team.displayName);
       }
     } else {
-      // Regular finish or live match
       const espnHomeScore = parseInt(homeComp.score, 10);
       const espnAwayScore = parseInt(awayComp.score, 10);
       homeScore = isReversed ? espnAwayScore : espnHomeScore;
       awayScore = isReversed ? espnHomeScore : espnAwayScore;
     }
 
-    const scoreChanged = homeScore !== existing.home_score || awayScore !== existing.away_score;
+    const scoreChanged  = homeScore !== existing.home_score || awayScore !== existing.away_score;
     const statusChanged = newStatus !== existing.status;
-    const etChanged = wentToEt !== existing.went_to_et || etHomeScore !== existing.et_home_score || etAwayScore !== existing.et_away_score;
-    const penChanged = penWinner !== existing.penalty_winner;
+    const etChanged     = wentToEt !== existing.went_to_et || etHomeScore !== existing.et_home_score || etAwayScore !== existing.et_away_score;
+    const penChanged    = penWinner !== existing.penalty_winner;
+    // Also update api_match_id if it was missing (e.g. group stage matches inserted manually)
+    const idMissing     = !existing.api_match_id && espnId;
 
-    if (!scoreChanged && !statusChanged && !etChanged && !penChanged) continue;
+    if (!scoreChanged && !statusChanged && !etChanged && !penChanged && !idMissing) continue;
 
     try {
       const updateBody = {
@@ -237,11 +260,12 @@ async function run() {
         status: newStatus,
         updated_at: new Date().toISOString(),
       };
+      if (idMissing) updateBody.api_match_id = espnId;
       if (isKnockout) {
-        updateBody.went_to_et = wentToEt;
-        updateBody.et_home_score = etHomeScore;
-        updateBody.et_away_score = etAwayScore;
-        updateBody.penalty_winner = penWinner;
+        updateBody.went_to_et      = wentToEt;
+        updateBody.et_home_score   = etHomeScore;
+        updateBody.et_away_score   = etAwayScore;
+        updateBody.penalty_winner  = penWinner;
       }
       await sbPatch('matches', existing.id, updateBody);
       updatedCount++;
@@ -262,7 +286,6 @@ async function run() {
           if (isKnockout && wentToEt && etHomeScore !== null && etAwayScore !== null) {
             updatePred.et_points_earned = calcEtPoints(etHomeScore, etAwayScore, pred.predicted_et_home_score, pred.predicted_et_away_score);
           }
-
           if (isKnockout && penWinner) {
             updatePred.penalty_points_earned = calcPenPoints(penWinner, pred.predicted_penalty_winner);
           }
