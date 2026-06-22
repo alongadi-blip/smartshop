@@ -88,7 +88,7 @@ function LeaguePicker() {
               className="w-full cursor-pointer"
               style={{ padding: '9px 14px', color: '#475569', fontFamily: "'Barlow Condensed', sans-serif", fontSize: '12px', borderTop: '1px solid var(--border-2)', background: 'transparent', direction: 'rtl', letterSpacing: '0.03em' }}
             >
-              + הצטרף לליגה
+              ניהול ליגות / הצטרף
             </button>
           </div>
         </>
