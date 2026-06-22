@@ -98,8 +98,10 @@ function LeaguePicker() {
   );
 }
 
+const ADMIN_EMAIL = 'alon.gadi@gmail.com';
+
 function Layout() {
-  const { profile, signOut } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const { theme, toggle } = useTheme();
   const [showRules, setShowRules] = useState(false);
 
@@ -145,6 +147,14 @@ function Layout() {
           >
             {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
           </button>
+
+          {user?.email === ADMIN_EMAIL && (
+            <NavLink to="/admin"
+              style={({ isActive }) => ({ color: isActive ? '#818CF8' : '#334155', fontSize: '13px', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, letterSpacing: '0.05em' })}
+            >
+              ADMIN
+            </NavLink>
+          )}
 
           <button
             onClick={signOut}
