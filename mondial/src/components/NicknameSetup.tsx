@@ -14,8 +14,9 @@ export default function NicknameSetup() {
     if (trimmed.length > 20) { setError('כינוי ארוך מדי (מקסימום 20 תווים)'); return; }
     setSaving(true);
     setError('');
-    await updateProfile({ nickname: trimmed, display_name: trimmed });
+    const err = await updateProfile({ nickname: trimmed, display_name: trimmed });
     setSaving(false);
+    if (err) setError(`שגיאה: ${err}`);
   }
 
   return (

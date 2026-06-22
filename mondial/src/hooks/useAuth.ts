@@ -55,15 +55,17 @@ export function useAuth() {
     await supabase.auth.signOut();
   }
 
-  async function updateProfile(updates: Partial<Pick<Profile, 'display_name' | 'nickname' | 'avatar_url'>>) {
-    if (!user) return;
-    const { data } = await supabase
+  async function updateProfile(updates: Partial<Pick<Profile, 'display_name' | 'nickname' | 'avatar_url'>>): Promise<string | null> {
+    if (!user) return 'לא מחובר';
+    const { error } = await supabase
       .from('profiles')
       .update(updates)
-      .eq('id', user.id)
-      .select()
-      .single();
-    setProfile(data);
+      .eq('id', user.id);
+    if (error) return error.message;
+    // Re-fetch instead of relying on update's returned data
+    const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+    if (data) setProfile(data);
+    return null;
   }
 
   return { user, profile, loading, signInWithGoogle, signInWithMagicLink, signOut, updateProfile };
