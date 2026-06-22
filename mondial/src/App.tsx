@@ -13,6 +13,7 @@ import GroupsPage from './pages/GroupsPage';
 import JoinLeaguePage from './pages/JoinLeaguePage';
 import LeagueSelectorPage from './pages/LeagueSelectorPage';
 import RulesModal from './components/RulesModal';
+import NicknameSetup from './components/NicknameSetup';
 
 // League picker in the header
 function LeaguePicker() {
@@ -199,7 +200,7 @@ function Layout() {
 }
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, profile, loading } = useAuth();
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-app)' }}>
       <div style={{ color: '#22C55E', fontFamily: "'Barlow Condensed', sans-serif", fontSize: '20px', letterSpacing: '0.1em' }}>
@@ -208,6 +209,8 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     </div>
   );
   if (!user) return <LoginPage />;
+  // Block access until nickname is chosen
+  if (profile && !profile.nickname) return <NicknameSetup />;
   return <>{children}</>;
 }
 

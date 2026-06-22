@@ -3,6 +3,7 @@ export interface Profile {
   display_name: string;
   avatar_url?: string;
   nickname?: string;
+  email?: string;
   created_at: string;
 }
 

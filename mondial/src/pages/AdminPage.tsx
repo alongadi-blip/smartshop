@@ -227,6 +227,60 @@ function LeagueManager() {
   );
 }
 
+// ─── Users list ──────────────────────────────────────────────────────────────
+
+function UsersList() {
+  const [users, setUsers] = useState<{ id: string; display_name: string; nickname: string | null; email: string | null; created_at: string }[]>([]);
+  const [loaded, setLoaded] = useState(false);
+
+  async function load() {
+    if (loaded) return;
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, display_name, nickname, email, created_at')
+      .order('created_at', { ascending: false });
+    setUsers(data ?? []);
+    setLoaded(true);
+  }
+
+  return (
+    <div>
+      {!loaded ? (
+        <button onClick={load} className="cursor-pointer w-full"
+          style={{ background: 'var(--bg-input)', border: '1px solid var(--border-input)', borderRadius: '10px', padding: '10px', color: '#94A3B8', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          טען משתמשים
+        </button>
+      ) : (
+        <div style={{ overflowX: 'auto' }}>
+          <div style={{ color: '#334155', fontSize: '12px', marginBottom: '8px', fontFamily: "'Barlow', sans-serif" }}>
+            {users.length} משתמשים רשומים
+          </div>
+          {users.map((u, idx) => (
+            <div key={u.id} style={{
+              display: 'flex', gap: '10px', alignItems: 'center',
+              padding: '9px 0',
+              borderBottom: idx < users.length - 1 ? '1px solid #0A1020' : 'none',
+              direction: 'rtl',
+            }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '14px', color: u.nickname ? '#E2E8F0' : '#EF4444' }}>
+                  {u.nickname ?? '— אין כינוי —'}
+                </div>
+                <div style={{ color: '#475569', fontSize: '11px', fontFamily: "'Barlow', sans-serif", marginTop: '1px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {u.email ?? '—'}
+                </div>
+              </div>
+              <div style={{ color: '#334155', fontSize: '10px', fontFamily: "'Barlow', sans-serif", flexShrink: 0 }}>
+                {new Date(u.created_at).toLocaleDateString('he-IL')}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main AdminPage ───────────────────────────────────────────────────────────
 
 export default function AdminPage() {
@@ -265,6 +319,14 @@ export default function AdminPage() {
           פאנל ניהול
         </h1>
         <div className="flex-1 h-px" style={{ background: '#1E2D45' }} />
+      </div>
+
+      {/* ── Users ── */}
+      <div style={cardStyle}>
+        <h2 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#22C55E', marginBottom: '14px' }}>
+          משתמשים
+        </h2>
+        <UsersList />
       </div>
 
       {/* ── League management ── */}

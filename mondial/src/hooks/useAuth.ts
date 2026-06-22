@@ -25,6 +25,14 @@ export function useAuth() {
   }, []);
 
   async function loadProfile(userId: string) {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const email = sessionData.session?.user?.email ?? null;
+
+    // Sync email into profiles so admin can see it
+    if (email) {
+      await supabase.from('profiles').update({ email }).eq('id', userId);
+    }
+
     const { data } = await supabase
       .from('profiles')
       .select('*')
