@@ -66,6 +66,22 @@ export function useLeague() {
     return (data ?? []) as LeagueMember[];
   }
 
+  async function leaveLeague(leagueId: string): Promise<{ error: string | null }> {
+    if (!profile?.id) return { error: 'לא מחובר' };
+
+    const { error } = await supabase
+      .from('league_members')
+      .delete()
+      .eq('league_id', leagueId)
+      .eq('user_id', profile.id);
+
+    if (error) return { error: error.message };
+
+    if (ctx.selectedLeague?.id === leagueId) ctx.setSelectedLeague(null);
+    await ctx.refreshLeagues();
+    return { error: null };
+  }
+
   async function fetchLeagueByCode(code: string): Promise<League | null> {
     const { data } = await supabase
       .from('leagues')
@@ -79,6 +95,7 @@ export function useLeague() {
     ...ctx,
     joinLeague,
     createLeague,
+    leaveLeague,
     fetchLeagueMembers,
     fetchLeagueByCode,
   };
