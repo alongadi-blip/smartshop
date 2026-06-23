@@ -186,7 +186,7 @@ function LeagueManager() {
         <div key={league.id} style={{ background: 'var(--bg-card2)', border: '1px solid var(--border-2)', borderRadius: '12px', overflow: 'hidden' }}>
           <div className="flex items-center gap-2 p-3">
             <button onClick={() => toggleLeague(league)} className="flex-1 text-right cursor-pointer">
-              <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '15px', color: '#E2E8F0' }}>
+              <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '15px', color: 'var(--text-1)' }}>
                 {league.name}
               </div>
               <div style={{ color: '#475569', fontSize: '11px', marginTop: '2px', fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: '0.05em' }}>
