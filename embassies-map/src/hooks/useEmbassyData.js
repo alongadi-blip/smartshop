@@ -10,7 +10,7 @@ const HE_RESOURCE = '4d1ce6f0-08d9-4294-a7ae-aae1b29bb769';
 const API = (id) =>
   `https://data.gov.il/api/3/action/datastore_search?resource_id=${id}&limit=300`;
 
-const CACHE_KEY  = 'govil_embassies_v3'; // bumped: now includes Hebrew names
+const CACHE_KEY  = 'govil_embassies_v4'; // bumped: filters non-resident missions
 const COORDS_KEY = 'govil_embassy_coords_v2';
 const TTL        = 24 * 60 * 60 * 1000;
 
@@ -28,6 +28,65 @@ staticEmbassies.forEach((e) => {
   const k = normalizeKey(e.country, e.city);
   if (!seedCoords[k]) seedCoords[k] = { lat: e.lat, lng: e.lng };
 });
+
+// Cities used as diplomatic hubs → the country that city actually belongs to.
+// Non-resident missions (e.g. New Delhi ambassador also accredited to Sri Lanka)
+// are filtered out so we show only physically-present missions.
+const CITY_HOME = {
+  // Americas
+  mexicocity: 'mexico',
+  panamacity: 'panama',
+  sanjose: 'costarica',
+  lima: 'peru',
+  buenosaires: 'argentina',
+  santodomingo: 'dominicanrepublic',
+  guatemalacity: 'guatemala',
+  // Africa
+  addisababa: 'ethiopia',
+  nairobi: 'kenya',
+  pretoria: 'southafrica',
+  luanda: 'angola',
+  lusaka: 'zambia',
+  dakar: 'senegal',
+  accra: 'ghana',
+  yaounde: 'cameroon',
+  abidjan: 'cotedivoire',
+  abuja: 'nigeria',
+  kigali: 'rwanda',
+  // Asia / Pacific
+  newdelhi: 'india',
+  bangkok: 'thailand',
+  singapore: 'singapore',
+  tashkent: 'uzbekistan',
+  astana: 'kazakhstan',
+  hanoi: 'vietnam',
+  beijing: 'china',
+  // Europe
+  rome: 'italy',
+  bern: 'switzerland',
+  brussels: 'belgium',
+  oslo: 'norway',
+  tirana: 'albania',
+  belgrade: 'serbia',
+  madrid: 'spain',
+  paris: 'france',
+  // Oceania
+  wellington: 'newzealand',
+};
+
+function normStr(s) {
+  return s.toLowerCase().replace(/[^a-z]/g, '');
+}
+
+/** Returns false for non-resident missions (ambassador based in a different country). */
+function isResidentMission(city, country) {
+  const nc = normStr(city);
+  const home = CITY_HOME[nc];
+  if (!home) return true; // city not in hub list → assume physically present
+  const nd = normStr(country);
+  // Allow if stated country matches (or starts with) the city's home country
+  return nd.startsWith(home.slice(0, 7)) || home.startsWith(nd.slice(0, 7));
+}
 
 function parseType(maamad = '') {
   const m = maamad.toLowerCase();
@@ -110,10 +169,12 @@ export function useEmbassyData() {
         };
       });
 
-      localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data: mapped }));
-      setMissions(mapped);
+      const resident = mapped.filter((m) => isResidentMission(m.city, m.country));
+
+      localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data: resident }));
+      setMissions(resident);
       setLoading(false);
-      scheduleGeocode(mapped);
+      scheduleGeocode(resident);
     } catch (err) {
       console.error('[EmbassyData] fetch failed, using static fallback', err);
       const fallback = staticEmbassies.map((e) => ({

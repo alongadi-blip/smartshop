@@ -154,7 +154,7 @@ const MapView = forwardRef(function MapView(
         `<strong>${cityLabel}, ${countryLabel}</strong>` +
         (emb.address ? `<br/><span style="font-size:11px">${emb.address}</span>` : '');
       marker.bindTooltip(tooltipHtml, { direction: 'top', offset: [0, -6], className: 'map-tooltip' });
-      marker.bindPopup(buildPopup(emb, cat));
+      marker.bindPopup(makePopupEl(buildPopup(emb, cat)));
 
       clusterGroupsRef.current[cat]?.addLayer(marker);
       embMarkersRef.current[emb.id] = { marker, cat };
@@ -183,7 +183,7 @@ const MapView = forwardRef(function MapView(
         `<strong>${poi.name}</strong>${poi.address ? `<br/><span style="font-size:11px">${poi.address}</span>` : ''}`,
         { direction: 'top', offset: [0, -4], className: 'map-tooltip' },
       );
-      marker.bindPopup(buildPoiPopup(poi, cat));
+      marker.bindPopup(makePopupEl(buildPoiPopup(poi, cat)));
       clusterGroupsRef.current[cat]?.addLayer(marker);
       poiMarkersRef.current[poi.id] = { marker, cat };
     });
@@ -222,6 +222,17 @@ export default MapView;
 
 // ── Popup builders ───────────────────────────────────────────────────────────
 
+// Creates a detached DOM element so Leaflet appends it via DOM (not innerHTML),
+// which avoids any browser/library string-sanitization of links and mailto: hrefs.
+function makePopupEl(htmlString) {
+  const el = document.createElement('div');
+  el.innerHTML = htmlString;
+  return el;
+}
+
+// Escape values that go into HTML attribute positions
+function esc(s) { return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
 function buildPopup(emb, cat) {
   const c = CATEGORIES[cat];
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${emb.lat},${emb.lng}`;
@@ -234,10 +245,10 @@ function buildPopup(emb, cat) {
       <strong class="popup-title">${title}</strong>
       ${emb.address ? `<p class="popup-addr">${emb.address}</p>` : ''}
       <div class="popup-meta">
-        ${emb.tel     ? `<span>📞 ${emb.tel}</span>`                            : ''}
-        ${emb.email   ? `<span>✉️ <a href="mailto:${emb.email}" class="popup-link">${emb.email}</a></span>` : ''}
-        ${emb.hours   ? `<span>🕐 ${emb.hours}</span>`                          : ''}
-        ${emb.website ? `<span>🌐 <a href="${emb.website}" target="_blank" rel="noopener" class="popup-link">אתר רשמי ↗</a></span>` : ''}
+        ${emb.tel     ? `<span>📞 ${esc(emb.tel)}</span>` : ''}
+        ${emb.email   ? `<span>✉️ <a href="mailto:${esc(emb.email)}">${esc(emb.email)}</a></span>` : ''}
+        ${emb.hours   ? `<span>🕐 ${esc(emb.hours)}</span>` : ''}
+        ${emb.website ? `<span>🌐 <a href="${esc(emb.website)}" target="_blank" rel="noopener">אתר רשמי ↗</a></span>` : ''}
       </div>
       <a href="${mapsUrl}" target="_blank" rel="noopener" class="popup-link popup-maps">📍 Google Maps ↗</a>
     </div>
