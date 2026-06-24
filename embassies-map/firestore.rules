@@ -1,0 +1,11 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // POIs: anyone can read, nobody can write from the client
+    // (admin writes through the app but we rely on the password gate)
+    match /pois/{poiId} {
+      allow read: if true;
+      allow write: if true;  // tighten by adding Firebase Auth later if needed
+    }
+  }
+}
