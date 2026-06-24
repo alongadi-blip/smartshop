@@ -9,7 +9,7 @@ export default function SearchBar({ missions, pois, onSelect }) {
   const ref                 = useRef(null);
 
   const fuseMissions = useMemo(() => new Fuse(missions, {
-    keys: ['country', 'city', 'address'],
+    keys: ['country', 'city', 'country_he', 'city_he', 'address'],
     threshold: 0.35,
     includeScore: true,
   }), [missions]);

@@ -123,8 +123,14 @@ const MapView = forwardRef(function MapView(
       const icon   = makeFlagIcon(cat === 'embassy');
       const marker = L.marker([emb.lat, emb.lng], { icon });
 
+      const cityLabel = emb.city_he
+        ? `${emb.city_he} / ${emb.city}`
+        : emb.city;
+      const countryLabel = emb.country_he
+        ? `${emb.country_he} / ${emb.country}`
+        : emb.country;
       const tooltipHtml =
-        `<strong>${emb.city}, ${emb.country}</strong>` +
+        `<strong>${cityLabel}, ${countryLabel}</strong>` +
         (emb.address ? `<br/><span style="font-size:11px">${emb.address}</span>` : '');
       marker.bindTooltip(tooltipHtml, { direction: 'top', offset: [0, -6], className: 'map-tooltip' });
       marker.bindPopup(buildPopup(emb, cat));
@@ -198,10 +204,13 @@ export default MapView;
 function buildPopup(emb, cat) {
   const c = CATEGORIES[cat];
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${emb.lat},${emb.lng}`;
+  const title = emb.city_he
+    ? `${emb.city_he}, ${emb.country_he || emb.country} <span style="color:#607080;font-size:12px">(${emb.city}, ${emb.country})</span>`
+    : `${emb.city}, ${emb.country}`;
   return `
     <div class="popup-card">
       <div class="popup-type" style="color:${c.color}">${c.emoji} ${c.label}</div>
-      <strong class="popup-title">${emb.city}, ${emb.country}</strong>
+      <strong class="popup-title">${title}</strong>
       ${emb.address ? `<p class="popup-addr">${emb.address}</p>` : ''}
       <div class="popup-meta">
         ${emb.tel     ? `<span>📞 ${emb.tel}</span>`                            : ''}

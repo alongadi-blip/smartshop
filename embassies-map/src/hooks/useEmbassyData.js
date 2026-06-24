@@ -1,15 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
 import staticEmbassies from '../data/embassies';
 
-// English resource — fields: shem_mdn_a, shem_ntz_a, maamad_a, Addrs, Kabala, email, tel, Atar
-const RESOURCE_ID = '6fc859cb-8a6f-458b-bd5a-9bd0cfbfce11';
-const API_URL = `https://data.gov.il/api/3/action/datastore_search?resource_id=${RESOURCE_ID}&limit=300`;
+// English resource — shem_mdn_a, shem_ntz_a, maamad_a, Addrs, Kabala, email, tel, Atar, k_ntz
+const EN_RESOURCE = '6fc859cb-8a6f-458b-bd5a-9bd0cfbfce11';
+// Hebrew resource  — shem_mdn,   shem_ntz,   maamad,   Address,  Kabala, email, tel, Atar, k_ntz
+const HE_RESOURCE = '4d1ce6f0-08d9-4294-a7ae-aae1b29bb769';
 
-const CACHE_KEY  = 'govil_embassies_v2';
+const API = (id) =>
+  `https://data.gov.il/api/3/action/datastore_search?resource_id=${id}&limit=300`;
+
+const CACHE_KEY  = 'govil_embassies_v3'; // bumped: now includes Hebrew names
 const COORDS_KEY = 'govil_embassy_coords_v2';
-const TTL        = 24 * 60 * 60 * 1000; // 24 hours
+const TTL        = 24 * 60 * 60 * 1000;
 
-// ── Normalize city+country into a stable cache key ────────────────────────
 function normalizeKey(country, city) {
   const clean = (s) =>
     s.toLowerCase()
@@ -18,20 +21,18 @@ function normalizeKey(country, city) {
   return `${clean(country)}|${clean(city)}`;
 }
 
-// ── Build coordinate lookup from static seed data ─────────────────────────
 const seedCoords = {};
 staticEmbassies.forEach((e) => {
   seedCoords[normalizeKey(e.country, e.city)] = { lat: e.lat, lng: e.lng };
 });
 
-// ── Map API maamad_a field to our category system ─────────────────────────
 function parseType(maamad = '') {
   const m = maamad.toLowerCase();
-  if (m.includes('consulate') || m.includes('consul')) return 'consulate';
-  return 'embassy'; // covers embassy, mission, delegation, permanent mission…
+  if (m.includes('consulate') || m.includes('consul') ||
+      m.includes('קונסוליה') || m.includes('קונסול')) return 'consulate';
+  return 'embassy';
 }
 
-// ── Strip mission-type prefix from city name for geocoding ────────────────
 function extractCity(rawCity = '') {
   return rawCity
     .replace(/^(embassy|consulate|mission|delegation|permanent mission to.*?)\s+/i, '')
@@ -40,11 +41,11 @@ function extractCity(rawCity = '') {
 }
 
 export function useEmbassyData() {
-  const [missions, setMissions] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [missions, setMissions]       = useState([]);
+  const [loading, setLoading]         = useState(true);
   const [geocodingLeft, setGeocodingLeft] = useState(0);
   const geocodeQueueRef = useRef([]);
-  const geocodingRef = useRef(false);
+  const geocodingRef    = useRef(false);
 
   useEffect(() => { loadData(); }, []);
 
@@ -58,35 +59,51 @@ export function useEmbassyData() {
         scheduleGeocode(cached.data);
         return;
       }
-    } catch { /* ignore corrupt cache */ }
+    } catch {}
 
-    // 2 — Fetch from data.gov.il
+    // 2 — Fetch BOTH resources in parallel
     try {
-      const res  = await fetch(API_URL);
-      const json = await res.json();
-      const records = json?.result?.records ?? [];
+      const [enJson, heJson] = await Promise.all([
+        fetch(API(EN_RESOURCE)).then((r) => r.json()),
+        fetch(API(HE_RESOURCE)).then((r) => r.json()),
+      ]);
+
+      const enRecords = enJson?.result?.records ?? [];
+      const heRecords = heJson?.result?.records ?? [];
+
+      // Build Hebrew lookup by k_ntz (shared mission code)
+      const heLookup = {};
+      heRecords.forEach((r) => {
+        if (r.k_ntz) heLookup[String(r.k_ntz)] = r;
+      });
 
       const coordsCache = readCoordsCache();
-      const mapped = records.map((r) => {
+
+      const mapped = enRecords.map((r) => {
         const country = r.shem_mdn_a || '';
         const rawCity = r.shem_ntz_a || '';
         const city    = extractCity(rawCity);
         const key     = normalizeKey(country, city);
         const coords  = seedCoords[key] ?? coordsCache[key] ?? null;
 
+        // Hebrew counterpart (same k_ntz)
+        const he = r.k_ntz ? heLookup[String(r.k_ntz)] : null;
+
         return {
-          id:      String(r._id),
+          id:         String(r._id),
           country,
           city,
-          address: r.Addrs    || '',
-          type:    parseType(r.maamad_a),
-          email:   r.email    || '',
-          tel:     r.tel      || '',
-          website: r.Atar     || '',
-          hours:   r.Kabala   || '',
-          lat:     coords?.lat ?? null,
-          lng:     coords?.lng ?? null,
-          _key:    key,
+          country_he: he?.shem_mdn  || '',
+          city_he:    he?.shem_ntz  ? extractCityHe(he.shem_ntz) : '',
+          address:    r.Addrs       || '',
+          type:       parseType(r.maamad_a || he?.maamad || ''),
+          email:      r.email       || '',
+          tel:        r.tel         || '',
+          website:    r.Atar        || '',
+          hours:      r.Kabala      || '',
+          lat:        coords?.lat   ?? null,
+          lng:        coords?.lng   ?? null,
+          _key:       key,
         };
       });
 
@@ -98,16 +115,15 @@ export function useEmbassyData() {
       console.error('[EmbassyData] fetch failed, using static fallback', err);
       const fallback = staticEmbassies.map((e) => ({
         ...e,
-        id:      String(e.id),
-        email:   '', tel: '', website: '', hours: '',
-        _key:    normalizeKey(e.country, e.city),
+        id: String(e.id), email: '', tel: '', website: '', hours: '',
+        country_he: '', city_he: '',
+        _key: normalizeKey(e.country, e.city),
       }));
       setMissions(fallback);
       setLoading(false);
     }
   }
 
-  // ── Queue Nominatim geocoding for missions with no coordinates ────────────
   function scheduleGeocode(data) {
     const coordsCache = readCoordsCache();
     const queue = data.filter((m) => !m.lat && !m.lng && !coordsCache[m._key]);
@@ -123,14 +139,9 @@ export function useEmbassyData() {
     while (geocodeQueueRef.current.length > 0) {
       const mission = geocodeQueueRef.current.shift();
 
-      // Skip if another render already filled it
       if (coordsCache[mission._key]) {
         setMissions((prev) =>
-          prev.map((m) =>
-            m._key === mission._key
-              ? { ...m, ...coordsCache[m._key] }
-              : m,
-          ),
+          prev.map((m) => m._key === mission._key ? { ...m, ...coordsCache[m._key] } : m),
         );
         setGeocodingLeft((n) => Math.max(0, n - 1));
         continue;
@@ -150,10 +161,9 @@ export function useEmbassyData() {
           writeCoordsCache(coordsCache);
 
           setMissions((prev) =>
-            prev.map((m) => (m._key === mission._key ? { ...m, ...coords } : m)),
+            prev.map((m) => m._key === mission._key ? { ...m, ...coords } : m),
           );
 
-          // Also refresh the API cache so lat/lng is persisted
           try {
             const stored = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
             if (stored) {
@@ -162,14 +172,13 @@ export function useEmbassyData() {
               );
               localStorage.setItem(CACHE_KEY, JSON.stringify(stored));
             }
-          } catch { /* not critical */ }
+          } catch {}
         }
       } catch (err) {
         console.warn('[Geocode] failed for', mission.city, err);
       }
 
       setGeocodingLeft((n) => Math.max(0, n - 1));
-      // Nominatim rate limit: 1 req/sec
       await sleep(1200);
     }
 
@@ -179,7 +188,13 @@ export function useEmbassyData() {
   return { missions, loading, geocodingLeft };
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────
-function readCoordsCache()           { try { return JSON.parse(localStorage.getItem(COORDS_KEY) || '{}'); } catch { return {}; } }
-function writeCoordsCache(cache)     { try { localStorage.setItem(COORDS_KEY, JSON.stringify(cache)); } catch {} }
-function sleep(ms)                   { return new Promise((r) => setTimeout(r, ms)); }
+// Strip Hebrew type prefixes like "שגרירות " or "קונסוליה " from city name
+function extractCityHe(rawCity = '') {
+  return rawCity
+    .replace(/^(שגרירות|קונסוליה|משלחת|נציגות|משרד)\s+/u, '')
+    .trim();
+}
+
+function readCoordsCache()       { try { return JSON.parse(localStorage.getItem(COORDS_KEY) || '{}'); } catch { return {}; } }
+function writeCoordsCache(cache) { try { localStorage.setItem(COORDS_KEY, JSON.stringify(cache)); } catch {} }
+function sleep(ms)               { return new Promise((r) => setTimeout(r, ms)); }
