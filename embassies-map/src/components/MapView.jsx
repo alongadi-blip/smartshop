@@ -15,12 +15,33 @@ L.Icon.Default.mergeOptions({
 });
 
 function makeFlagIcon(isEmbassy) {
-  const size = isEmbassy ? 22 : 18;
+  const outer = isEmbassy ? 36 : 28;
+  const emoji = isEmbassy ? '20' : '15';
+  const color = isEmbassy ? '#1565C0' : '#1976D2';
+  // teardrop pin: circle on top, pointed bottom
   return L.divIcon({
     className: '',
-    html: `<div style="font-size:${size}px;line-height:1;filter:drop-shadow(0 1px 3px rgba(0,0,0,.6));cursor:pointer;">🇮🇱</div>`,
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
+    html: `
+      <div style="
+        position:relative;
+        width:${outer}px;
+        height:${outer + outer * 0.4}px;
+      ">
+        <div style="
+          width:${outer}px; height:${outer}px;
+          background:${color};
+          border:2.5px solid #fff;
+          border-radius:50% 50% 50% 0;
+          transform:rotate(-45deg);
+          box-shadow:0 3px 10px rgba(0,0,0,.45);
+          display:flex; align-items:center; justify-content:center;
+        ">
+          <span style="transform:rotate(45deg); font-size:${emoji}px; line-height:1;">🇮🇱</span>
+        </div>
+      </div>`,
+    iconSize:   [outer, outer + outer * 0.4],
+    iconAnchor: [outer / 2, outer + outer * 0.4],
+    popupAnchor:[0, -(outer + outer * 0.4)],
   });
 }
 
