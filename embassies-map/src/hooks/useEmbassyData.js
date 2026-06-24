@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import staticEmbassies from '../data/embassies';
+import prebuiltCoords from '../data/coords.json';
 
 // English resource — shem_mdn_a, shem_ntz_a, maamad_a, Addrs, Kabala, email, tel, Atar, k_ntz
 const EN_RESOURCE = '6fc859cb-8a6f-458b-bd5a-9bd0cfbfce11';
@@ -21,9 +22,11 @@ function normalizeKey(country, city) {
   return `${clean(country)}|${clean(city)}`;
 }
 
-const seedCoords = {};
+// Merge static hand-coded coords + pre-built Nominatim coords
+const seedCoords = { ...prebuiltCoords };
 staticEmbassies.forEach((e) => {
-  seedCoords[normalizeKey(e.country, e.city)] = { lat: e.lat, lng: e.lng };
+  const k = normalizeKey(e.country, e.city);
+  if (!seedCoords[k]) seedCoords[k] = { lat: e.lat, lng: e.lng };
 });
 
 function parseType(maamad = '') {
