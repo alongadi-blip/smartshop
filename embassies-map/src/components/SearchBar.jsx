@@ -1,45 +1,42 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import Fuse from 'fuse.js';
-import embassies from '../data/embassies';
 import { CATEGORIES } from '../data/embassies';
 
-const fuse = new Fuse(embassies, {
-  keys: ['country', 'city', 'address'],
-  threshold: 0.35,
-  includeScore: true,
-});
-
-export default function SearchBar({ pois, onSelect }) {
-  const [query, setQuery] = useState('');
+export default function SearchBar({ missions, pois, onSelect }) {
+  const [query, setQuery]   = useState('');
   const [results, setResults] = useState([]);
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
+  const [open, setOpen]     = useState(false);
+  const ref                 = useRef(null);
 
-  // Also search POIs
-  const fusePois = new Fuse(pois, {
+  const fuseMissions = useMemo(() => new Fuse(missions, {
+    keys: ['country', 'city', 'address'],
+    threshold: 0.35,
+    includeScore: true,
+  }), [missions]);
+
+  const fusePois = useMemo(() => new Fuse(pois, {
     keys: ['name', 'address', 'notes'],
     threshold: 0.35,
-  });
+  }), [pois]);
 
   useEffect(() => {
     if (!query.trim()) { setResults([]); setOpen(false); return; }
 
-    const embRes = fuse.search(query).slice(0, 6).map((r) => ({
+    const embRes = fuseMissions.search(query).slice(0, 6).map((r) => ({
       ...r.item,
       _source: 'embassy',
-      _label: `${r.item.city}, ${r.item.country}`,
+      _label:  `${r.item.city}, ${r.item.country}`,
     }));
 
     const poiRes = fusePois.search(query).slice(0, 4).map((r) => ({
       ...r.item,
       _source: 'poi',
-      _label: r.item.name,
+      _label:  r.item.name,
     }));
 
     setResults([...embRes, ...poiRes]);
     setOpen(true);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, pois]);
+  }, [query, fuseMissions, fusePois]);
 
   // Close on outside click
   useEffect(() => {

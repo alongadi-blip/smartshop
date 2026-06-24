@@ -4,6 +4,7 @@ import SearchBar from './components/SearchBar';
 import LayerToggle from './components/LayerToggle';
 import AdminPanel from './components/AdminPanel';
 import { usePois } from './hooks/useFirestore';
+import { useEmbassyData } from './hooks/useEmbassyData';
 import { CATEGORIES } from './data/embassies';
 import './App.css';
 
@@ -11,15 +12,16 @@ const DEFAULT_LAYERS = Object.fromEntries(Object.keys(CATEGORIES).map((k) => [k,
 
 export default function App() {
   const mapRef = useRef(null);
-  const { pois, addPoi, deletePoi } = usePois();
-  const [layers, setLayers] = useState(DEFAULT_LAYERS);
-  const [pickMode, setPickMode] = useState(false);
-  const [pendingLatLng, setPendingLatLng] = useState(null);
-  const [sidebarTab, setSidebarTab] = useState('search');
+  const { pois, addPoi, deletePoi }               = usePois();
+  const { missions, loading, geocodingLeft }       = useEmbassyData();
+  const [layers, setLayers]                        = useState(DEFAULT_LAYERS);
+  const [pickMode, setPickMode]                    = useState(false);
+  const [pendingLatLng, setPendingLatLng]          = useState(null);
+  const [sidebarTab, setSidebarTab]                = useState('search');
 
   const handleSearch = useCallback((item) => {
     const { lat, lng } = item;
-    if (lat == null || lng == null) return;
+    if (!lat || !lng) return;
     mapRef.current?.flyTo(lat, lng, 16);
     setTimeout(() => mapRef.current?.openPopupFor(item), 1600);
   }, []);
@@ -37,6 +39,8 @@ export default function App() {
     setPendingLatLng(latlng);
     setPickMode(false);
   }, []);
+
+  const missionsWithCoords = missions.filter((m) => m.lat && m.lng);
 
   return (
     <div className="app-container">
@@ -66,9 +70,22 @@ export default function App() {
         <div className="sidebar-content">
           {sidebarTab === 'search' && (
             <>
-              <SearchBar pois={pois} onSelect={handleSearch} />
+              <SearchBar missions={missions} pois={pois} onSelect={handleSearch} />
               <p className="search-hint">בחר תוצאה כדי לקפוץ ישירות לנציגות</p>
-              <p className="stats">🏛️ 102 נציגויות{pois.length > 0 ? ` · ${pois.length} POIs` : ''}</p>
+
+              {loading ? (
+                <p className="status-msg">⏳ טוען נתונים מ-data.gov.il…</p>
+              ) : (
+                <p className="stats">
+                  🏛️ {missionsWithCoords.length} / {missions.length} נציגויות על המפה
+                  {geocodingLeft > 0 && (
+                    <span className="geocoding-badge"> · ממקם {geocodingLeft}…</span>
+                  )}
+                </p>
+              )}
+              {pois.length > 0 && (
+                <p className="stats">📍 {pois.length} נקודות עניין אישיות</p>
+              )}
             </>
           )}
 
@@ -88,7 +105,7 @@ export default function App() {
         </div>
 
         <div className="sidebar-footer">
-          נתונים: משרד החוץ · מפה: OpenStreetMap
+          נתונים: data.gov.il · מפה: OpenStreetMap
         </div>
       </aside>
 
@@ -100,6 +117,7 @@ export default function App() {
         <MapView
           ref={mapRef}
           layers={layers}
+          missions={missions}
           pois={pois}
           pickMode={pickMode}
           onMapClick={handleMapClick}
