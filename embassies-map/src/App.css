@@ -219,6 +219,23 @@ body, html, #root {
   pointer-events: none;
 }
 
+/* ── Tooltip overrides ───────────────────────────────────── */
+.map-tooltip.leaflet-tooltip {
+  background: #16213e;
+  border: 1px solid #0f3460;
+  color: #e0e0e0;
+  border-radius: 6px;
+  padding: 5px 9px;
+  font-size: 13px;
+  box-shadow: 0 4px 12px rgba(0,0,0,.5);
+  white-space: nowrap;
+  max-width: 260px;
+  white-space: normal;
+}
+.map-tooltip.leaflet-tooltip::before {
+  border-top-color: #0f3460;
+}
+
 /* ── Leaflet popup overrides ─────────────────────────────── */
 .leaflet-popup-content-wrapper {
   background: #16213e;

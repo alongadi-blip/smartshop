@@ -14,18 +14,33 @@ L.Icon.Default.mergeOptions({
   shadowUrl:     'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-function makeIcon(color, size = 14) {
+function makeFlagIcon(isEmbassy) {
+  const size = isEmbassy ? 22 : 18;
   return L.divIcon({
     className: '',
     html: `<div style="
-      width:${size}px; height:${size}px;
+      font-size:${size}px;
+      line-height:1;
+      filter: drop-shadow(0 1px 3px rgba(0,0,0,.6));
+      cursor:pointer;
+    ">🇮🇱</div>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  });
+}
+
+function makePoiIcon(color) {
+  return L.divIcon({
+    className: '',
+    html: `<div style="
+      width:13px; height:13px;
       background:${color};
       border:2px solid #fff;
       border-radius:50%;
       box-shadow:0 1px 4px rgba(0,0,0,.4);
     "></div>`,
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
+    iconSize: [13, 13],
+    iconAnchor: [6, 6],
   });
 }
 
@@ -92,8 +107,12 @@ const MapView = forwardRef(function MapView(
     // Add embassy/consulate markers
     embassies.forEach((emb) => {
       const cat = emb.type;
-      const icon = makeIcon(CATEGORIES[cat].color, cat === 'embassy' ? 16 : 12);
+      const icon = makeFlagIcon(cat === 'embassy');
       const marker = L.marker([emb.lat, emb.lng], { icon });
+      marker.bindTooltip(
+        `<strong>${emb.city}, ${emb.country}</strong><br/><span style="font-size:11px">${emb.address}</span>`,
+        { direction: 'top', offset: [0, -6], className: 'map-tooltip' }
+      );
       marker.bindPopup(buildPopup(emb, cat));
       clusterGroupsRef.current[cat]?.addLayer(marker);
     });
@@ -119,10 +138,14 @@ const MapView = forwardRef(function MapView(
 
     pois.forEach((poi) => {
       const cat = poi.category || 'other';
-      const icon = makeIcon(CATEGORIES[cat]?.color ?? '#546E7A', 13);
+      const icon = makePoiIcon(CATEGORIES[cat]?.color ?? '#546E7A');
       const marker = L.marker([poi.lat, poi.lng], { icon });
       marker._poiCategory = cat;
       marker._poiId = poi.id;
+      marker.bindTooltip(
+        `<strong>${poi.name}</strong>${poi.address ? `<br/><span style="font-size:11px">${poi.address}</span>` : ''}`,
+        { direction: 'top', offset: [0, -4], className: 'map-tooltip' }
+      );
       marker.bindPopup(buildPoiPopup(poi, cat));
       clusterGroupsRef.current[cat]?.addLayer(marker);
       poiMarkersRef.current[poi.id] = marker;
