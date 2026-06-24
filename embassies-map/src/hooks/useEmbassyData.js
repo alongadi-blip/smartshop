@@ -10,7 +10,7 @@ const HE_RESOURCE = '4d1ce6f0-08d9-4294-a7ae-aae1b29bb769';
 const API = (id) =>
   `https://data.gov.il/api/3/action/datastore_search?resource_id=${id}&limit=300`;
 
-const CACHE_KEY  = 'govil_embassies_v4'; // bumped: filters non-resident missions
+const CACHE_KEY  = 'govil_embassies_v5'; // bumped: filters Non Resident + Jerusalem + Dominica false-positive
 const COORDS_KEY = 'govil_embassy_coords_v2';
 const TTL        = 24 * 60 * 60 * 1000;
 
@@ -72,20 +72,26 @@ const CITY_HOME = {
   paris: 'france',
   // Oceania
   wellington: 'newzealand',
+  // Israel — non-resident ambassadors accredited to small/micro nations, physically in Jerusalem
+  jerusalem: 'israel',
 };
 
 function normStr(s) {
   return s.toLowerCase().replace(/[^a-z]/g, '');
 }
 
-/** Returns false for non-resident missions (ambassador based in a different country). */
+/** Returns false for non-resident missions (ambassador is based in a different country). */
 function isResidentMission(city, country) {
   const nc = normStr(city);
   const home = CITY_HOME[nc];
   if (!home) return true; // city not in hub list → assume physically present
   const nd = normStr(country);
-  // Allow if stated country matches (or starts with) the city's home country
-  return nd.startsWith(home.slice(0, 7)) || home.startsWith(nd.slice(0, 7));
+  if (nd === home) return true; // exact match
+  // Require substantial string overlap — avoids "Dominica" matching "Dominican Republic"
+  const shorter = Math.min(home.length, nd.length);
+  const longer  = Math.max(home.length, nd.length);
+  if (shorter / longer < 0.8) return false;
+  return nd.startsWith(home.slice(0, shorter)) || home.startsWith(nd.slice(0, shorter));
 }
 
 function parseType(maamad = '') {
@@ -151,25 +157,29 @@ export function useEmbassyData() {
         // Hebrew counterpart (same k_ntz)
         const he = r.k_ntz ? heLookup[String(r.k_ntz)] : null;
 
+        const maamad = r.maamad_a || he?.maamad || '';
         return {
-          id:         String(r._id),
+          id:          String(r._id),
           country,
           city,
-          country_he: he?.shem_mdn  || '',
-          city_he:    he?.shem_ntz  ? extractCityHe(he.shem_ntz) : '',
-          address:    r.Addrs       || '',
-          type:       parseType(r.maamad_a || he?.maamad || ''),
-          email:      r.email       || '',
-          tel:        r.tel         || '',
-          website:    r.Atar        || '',
-          hours:      r.Kabala      || '',
-          lat:        coords?.lat   ?? null,
-          lng:        coords?.lng   ?? null,
-          _key:       key,
+          country_he:  he?.shem_mdn  || '',
+          city_he:     he?.shem_ntz  ? extractCityHe(he.shem_ntz) : '',
+          address:     r.Addrs       || '',
+          type:        parseType(maamad),
+          nonResident: /non.?resident/i.test(maamad),
+          email:       r.email       || '',
+          tel:         r.tel         || '',
+          website:     r.Atar        || '',
+          hours:       r.Kabala      || '',
+          lat:         coords?.lat   ?? null,
+          lng:         coords?.lng   ?? null,
+          _key:        key,
         };
       });
 
-      const resident = mapped.filter((m) => isResidentMission(m.city, m.country));
+      const resident = mapped.filter(
+        (m) => !m.nonResident && isResidentMission(m.city, m.country),
+      );
 
       localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data: resident }));
       setMissions(resident);
