@@ -14,34 +14,54 @@ L.Icon.Default.mergeOptions({
   shadowUrl:     'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
+// Israeli flag SVG — works on all OS (no emoji dependency)
 function makeFlagIcon(isEmbassy) {
-  const outer = isEmbassy ? 36 : 28;
-  const emoji = isEmbassy ? '20' : '15';
-  const color = isEmbassy ? '#1565C0' : '#1976D2';
-  // teardrop pin: circle on top, pointed bottom
+  const W = isEmbassy ? 32 : 24;   // flag width
+  const H = isEmbassy ? 21 : 16;   // flag height  (≈ 3:2 ratio)
+  const tail = isEmbassy ? 9 : 7;  // pin tail height
+  const stripe = Math.round(H * 0.22);
+  const starSize = Math.round(H * 0.44);
+
+  const flagSvg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+      <rect width="${W}" height="${H}" fill="white"/>
+      <rect y="0"                  width="${W}" height="${stripe}" fill="#0038b8"/>
+      <rect y="${H - stripe}"      width="${W}" height="${stripe}" fill="#0038b8"/>
+      <text
+        x="${W / 2}" y="${H / 2 + starSize * 0.38}"
+        text-anchor="middle"
+        font-size="${starSize}"
+        font-family="serif"
+        fill="#0038b8"
+      >✡</text>
+    </svg>`;
+
   return L.divIcon({
     className: '',
     html: `
       <div style="
         position:relative;
-        width:${outer}px;
-        height:${outer + outer * 0.4}px;
+        width:${W}px;
+        height:${H + tail}px;
+        filter:drop-shadow(0 3px 6px rgba(0,0,0,.45));
       ">
         <div style="
-          width:${outer}px; height:${outer}px;
-          background:${color};
-          border:2.5px solid #fff;
-          border-radius:50% 50% 50% 0;
-          transform:rotate(-45deg);
-          box-shadow:0 3px 10px rgba(0,0,0,.45);
-          display:flex; align-items:center; justify-content:center;
-        ">
-          <span style="transform:rotate(45deg); font-size:${emoji}px; line-height:1;">🇮🇱</span>
-        </div>
+          width:${W}px; height:${H}px;
+          border:1.5px solid #8899aa;
+          border-radius:3px;
+          overflow:hidden;
+          line-height:0;
+        ">${flagSvg}</div>
+        <div style="
+          width:0; height:0;
+          border-left:${W / 2}px solid transparent;
+          border-right:${W / 2}px solid transparent;
+          border-top:${tail}px solid #8899aa;
+        "></div>
       </div>`,
-    iconSize:   [outer, outer + outer * 0.4],
-    iconAnchor: [outer / 2, outer + outer * 0.4],
-    popupAnchor:[0, -(outer + outer * 0.4)],
+    iconSize:    [W, H + tail],
+    iconAnchor:  [W / 2, H + tail],
+    popupAnchor: [0, -(H + tail + 2)],
   });
 }
 
@@ -88,13 +108,14 @@ const MapView = forwardRef(function MapView(
 
     const map = L.map(mapRef.current, { center: [20, 10], zoom: 3 });
 
+    // Esri World Street Map — always in English, colorful, no API key required
     L.tileLayer(
-      'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
       {
         attribution:
-          '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors ' +
-          '© <a href="https://carto.com/attributions">CARTO</a>',
-        subdomains: 'abcd',
+          'Tiles © <a href="https://www.esri.com/">Esri</a> — ' +
+          'Sources: Esri, HERE, Garmin, USGS, Intermap, INCREMENT P, NRCan, Esri Japan, METI, ' +
+          'Esri China (Hong Kong), Esri Korea, Esri (Thailand), NGCC, © OpenStreetMap contributors',
         maxZoom: 19,
       },
     ).addTo(map);
