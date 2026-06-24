@@ -20,10 +20,8 @@ export default function App() {
   const [sidebarTab, setSidebarTab]                = useState('search');
 
   const handleSearch = useCallback((item) => {
-    const { lat, lng } = item;
-    if (!lat || !lng) return;
-    mapRef.current?.flyTo(lat, lng, 16);
-    setTimeout(() => mapRef.current?.openPopupFor(item), 1600);
+    if (!item.lat && !item.lng) return;
+    mapRef.current?.flyToAndOpen(item);
   }, []);
 
   const handleLayerChange = useCallback((cat, visible) => {

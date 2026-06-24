@@ -15,18 +15,19 @@ L.Icon.Default.mergeOptions({
 });
 
 // Israeli flag SVG — works on all OS (no emoji dependency)
-function makeFlagIcon(isEmbassy) {
-  const W = isEmbassy ? 32 : 24;   // flag width
-  const H = isEmbassy ? 21 : 16;   // flag height  (≈ 3:2 ratio)
-  const tail = isEmbassy ? 9 : 7;  // pin tail height
+// multi=true → adds a gold star badge (city has 2+ missions)
+function makeFlagIcon(isEmbassy, multi = false) {
+  const W = isEmbassy ? 32 : 24;
+  const H = isEmbassy ? 21 : 16;
+  const tail = isEmbassy ? 9 : 7;
   const stripe = Math.round(H * 0.22);
   const starSize = Math.round(H * 0.44);
 
   const flagSvg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
       <rect width="${W}" height="${H}" fill="white"/>
-      <rect y="0"                  width="${W}" height="${stripe}" fill="#0038b8"/>
-      <rect y="${H - stripe}"      width="${W}" height="${stripe}" fill="#0038b8"/>
+      <rect y="0"             width="${W}" height="${stripe}" fill="#0038b8"/>
+      <rect y="${H - stripe}" width="${W}" height="${stripe}" fill="#0038b8"/>
       <text
         x="${W / 2}" y="${H / 2 + starSize * 0.38}"
         text-anchor="middle"
@@ -35,6 +36,19 @@ function makeFlagIcon(isEmbassy) {
         fill="#0038b8"
       >✡</text>
     </svg>`;
+
+  const badge = multi ? `
+    <div style="
+      position:absolute;top:-6px;right:-6px;
+      width:15px;height:15px;
+      background:#FFD700;
+      border:1.5px solid #fff;
+      border-radius:50%;
+      display:flex;align-items:center;justify-content:center;
+      font-size:10px;line-height:1;
+      box-shadow:0 1px 4px rgba(0,0,0,.5);
+      color:#222;
+    ">★</div>` : '';
 
   return L.divIcon({
     className: '',
@@ -58,6 +72,7 @@ function makeFlagIcon(isEmbassy) {
           border-right:${W / 2}px solid transparent;
           border-top:${tail}px solid #8899aa;
         "></div>
+        ${badge}
       </div>`,
     iconSize:    [W, H + tail],
     iconAnchor:  [W / 2, H + tail],
@@ -78,27 +93,47 @@ const MapView = forwardRef(function MapView(
   { layers, missions, pois, onMapClick, pickMode },
   ref,
 ) {
-  const mapRef           = useRef(null);
-  const mapInstanceRef   = useRef(null);
+  const mapRef         = useRef(null);
+  const mapInstanceRef = useRef(null);
   const clusterGroupsRef = useRef({});
-  // Track rendered embassy markers by mission id
-  const embMarkersRef    = useRef({});
-  const poiMarkersRef    = useRef({});
+
+  // missionId → { marker, cat }  (marker may be shared across a group)
+  const embMarkersRef = useRef({});
+  // groupKey → { marker, cat, members: Mission[] }
+  const groupsRef     = useRef({});
+  const poiMarkersRef = useRef({});
 
   useImperativeHandle(ref, () => ({
     flyTo(lat, lng, zoom = 16) {
       mapInstanceRef.current?.flyTo([lat, lng], zoom, { duration: 1.5 });
     },
+    // Fly to the group marker's actual position, then open popup
+    flyToAndOpen(item) {
+      const map = mapInstanceRef.current;
+      if (!map) return;
+
+      if (item._source === 'poi') {
+        map.flyTo([item.lat, item.lng], 16, { duration: 1.5 });
+        map.once('moveend', () => {
+          clusterGroupsRef.current[item.category]?.eachLayer((layer) => {
+            const ll = layer.getLatLng();
+            if (Math.abs(ll.lat - item.lat) < 0.001 && Math.abs(ll.lng - item.lng) < 0.001) {
+              layer.openPopup();
+            }
+          });
+        });
+      } else {
+        const entry = embMarkersRef.current[item.id];
+        if (!entry) return;
+        const { marker } = entry;
+        const ll = marker.getLatLng();
+        map.flyTo([ll.lat, ll.lng], 16, { duration: 1.5 });
+        map.once('moveend', () => { try { marker.openPopup(); } catch {} });
+      }
+    },
+    // Legacy compat — kept for POI path used internally
     openPopupFor(item) {
-      const cat   = item._source === 'poi' ? item.category : item.type;
-      const group = clusterGroupsRef.current[cat];
-      if (!group) return;
-      group.eachLayer((layer) => {
-        const ll = layer.getLatLng();
-        if (Math.abs(ll.lat - item.lat) < 0.001 && Math.abs(ll.lng - item.lng) < 0.001) {
-          mapInstanceRef.current?.once('moveend', () => layer.openPopup());
-        }
-      });
+      this.flyToAndOpen(item);
     },
   }));
 
@@ -108,7 +143,6 @@ const MapView = forwardRef(function MapView(
 
     const map = L.map(mapRef.current, { center: [20, 10], zoom: 3 });
 
-    // Esri World Street Map — always in English, colorful, no API key required
     L.tileLayer(
       'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
       {
@@ -131,33 +165,49 @@ const MapView = forwardRef(function MapView(
     return () => { map.remove(); mapInstanceRef.current = null; };
   }, []);
 
-  // ── Sync embassy/consulate markers as missions arrive or get geocoded ────
+  // ── Sync embassy/consulate markers — group same-country missions within ~10km ──
   useEffect(() => {
     if (!mapInstanceRef.current) return;
 
     missions.forEach((emb) => {
-      if (!emb.lat || !emb.lng) return; // wait until geocoded
+      if (!emb.lat || !emb.lng) return;
+      if (embMarkersRef.current[emb.id]) return; // already handled
 
-      if (embMarkersRef.current[emb.id]) return; // already added
+      // Look for an existing group: same country, coordinates within ~0.1° (~11km)
+      const existingGroup = Object.values(groupsRef.current).find(
+        (g) =>
+          g.members[0].country === emb.country &&
+          Math.abs(g.members[0].lat - emb.lat) < 0.1 &&
+          Math.abs(g.members[0].lng - emb.lng) < 0.1,
+      );
 
-      const cat    = emb.type;
-      const icon   = makeFlagIcon(cat === 'embassy');
-      const marker = L.marker([emb.lat, emb.lng], { icon });
+      if (existingGroup) {
+        // Join existing group: update icon → star, update popup
+        existingGroup.members.push(emb);
+        const hasEmbassy = existingGroup.members.some((m) => m.type === 'embassy');
+        existingGroup.marker.setIcon(makeFlagIcon(hasEmbassy, true));
+        existingGroup.marker.setPopupContent(
+          makePopupEl(buildGroupPopup(existingGroup.members)),
+        );
+        existingGroup.marker.setTooltipContent(buildGroupTooltip(existingGroup.members));
+        embMarkersRef.current[emb.id] = { marker: existingGroup.marker, cat: existingGroup.cat };
+      } else {
+        // Create a new single-mission group
+        const cat    = emb.type;
+        const icon   = makeFlagIcon(cat === 'embassy', false);
+        const marker = L.marker([emb.lat, emb.lng], { icon });
 
-      const cityLabel = emb.city_he
-        ? `${emb.city_he} / ${emb.city}`
-        : emb.city;
-      const countryLabel = emb.country_he
-        ? `${emb.country_he} / ${emb.country}`
-        : emb.country;
-      const tooltipHtml =
-        `<strong>${cityLabel}, ${countryLabel}</strong>` +
-        (emb.address ? `<br/><span style="font-size:11px">${emb.address}</span>` : '');
-      marker.bindTooltip(tooltipHtml, { direction: 'top', offset: [0, -6], className: 'map-tooltip' });
-      marker.bindPopup(makePopupEl(buildPopup(emb, cat)));
+        marker.bindTooltip(buildGroupTooltip([emb]), {
+          direction: 'top', offset: [0, -6], className: 'map-tooltip',
+        });
+        marker.bindPopup(makePopupEl(buildGroupPopup([emb])));
 
-      clusterGroupsRef.current[cat]?.addLayer(marker);
-      embMarkersRef.current[emb.id] = { marker, cat };
+        clusterGroupsRef.current[cat]?.addLayer(marker);
+
+        const groupKey = `g_${emb.id}`;
+        groupsRef.current[groupKey] = { marker, cat, members: [emb] };
+        embMarkersRef.current[emb.id] = { marker, cat };
+      }
     });
   }, [missions]);
 
@@ -165,7 +215,6 @@ const MapView = forwardRef(function MapView(
   useEffect(() => {
     if (!mapInstanceRef.current) return;
 
-    // Remove stale POI markers
     const currentIds = new Set(pois.map((p) => p.id));
     Object.entries(poiMarkersRef.current).forEach(([id, { marker, cat }]) => {
       if (!currentIds.has(id)) {
@@ -220,39 +269,70 @@ const MapView = forwardRef(function MapView(
 
 export default MapView;
 
-// ── Popup builders ───────────────────────────────────────────────────────────
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
-// Creates a detached DOM element so Leaflet appends it via DOM (not innerHTML),
-// which avoids any browser/library string-sanitization of links and mailto: hrefs.
 function makePopupEl(htmlString) {
   const el = document.createElement('div');
   el.innerHTML = htmlString;
   return el;
 }
 
-// Escape values that go into HTML attribute positions
-function esc(s) { return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function esc(s) {
+  return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
 
-function buildPopup(emb, cat) {
-  const c = CATEGORIES[cat];
-  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${emb.lat},${emb.lng}`;
-  const title = emb.city_he
-    ? `${emb.city_he}, ${emb.country_he || emb.country} <span style="color:#607080;font-size:12px">(${emb.city}, ${emb.country})</span>`
-    : `${emb.city}, ${emb.country}`;
+// ── Tooltip ──────────────────────────────────────────────────────────────────
+
+function buildGroupTooltip(members) {
+  const primary = members[0];
+  const cityLabel    = primary.city_he    ? `${primary.city_he} / ${primary.city}`       : primary.city;
+  const countryLabel = primary.country_he ? `${primary.country_he} / ${primary.country}` : primary.country;
+  let html = `<strong>${cityLabel}, ${countryLabel}</strong>`;
+  if (members.length > 1) {
+    html += `<br/><span style="font-size:11px;color:#aaa">${members.length} נציגויות ▼</span>`;
+  } else if (primary.address) {
+    html += `<br/><span style="font-size:11px">${primary.address}</span>`;
+  }
+  return html;
+}
+
+// ── Popup builders ───────────────────────────────────────────────────────────
+
+function buildMissionBlock(m) {
+  const c = CATEGORIES[m.type];
+  return `
+    <div class="popup-mission">
+      <div class="popup-type" style="color:${c.color}">${c.emoji} ${c.label}</div>
+      ${m.address ? `<p class="popup-addr">${m.address}</p>` : ''}
+      <div class="popup-meta">
+        ${m.tel     ? `<span>📞 ${esc(m.tel)}</span>` : ''}
+        ${m.email   ? `<span>✉️ <a href="mailto:${esc(m.email)}">${esc(m.email)}</a></span>` : ''}
+        ${m.hours   ? `<span>🕐 ${esc(m.hours)}</span>` : ''}
+        ${m.website ? `<span>🌐 <a href="${esc(m.website)}" target="_blank" rel="noopener">אתר רשמי ↗</a></span>` : ''}
+      </div>
+    </div>`;
+}
+
+function buildGroupPopup(members) {
+  const primary  = members[0];
+  const mapsUrl  = `https://www.google.com/maps/search/?api=1&query=${primary.lat},${primary.lng}`;
+  const cityTitle = primary.city_he
+    ? `${primary.city_he}, ${primary.country_he || primary.country} <span style="color:#607080;font-size:12px">(${primary.city}, ${primary.country})</span>`
+    : `${primary.city}, ${primary.country}`;
+
+  const blocksHtml = members
+    .map((m, i) =>
+      (i > 0 ? '<hr style="border:none;border-top:1px solid #2a3a4a;margin:10px 0">' : '') +
+      buildMissionBlock(m),
+    )
+    .join('');
+
   return `
     <div class="popup-card">
-      <div class="popup-type" style="color:${c.color}">${c.emoji} ${c.label}</div>
-      <strong class="popup-title">${title}</strong>
-      ${emb.address ? `<p class="popup-addr">${emb.address}</p>` : ''}
-      <div class="popup-meta">
-        ${emb.tel     ? `<span>📞 ${esc(emb.tel)}</span>` : ''}
-        ${emb.email   ? `<span>✉️ <a href="mailto:${esc(emb.email)}">${esc(emb.email)}</a></span>` : ''}
-        ${emb.hours   ? `<span>🕐 ${esc(emb.hours)}</span>` : ''}
-        ${emb.website ? `<span>🌐 <a href="${esc(emb.website)}" target="_blank" rel="noopener">אתר רשמי ↗</a></span>` : ''}
-      </div>
+      <strong class="popup-title">${cityTitle}</strong>
+      ${blocksHtml}
       <a href="${mapsUrl}" target="_blank" rel="noopener" class="popup-link popup-maps">📍 Google Maps ↗</a>
-    </div>
-  `;
+    </div>`;
 }
 
 function buildPoiPopup(poi, cat) {
@@ -262,9 +342,8 @@ function buildPoiPopup(poi, cat) {
     <div class="popup-card">
       <div class="popup-type" style="color:${c.color}">${c.emoji} ${c.label}</div>
       <strong class="popup-title">${poi.name}</strong>
-      ${poi.address ? `<p class="popup-addr">${poi.address}</p>`      : ''}
-      ${poi.notes   ? `<p class="popup-notes">${poi.notes}</p>`       : ''}
+      ${poi.address ? `<p class="popup-addr">${poi.address}</p>`  : ''}
+      ${poi.notes   ? `<p class="popup-notes">${poi.notes}</p>`   : ''}
       <a href="${mapsUrl}" target="_blank" rel="noopener" class="popup-link popup-maps">📍 Google Maps ↗</a>
-    </div>
-  `;
+    </div>`;
 }
