@@ -241,12 +241,18 @@ const MapView = forwardRef(function MapView(
           });
         });
       } else {
-        const entry = embMarkersRef.current[item.id];
-        if (!entry) return;
-        const { marker } = entry;
-        const ll = marker.getLatLng();
-        map.flyTo([ll.lat, ll.lng], 16, { duration: 1.5 });
-        map.once('moveend', () => { try { marker.openPopup(); } catch {} });
+        const tryFly = () => {
+          const entry = embMarkersRef.current[item.id];
+          if (entry) {
+            const ll = entry.marker.getLatLng();
+            map.flyTo([ll.lat, ll.lng], 16, { duration: 1.5 });
+            map.once('moveend', () => { try { entry.marker.openPopup(); } catch {} });
+          } else if (item.lat && item.lng) {
+            // marker not yet created (geocoding in progress) — fly to mission coords
+            map.flyTo([item.lat, item.lng], 14, { duration: 1.5 });
+          }
+        };
+        tryFly();
       }
     },
     openPopupFor(item) { this.flyToAndOpen(item); },
