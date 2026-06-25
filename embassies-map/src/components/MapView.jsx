@@ -80,12 +80,36 @@ function makeFlagIcon(isEmbassy, multi = false) {
   });
 }
 
-function makePoiIcon(color) {
+function makePoiIcon(color, emoji) {
+  const S = 34; // circle diameter
+  const T = 9;  // tail height
   return L.divIcon({
     className: '',
-    html: `<div style="width:13px;height:13px;background:${color};border:2px solid #fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,.4);"></div>`,
-    iconSize: [13, 13],
-    iconAnchor: [6, 6],
+    html: `
+      <div style="
+        position:relative;
+        width:${S}px;
+        height:${S + T}px;
+        filter:drop-shadow(0 3px 6px rgba(0,0,0,.5));
+      ">
+        <div style="
+          width:${S}px; height:${S}px;
+          background:${color};
+          border:2.5px solid rgba(255,255,255,.85);
+          border-radius:50%;
+          display:flex; align-items:center; justify-content:center;
+          font-size:17px; line-height:1;
+        ">${emoji}</div>
+        <div style="
+          width:0; height:0;
+          border-left:${S / 2}px solid transparent;
+          border-right:${S / 2}px solid transparent;
+          border-top:${T}px solid ${color};
+        "></div>
+      </div>`,
+    iconSize:    [S, S + T],
+    iconAnchor:  [S / 2, S + T],
+    popupAnchor: [0, -(S + T + 2)],
   });
 }
 
@@ -226,7 +250,8 @@ const MapView = forwardRef(function MapView(
     pois.forEach((poi) => {
       if (poiMarkersRef.current[poi.id]) return;
       const cat    = poi.category || 'other';
-      const icon   = makePoiIcon(CATEGORIES[cat]?.color ?? '#546E7A');
+      const catDef = CATEGORIES[cat] ?? CATEGORIES.other;
+      const icon   = makePoiIcon(catDef.color, catDef.emoji);
       const marker = L.marker([poi.lat, poi.lng], { icon });
       marker.bindTooltip(
         `<strong>${poi.name}</strong>${poi.address ? `<br/><span style="font-size:11px">${poi.address}</span>` : ''}`,
