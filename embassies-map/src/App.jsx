@@ -107,7 +107,7 @@ export default function App() {
           )}
 
           {sidebarTab === 'layers' && (
-            <LayerToggle layers={layers} onChange={handleLayerChange} />
+            <LayerToggle layers={layers} onChange={handleLayerChange} pois={pois} />
           )}
 
           {sidebarTab === 'admin' && (

@@ -99,6 +99,7 @@ function makePoiIcon(color, emoji) {
           border-radius:50%;
           display:flex; align-items:center; justify-content:center;
           font-size:17px; line-height:1;
+          font-family:'Segoe UI Emoji','Apple Color Emoji','Noto Color Emoji',sans-serif;
         ">${emoji}</div>
         <div style="
           width:0; height:0;

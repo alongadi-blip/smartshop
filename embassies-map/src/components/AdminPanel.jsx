@@ -6,11 +6,13 @@ const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || 'admin123';
 const BLANK = { name: '', category: 'hospital', lat: '', lng: '', address: '', notes: '' };
 
 export default function AdminPanel({ pois, onAdd, onDelete, onPickLocation, pendingLatLng }) {
-  const [authed, setAuthed] = useState(false);
-  const [pwInput, setPwInput] = useState('');
-  const [pwError, setPwError] = useState(false);
-  const [form, setForm] = useState(BLANK);
-  const [saving, setSaving] = useState(false);
+  const [authed, setAuthed]     = useState(false);
+  const [pwInput, setPwInput]   = useState('');
+  const [pwError, setPwError]   = useState(false);
+  const [form, setForm]         = useState(BLANK);
+  const [saving, setSaving]     = useState(false);
+  const [saveOk, setSaveOk]     = useState(false);
+  const [saveErr, setSaveErr]   = useState('');
   const [pickMode, setPickMode] = useState(false);
 
   const login = () => {
@@ -18,7 +20,6 @@ export default function AdminPanel({ pois, onAdd, onDelete, onPickLocation, pend
     else { setPwError(true); }
   };
 
-  // When the user has picked a location on the map, fill lat/lng in the form
   if (pendingLatLng && (form.lat !== String(pendingLatLng.lat) || form.lng !== String(pendingLatLng.lng))) {
     setForm((f) => ({ ...f, lat: String(pendingLatLng.lat.toFixed(6)), lng: String(pendingLatLng.lng.toFixed(6)) }));
     setPickMode(false);
@@ -28,16 +29,22 @@ export default function AdminPanel({ pois, onAdd, onDelete, onPickLocation, pend
     e.preventDefault();
     if (!form.name || !form.lat || !form.lng) return;
     setSaving(true);
+    setSaveOk(false);
+    setSaveErr('');
     try {
       await onAdd({
-        name: form.name,
+        name:     form.name,
         category: form.category,
-        lat: parseFloat(form.lat),
-        lng: parseFloat(form.lng),
-        address: form.address,
-        notes: form.notes,
+        lat:      parseFloat(form.lat),
+        lng:      parseFloat(form.lng),
+        address:  form.address,
+        notes:    form.notes,
       });
       setForm(BLANK);
+      setSaveOk(true);
+      setTimeout(() => setSaveOk(false), 3000);
+    } catch (err) {
+      setSaveErr('שגיאה בשמירה: ' + (err.message || 'נסה שנית'));
     } finally {
       setSaving(false);
     }
@@ -68,7 +75,7 @@ export default function AdminPanel({ pois, onAdd, onDelete, onPickLocation, pend
       <form onSubmit={handleSubmit} dir="rtl">
         <input
           className="admin-input"
-          placeholder="שם"
+          placeholder="שם (לדוגמה: בית חולים Mount Sinai)"
           value={form.name}
           onChange={(e) => setForm({ ...form, name: e.target.value })}
           required
@@ -84,13 +91,13 @@ export default function AdminPanel({ pois, onAdd, onDelete, onPickLocation, pend
         </select>
         <input
           className="admin-input"
-          placeholder="כתובת"
+          placeholder="כתובת (אופציונלי)"
           value={form.address}
           onChange={(e) => setForm({ ...form, address: e.target.value })}
         />
         <textarea
           className="admin-input"
-          placeholder="הערות"
+          placeholder="הערות (אופציונלי)"
           rows={2}
           value={form.notes}
           onChange={(e) => setForm({ ...form, notes: e.target.value })}
@@ -116,17 +123,19 @@ export default function AdminPanel({ pois, onAdd, onDelete, onPickLocation, pend
           className="btn-secondary"
           onClick={() => { setPickMode(true); onPickLocation(); }}
         >
-          {pickMode ? '⌛ לחץ על המפה…' : '📌 בחר על המפה'}
+          {pickMode ? '⌛ לחץ על המפה…' : '📌 בחר מיקום על המפה'}
         </button>
         <button type="submit" className="btn-primary" disabled={saving}>
-          {saving ? 'שומר…' : 'הוסף'}
+          {saving ? 'שומר…' : '➕ הוסף נקודה'}
         </button>
+        {saveOk  && <p className="success-text">✅ נשמר בהצלחה!</p>}
+        {saveErr && <p className="error-text">{saveErr}</p>}
       </form>
 
       {pois.length > 0 && (
         <>
           <hr className="divider" />
-          <h4 className="panel-subtitle">נקודות קיימות</h4>
+          <h4 className="panel-subtitle">נקודות קיימות ({pois.length})</h4>
           <ul className="poi-list">
             {pois.map((p) => (
               <li key={p.id} className="poi-item">

@@ -147,6 +147,24 @@ body, html, #root {
   width: 10px; height: 10px; border-radius: 50%;
   flex-shrink: 0;
 }
+.layer-label { flex: 1; }
+.layer-count {
+  font-size: 11px;
+  color: #60b060;
+  font-weight: 600;
+}
+.layer-count--empty { color: #607080; font-weight: 400; }
+.layer-hint-admin {
+  font-size: 11px;
+  color: #506070;
+  margin-top: 10px;
+  padding: 8px 10px;
+  background: #0f2030;
+  border-radius: 6px;
+  border-left: 3px solid #1565C0;
+  line-height: 1.5;
+}
+.success-text { font-size: 12px; color: #60b060; margin-top: 4px; }
 
 /* ── Admin Panel ─────────────────────────────────────────── */
 .admin-panel { display: flex; flex-direction: column; gap: 8px; }
