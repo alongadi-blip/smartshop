@@ -122,6 +122,9 @@ const embassies = [
   { id: 102, country: "New Zealand", city: "Wellington", address: "Level 13, 111 The Terrace, Wellington 6011",        lat: -41.2796, lng: 174.7778, type: "embassy"   },
 ];
 
+// Categories that auto-fetch from OpenStreetMap Overpass API
+export const OSM_CATS = new Set(['hospital', 'police', 'school']);
+
 export const CATEGORIES = {
   embassy:   { label: "שגרירות",    color: "#1565C0", emoji: "🏛️" },
   consulate: { label: "קונסוליה",   color: "#0288D1", emoji: "🏢" },

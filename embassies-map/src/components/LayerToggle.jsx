@@ -1,10 +1,12 @@
-import { CATEGORIES } from '../data/embassies';
+import { CATEGORIES, OSM_CATS } from '../data/embassies';
 
 export default function LayerToggle({ layers, onChange, pois = [] }) {
-  // Count POIs per non-embassy category
+  // Count manually-added POIs per non-OSM, non-embassy category
   const poiCounts = {};
   pois.forEach((p) => {
-    poiCounts[p.category] = (poiCounts[p.category] || 0) + 1;
+    if (!OSM_CATS.has(p.category)) {
+      poiCounts[p.category] = (poiCounts[p.category] || 0) + 1;
+    }
   });
 
   return (
@@ -12,7 +14,8 @@ export default function LayerToggle({ layers, onChange, pois = [] }) {
       <h3 className="panel-title">שכבות</h3>
       {Object.entries(CATEGORIES).map(([key, { label, color, emoji }]) => {
         const isApiLayer = key === 'embassy' || key === 'consulate';
-        const count = isApiLayer ? null : (poiCounts[key] ?? 0);
+        const isOsmLayer = OSM_CATS.has(key);
+        const count      = !isApiLayer && !isOsmLayer ? (poiCounts[key] ?? 0) : null;
 
         return (
           <label key={key} className="layer-row">
@@ -23,6 +26,9 @@ export default function LayerToggle({ layers, onChange, pois = [] }) {
             />
             <span className="layer-dot" style={{ background: color }} />
             <span className="layer-label">{emoji} {label}</span>
+            {isOsmLayer && (
+              <span className="layer-osm-badge">🌍 OSM</span>
+            )}
             {count !== null && (
               <span className={`layer-count${count === 0 ? ' layer-count--empty' : ''}`}>
                 {count === 0 ? 'אין' : count}
@@ -32,7 +38,8 @@ export default function LayerToggle({ layers, onChange, pois = [] }) {
         );
       })}
       <p className="layer-hint-admin">
-        💡 הוסף בתי חולים, משטרה ועוד בלשונית Admin
+        🔍 זום-אין (רחוב/שכונה) לטעינת OSM אוטומטית<br/>
+        💡 אזורים מאובטחים ועוד — הוסף בלשונית Admin
       </p>
     </div>
   );

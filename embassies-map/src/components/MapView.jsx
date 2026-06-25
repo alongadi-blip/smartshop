@@ -4,7 +4,7 @@ import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import 'leaflet.markercluster';
-import { CATEGORIES } from '../data/embassies';
+import { CATEGORIES, OSM_CATS } from '../data/embassies';
 
 // Fix Leaflet's broken default icon URLs when bundled with Vite
 delete L.Icon.Default.prototype._getIconUrl;
@@ -14,8 +14,17 @@ L.Icon.Default.mergeOptions({
   shadowUrl:     'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-// Israeli flag SVG — works on all OS (no emoji dependency)
-// multi=true → adds a gold star badge (city has 2+ missions)
+// ── OSM config ───────────────────────────────────────────────────────────────
+const OSM_AMENITY = {
+  hospital: 'amenity=hospital',
+  police:   'amenity=police',
+  school:   'amenity=school',
+};
+const MIN_ZOOM_OSM = 11;   // don't query at world/continent zoom
+const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
+const DEBOUNCE_MS  = 700;
+
+// ── Israeli flag icon ────────────────────────────────────────────────────────
 function makeFlagIcon(isEmbassy, multi = false) {
   const W = isEmbassy ? 32 : 24;
   const H = isEmbassy ? 21 : 16;
@@ -81,8 +90,8 @@ function makeFlagIcon(isEmbassy, multi = false) {
 }
 
 function makePoiIcon(color, emoji) {
-  const S = 34; // circle diameter
-  const T = 9;  // tail height
+  const S = 34;
+  const T = 9;
   return L.divIcon({
     className: '',
     html: `
@@ -114,25 +123,105 @@ function makePoiIcon(color, emoji) {
   });
 }
 
+// ── OSM fetch helper ─────────────────────────────────────────────────────────
+async function refreshOsmLayer(cat, map, refs) {
+  const { osmMarkersRef, osmCacheRef, osmFetchingRef, clusterGroupsRef } = refs;
+
+  if (osmFetchingRef.current[cat]) return;
+  if (map.getZoom() < MIN_ZOOM_OSM) return;
+
+  const b   = map.getBounds();
+  const sw  = b.getSouthWest();
+  const ne  = b.getNorthEast();
+  // round bbox to 1dp so nearby moves reuse cache
+  const key = `${cat}:${sw.lat.toFixed(1)},${sw.lng.toFixed(1)},${ne.lat.toFixed(1)},${ne.lng.toFixed(1)}`;
+
+  let items = osmCacheRef.current[key];
+  if (!items) {
+    osmFetchingRef.current[cat] = true;
+    try {
+      const bbox  = `${sw.lat},${sw.lng},${ne.lat},${ne.lng}`;
+      const tag   = OSM_AMENITY[cat];
+      const query = `[out:json][timeout:15];(node[${tag}](${bbox});way[${tag}](${bbox}););out center tags;`;
+      const res   = await fetch(OVERPASS_URL, {
+        method: 'POST',
+        body: `data=${encodeURIComponent(query)}`,
+      });
+      if (!res.ok) throw new Error('overpass');
+      const data = await res.json();
+      items = data.elements
+        .map((el) => ({
+          id:      `${el.type}_${el.id}`,
+          lat:     el.type === 'node' ? el.lat : el.center?.lat,
+          lng:     el.type === 'node' ? el.lon : el.center?.lon,
+          name:    el.tags?.name || el.tags?.['name:he'] || el.tags?.['name:en'] || cat,
+          address: [el.tags?.['addr:street'], el.tags?.['addr:housenumber']].filter(Boolean).join(' '),
+          phone:   el.tags?.phone || el.tags?.['contact:phone'] || '',
+          website: el.tags?.website || el.tags?.['contact:website'] || '',
+          hours:   el.tags?.opening_hours || '',
+        }))
+        .filter((el) => el.lat && el.lng);
+      osmCacheRef.current[key] = items;
+    } catch {
+      osmFetchingRef.current[cat] = false;
+      return;
+    }
+    osmFetchingRef.current[cat] = false;
+  }
+
+  // Sync markers: add new, remove stale
+  const existing = osmMarkersRef.current[cat] ?? {};
+  const newIds   = new Set(items.map((i) => i.id));
+
+  Object.entries(existing).forEach(([id, marker]) => {
+    if (!newIds.has(id)) {
+      clusterGroupsRef.current[cat]?.removeLayer(marker);
+      delete existing[id];
+    }
+  });
+
+  const catDef = CATEGORIES[cat] ?? CATEGORIES.other;
+  items.forEach((item) => {
+    if (existing[item.id]) return;
+    const icon   = makePoiIcon(catDef.color, catDef.emoji);
+    const marker = L.marker([item.lat, item.lng], { icon });
+    marker.bindTooltip(
+      `<strong>${item.name}</strong>${item.address ? `<br/><span style="font-size:11px">${item.address}</span>` : ''}`,
+      { direction: 'top', offset: [0, -4], className: 'map-tooltip' },
+    );
+    marker.bindPopup(makePopupEl(buildOsmPoiPopup(item, cat)));
+    clusterGroupsRef.current[cat]?.addLayer(marker);
+    existing[item.id] = marker;
+  });
+
+  osmMarkersRef.current[cat] = existing;
+}
+
+// ── Component ────────────────────────────────────────────────────────────────
 const MapView = forwardRef(function MapView(
   { layers, missions, pois, onMapClick, pickMode },
   ref,
 ) {
-  const mapRef         = useRef(null);
-  const mapInstanceRef = useRef(null);
-  const clusterGroupsRef = useRef({});
+  const mapRef            = useRef(null);
+  const mapInstanceRef    = useRef(null);
+  const clusterGroupsRef  = useRef({});
+  const embMarkersRef     = useRef({});
+  const groupsRef         = useRef({});
+  const poiMarkersRef     = useRef({});
 
-  // missionId → { marker, cat }  (marker may be shared across a group)
-  const embMarkersRef = useRef({});
-  // groupKey → { marker, cat, members: Mission[] }
-  const groupsRef     = useRef({});
-  const poiMarkersRef = useRef({});
+  // OSM refs
+  const osmMarkersRef  = useRef({});  // { [cat]: { [osmId]: marker } }
+  const osmCacheRef    = useRef({});  // { [cacheKey]: items[] }
+  const osmFetchingRef = useRef({});  // { [cat]: bool } — prevent concurrent fetches
+  const osmActiveCats  = useRef(new Set());
+  const osmDebounceRef = useRef(null);
+
+  const osmRefs = { osmMarkersRef, osmCacheRef, osmFetchingRef, clusterGroupsRef };
 
   useImperativeHandle(ref, () => ({
     flyTo(lat, lng, zoom = 16) {
       mapInstanceRef.current?.flyTo([lat, lng], zoom, { duration: 1.5 });
     },
-    // Fly to the group marker's actual position, then open popup
     flyToAndOpen(item) {
       const map = mapInstanceRef.current;
       if (!map) return;
@@ -156,13 +245,10 @@ const MapView = forwardRef(function MapView(
         map.once('moveend', () => { try { marker.openPopup(); } catch {} });
       }
     },
-    // Legacy compat — kept for POI path used internally
-    openPopupFor(item) {
-      this.flyToAndOpen(item);
-    },
+    openPopupFor(item) { this.flyToAndOpen(item); },
   }));
 
-  // ── Init map once ────────────────────────────────────────────────────────
+  // ── Init map once ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (mapInstanceRef.current) return;
 
@@ -187,18 +273,27 @@ const MapView = forwardRef(function MapView(
       clusterGroupsRef.current[cat] = cg;
     });
 
-    return () => { map.remove(); mapInstanceRef.current = null; };
-  }, []);
+    // Refresh active OSM layers after every map move (debounced)
+    map.on('moveend', () => {
+      clearTimeout(osmDebounceRef.current);
+      osmDebounceRef.current = setTimeout(() => {
+        osmActiveCats.current.forEach((cat) => {
+          refreshOsmLayer(cat, map, osmRefs);
+        });
+      }, DEBOUNCE_MS);
+    });
 
-  // ── Sync embassy/consulate markers — group same-country missions within ~10km ──
+    return () => { map.remove(); mapInstanceRef.current = null; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Embassy / consulate markers ───────────────────────────────────────────
   useEffect(() => {
     if (!mapInstanceRef.current) return;
 
     missions.forEach((emb) => {
       if (!emb.lat || !emb.lng) return;
-      if (embMarkersRef.current[emb.id]) return; // already handled
+      if (embMarkersRef.current[emb.id]) return;
 
-      // Look for an existing group: same country, coordinates within ~0.1° (~11km)
       const existingGroup = Object.values(groupsRef.current).find(
         (g) =>
           g.members[0].country === emb.country &&
@@ -207,17 +302,13 @@ const MapView = forwardRef(function MapView(
       );
 
       if (existingGroup) {
-        // Join existing group: update icon → star, update popup
         existingGroup.members.push(emb);
         const hasEmbassy = existingGroup.members.some((m) => m.type === 'embassy');
         existingGroup.marker.setIcon(makeFlagIcon(hasEmbassy, true));
-        existingGroup.marker.setPopupContent(
-          makePopupEl(buildGroupPopup(existingGroup.members)),
-        );
+        existingGroup.marker.setPopupContent(makePopupEl(buildGroupPopup(existingGroup.members)));
         existingGroup.marker.setTooltipContent(buildGroupTooltip(existingGroup.members));
         embMarkersRef.current[emb.id] = { marker: existingGroup.marker, cat: existingGroup.cat };
       } else {
-        // Create a new single-mission group
         const cat    = emb.type;
         const icon   = makeFlagIcon(cat === 'embassy', false);
         const marker = L.marker([emb.lat, emb.lng], { icon });
@@ -236,7 +327,7 @@ const MapView = forwardRef(function MapView(
     });
   }, [missions]);
 
-  // ── Sync POI markers ─────────────────────────────────────────────────────
+  // ── Manual POI markers (Firestore) ────────────────────────────────────────
   useEffect(() => {
     if (!mapInstanceRef.current) return;
 
@@ -264,7 +355,7 @@ const MapView = forwardRef(function MapView(
     });
   }, [pois]);
 
-  // ── Toggle layer visibility ──────────────────────────────────────────────
+  // ── Layer visibility + trigger OSM fetch on enable ────────────────────────
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
@@ -273,10 +364,19 @@ const MapView = forwardRef(function MapView(
       if (!group) return;
       if (visible  && !map.hasLayer(group)) map.addLayer(group);
       if (!visible &&  map.hasLayer(group)) map.removeLayer(group);
-    });
-  }, [layers]);
 
-  // ── Pick-mode click ──────────────────────────────────────────────────────
+      if (OSM_CATS.has(cat)) {
+        if (visible) {
+          osmActiveCats.current.add(cat);
+          refreshOsmLayer(cat, map, osmRefs);
+        } else {
+          osmActiveCats.current.delete(cat);
+        }
+      }
+    });
+  }, [layers]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Pick-mode click ───────────────────────────────────────────────────────
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map || !pickMode) return;
@@ -304,13 +404,15 @@ function makePopupEl(htmlString) {
 }
 
 function esc(s) {
-  return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
 
-// ── Tooltip ──────────────────────────────────────────────────────────────────
-
 function buildGroupTooltip(members) {
-  const primary = members[0];
+  const primary      = members[0];
   const cityLabel    = primary.city_he    ? `${primary.city_he} / ${primary.city}`       : primary.city;
   const countryLabel = primary.country_he ? `${primary.country_he} / ${primary.country}` : primary.country;
   let html = `<strong>${cityLabel}, ${countryLabel}</strong>`;
@@ -322,8 +424,6 @@ function buildGroupTooltip(members) {
   return html;
 }
 
-// ── Popup builders ───────────────────────────────────────────────────────────
-
 function buildMissionBlock(m) {
   const c = CATEGORIES[m.type];
   return `
@@ -331,17 +431,17 @@ function buildMissionBlock(m) {
       <div class="popup-type" style="color:${c.color}">${c.emoji} ${c.label}</div>
       ${m.address ? `<p class="popup-addr">${m.address}</p>` : ''}
       <div class="popup-meta">
-        ${m.tel     ? `<span>📞 ${esc(m.tel)}</span>` : ''}
-        ${m.email   ? `<span>✉️ <a href="mailto:${esc(m.email)}">${esc(m.email)}</a></span>` : ''}
-        ${m.hours   ? `<span>🕐 ${esc(m.hours)}</span>` : ''}
-        ${m.website ? `<span>🌐 <a href="${esc(m.website)}" target="_blank" rel="noopener">אתר רשמי ↗</a></span>` : ''}
+        ${m.tel     ? `<span>📞 ${esc(m.tel)}</span>`                                                                    : ''}
+        ${m.email   ? `<span>✉️ <a href="mailto:${esc(m.email)}">${esc(m.email)}</a></span>`                             : ''}
+        ${m.hours   ? `<span>🕐 ${esc(m.hours)}</span>`                                                                   : ''}
+        ${m.website ? `<span>🌐 <a href="${esc(m.website)}" target="_blank" rel="noopener">אתר רשמי ↗</a></span>`        : ''}
       </div>
     </div>`;
 }
 
 function buildGroupPopup(members) {
-  const primary  = members[0];
-  const mapsUrl  = `https://www.google.com/maps/search/?api=1&query=${primary.lat},${primary.lng}`;
+  const primary   = members[0];
+  const mapsUrl   = `https://www.google.com/maps/search/?api=1&query=${primary.lat},${primary.lng}`;
   const cityTitle = primary.city_he
     ? `${primary.city_he}, ${primary.country_he || primary.country} <span style="color:#607080;font-size:12px">(${primary.city}, ${primary.country})</span>`
     : `${primary.city}, ${primary.country}`;
@@ -370,6 +470,23 @@ function buildPoiPopup(poi, cat) {
       <strong class="popup-title">${poi.name}</strong>
       ${poi.address ? `<p class="popup-addr">${poi.address}</p>`  : ''}
       ${poi.notes   ? `<p class="popup-notes">${poi.notes}</p>`   : ''}
+      <a href="${mapsUrl}" target="_blank" rel="noopener" class="popup-link popup-maps">📍 Google Maps ↗</a>
+    </div>`;
+}
+
+function buildOsmPoiPopup(item, cat) {
+  const c = CATEGORIES[cat] ?? CATEGORIES.other;
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lng}`;
+  return `
+    <div class="popup-card">
+      <div class="popup-type" style="color:${c.color}">${c.emoji} ${c.label} <span style="color:#4080c0;font-size:10px">OSM</span></div>
+      <strong class="popup-title">${item.name}</strong>
+      ${item.address ? `<p class="popup-addr">${item.address}</p>` : ''}
+      <div class="popup-meta">
+        ${item.phone   ? `<span>📞 ${esc(item.phone)}</span>`                                                             : ''}
+        ${item.website ? `<span>🌐 <a href="${esc(item.website)}" target="_blank" rel="noopener">אתר ↗</a></span>`        : ''}
+        ${item.hours   ? `<span>🕐 ${esc(item.hours)}</span>`                                                             : ''}
+      </div>
       <a href="${mapsUrl}" target="_blank" rel="noopener" class="popup-link popup-maps">📍 Google Maps ↗</a>
     </div>`;
 }
