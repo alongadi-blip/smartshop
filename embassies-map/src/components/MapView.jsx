@@ -128,12 +128,15 @@ async function refreshOsmLayer(cat, map, refs) {
   const { osmMarkersRef, osmCacheRef, osmFetchingRef, clusterGroupsRef } = refs;
 
   if (osmFetchingRef.current[cat]) return;
-  if (map.getZoom() < MIN_ZOOM_OSM) return;
+  const zoom = map.getZoom();
+  if (zoom < MIN_ZOOM_OSM) {
+    console.log(`[OSM] skip ${cat} — zoom ${zoom} < ${MIN_ZOOM_OSM}`);
+    return;
+  }
 
   const b   = map.getBounds();
   const sw  = b.getSouthWest();
   const ne  = b.getNorthEast();
-  // round bbox to 1dp so nearby moves reuse cache
   const key = `${cat}:${sw.lat.toFixed(1)},${sw.lng.toFixed(1)},${ne.lat.toFixed(1)},${ne.lng.toFixed(1)}`;
 
   let items = osmCacheRef.current[key];
@@ -142,13 +145,13 @@ async function refreshOsmLayer(cat, map, refs) {
     try {
       const bbox  = `${sw.lat},${sw.lng},${ne.lat},${ne.lng}`;
       const tag   = OSM_AMENITY[cat];
-      const query = `[out:json][timeout:15];(node[${tag}](${bbox});way[${tag}](${bbox}););out center tags;`;
-      const res   = await fetch(OVERPASS_URL, {
-        method: 'POST',
-        body: `data=${encodeURIComponent(query)}`,
-      });
-      if (!res.ok) throw new Error('overpass');
+      const query = `[out:json][timeout:25];(node[${tag}](${bbox});way[${tag}](${bbox}););out center tags;`;
+      const url   = `${OVERPASS_URL}?data=${encodeURIComponent(query)}`;
+      console.log(`[OSM] fetching ${cat} zoom=${zoom}`, url.slice(0, 120));
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
+      console.log(`[OSM] ${cat} → ${data.elements.length} results`);
       items = data.elements
         .map((el) => ({
           id:      `${el.type}_${el.id}`,
@@ -162,7 +165,8 @@ async function refreshOsmLayer(cat, map, refs) {
         }))
         .filter((el) => el.lat && el.lng);
       osmCacheRef.current[key] = items;
-    } catch {
+    } catch (err) {
+      console.error(`[OSM] ${cat} fetch failed:`, err);
       osmFetchingRef.current[cat] = false;
       return;
     }
@@ -275,6 +279,7 @@ const MapView = forwardRef(function MapView(
 
     // Refresh active OSM layers after every map move (debounced)
     map.on('moveend', () => {
+      console.log('[OSM] moveend z=' + map.getZoom() + ' active=' + [...osmActiveCats.current]);
       clearTimeout(osmDebounceRef.current);
       osmDebounceRef.current = setTimeout(() => {
         osmActiveCats.current.forEach((cat) => {
@@ -368,9 +373,11 @@ const MapView = forwardRef(function MapView(
       if (OSM_CATS.has(cat)) {
         if (visible) {
           osmActiveCats.current.add(cat);
+          console.log('[OSM] layer ON:', cat, 'zoom:', map.getZoom());
           refreshOsmLayer(cat, map, osmRefs);
         } else {
           osmActiveCats.current.delete(cat);
+          console.log('[OSM] layer OFF:', cat);
         }
       }
     });

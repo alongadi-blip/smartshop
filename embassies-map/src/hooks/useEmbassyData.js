@@ -10,7 +10,7 @@ const HE_RESOURCE = '4d1ce6f0-08d9-4294-a7ae-aae1b29bb769';
 const API = (id) =>
   `https://data.gov.il/api/3/action/datastore_search?resource_id=${id}&limit=300`;
 
-const CACHE_KEY  = 'govil_embassies_v5'; // bumped: filters Non Resident + Jerusalem + Dominica false-positive
+const CACHE_KEY  = 'govil_embassies_v6'; // bumped: static coords take priority over Nominatim city-center geocodes
 const COORDS_KEY = 'govil_embassy_coords_v2';
 const TTL        = 24 * 60 * 60 * 1000;
 
@@ -22,11 +22,12 @@ function normalizeKey(country, city) {
   return `${clean(country)}|${clean(city)}`;
 }
 
-// Merge static hand-coded coords + pre-built Nominatim coords
+// Static hand-coded coords (precise building addresses) take priority over
+// Nominatim city-center geocodes in prebuiltCoords.
 const seedCoords = { ...prebuiltCoords };
 staticEmbassies.forEach((e) => {
   const k = normalizeKey(e.country, e.city);
-  if (!seedCoords[k]) seedCoords[k] = { lat: e.lat, lng: e.lng };
+  seedCoords[k] = { lat: e.lat, lng: e.lng }; // always override — static is more accurate
 });
 
 // Cities used as diplomatic hubs → the country that city actually belongs to.
