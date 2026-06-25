@@ -13,6 +13,7 @@ body, html, #root {
 .app-container {
   display: flex;
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
 }
 
@@ -247,16 +248,23 @@ body, html, #root {
 }
 .leaflet-popup-tip { background: #16213e; }
 
+/* Make popup close button easier to tap on mobile */
+.leaflet-popup-close-button {
+  color: #8090b0 !important;
+  font-size: 18px !important;
+  padding: 6px 8px !important;
+}
+
 .popup-card  { min-width: 200px; max-width: 280px; }
 .popup-type  { font-size: 11px; font-weight: 600; text-transform: uppercase; margin-bottom: 4px; }
-.popup-title { font-size: 15px; display: block; color: #fff; margin-bottom: 4px; }
+.popup-title { font-size: 15px; display: block; color: #fff; margin-bottom: 6px; }
 .popup-addr  { font-size: 12px; color: #90a0b0; margin-bottom: 6px; }
 .popup-notes { font-size: 12px; color: #7090a0; margin-bottom: 6px; font-style: italic; }
 .popup-meta  { display: flex; flex-direction: column; gap: 3px; margin-bottom: 8px; }
 .popup-meta span { font-size: 12px; color: #8090a8; }
 .popup-link  { font-size: 12px; color: #90b8ff; text-decoration: none; }
 .popup-link:hover { text-decoration: underline; }
-.popup-maps    { display: block; margin-top: 6px; }
+.popup-maps    { display: block; margin-top: 8px; }
 .popup-mission { margin-bottom: 2px; }
 
 /* ── Cluster overrides ───────────────────────────────────── */
@@ -271,4 +279,121 @@ body, html, #root {
   background: rgba(21, 101, 192, 0.8) !important;
   color: #fff !important;
   font-weight: 700;
+}
+
+/* ── Mobile drag handle (hidden on desktop) ─────────────── */
+.sidebar-drag-handle { display: none; }
+
+/* ── Mobile FAB (hidden on desktop) ─────────────────────── */
+.mobile-fab { display: none; }
+
+/* ── Mobile portrait ─────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* Map fills the entire screen */
+  .map-container {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+  }
+
+  /* Sidebar becomes a bottom drawer */
+  .sidebar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    min-width: unset;
+    height: 52vh;
+    border-left: none;
+    border-top: 1px solid #1a3a70;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -6px 30px rgba(0,0,0,.6);
+    z-index: 1000;
+    transition: transform .28s cubic-bezier(.4, 0, .2, 1);
+    transform: translateY(0);
+    order: unset;
+  }
+
+  .sidebar.sidebar--hidden {
+    transform: translateY(100%);
+  }
+
+  /* Drag handle pill */
+  .sidebar-drag-handle {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 10px 0 6px;
+    cursor: pointer;
+    flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .drag-bar {
+    width: 40px;
+    height: 4px;
+    background: #3a5080;
+    border-radius: 2px;
+  }
+
+  .sidebar-header {
+    padding: 6px 14px 10px;
+  }
+  .flag-emoji  { font-size: 20px; }
+  .sidebar-title { font-size: 13px; }
+
+  .tab-btn { padding: 10px 4px; font-size: 12px; }
+
+  .sidebar-footer { display: none; }
+
+  .sidebar-content { padding: 10px 12px; }
+
+  /* Smaller search dropdown so it doesn't overflow */
+  .search-dropdown { max-height: 160px; }
+
+  /* Bigger popup close button */
+  .popup-card { max-width: 260px; min-width: 180px; }
+
+  /* FAB to reopen sidebar when hidden */
+  .mobile-fab {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    position: fixed;
+    bottom: 22px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 999;
+    background: #1565C0;
+    color: #fff;
+    border: none;
+    border-radius: 28px;
+    padding: 12px 22px;
+    font-size: 15px;
+    font-family: inherit;
+    cursor: pointer;
+    box-shadow: 0 4px 18px rgba(0,0,0,.5);
+    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* ── Mobile landscape: narrow sidebar side-by-side ──────── */
+@media (max-width: 900px) and (orientation: landscape) and (max-height: 520px) {
+  .app-container   { flex-direction: row; }
+  .map-container   { position: relative; flex: 1; order: 1; }
+  .sidebar {
+    position: static;
+    width: 220px;
+    min-width: 200px;
+    height: auto;
+    border-top: none;
+    border-left: 1px solid #0f3460;
+    border-radius: 0;
+    transform: none !important;
+    order: 2;
+  }
+  .sidebar-drag-handle { display: none; }
+  .mobile-fab          { display: none; }
+  .sidebar-footer      { display: block; }
 }

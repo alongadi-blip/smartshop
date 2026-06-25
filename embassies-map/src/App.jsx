@@ -9,19 +9,25 @@ import { CATEGORIES } from './data/embassies';
 import './App.css';
 
 const DEFAULT_LAYERS = Object.fromEntries(Object.keys(CATEGORIES).map((k) => [k, true]));
+const isMobile = () => window.innerWidth <= 768;
 
 export default function App() {
   const mapRef = useRef(null);
-  const { pois, addPoi, deletePoi }               = usePois();
-  const { missions, loading, geocodingLeft }       = useEmbassyData();
-  const [layers, setLayers]                        = useState(DEFAULT_LAYERS);
-  const [pickMode, setPickMode]                    = useState(false);
-  const [pendingLatLng, setPendingLatLng]          = useState(null);
-  const [sidebarTab, setSidebarTab]                = useState('search');
+  const { pois, addPoi, deletePoi }         = usePois();
+  const { missions, loading, geocodingLeft } = useEmbassyData();
+  const [layers, setLayers]                  = useState(DEFAULT_LAYERS);
+  const [pickMode, setPickMode]              = useState(false);
+  const [pendingLatLng, setPendingLatLng]    = useState(null);
+  const [sidebarTab, setSidebarTab]          = useState('search');
+  const [sidebarVisible, setSidebarVisible]  = useState(!isMobile());
+
+  const toggleSidebar = useCallback(() => setSidebarVisible((v) => !v), []);
 
   const handleSearch = useCallback((item) => {
     if (!item.lat && !item.lng) return;
     mapRef.current?.flyToAndOpen(item);
+    // Close sidebar on mobile after selecting a result so the map is visible
+    if (isMobile()) setSidebarVisible(false);
   }, []);
 
   const handleLayerChange = useCallback((cat, visible) => {
@@ -31,6 +37,7 @@ export default function App() {
   const handlePickLocation = useCallback(() => {
     setPickMode(true);
     setPendingLatLng(null);
+    if (isMobile()) setSidebarVisible(false);
   }, []);
 
   const handleMapClick = useCallback((latlng) => {
@@ -42,8 +49,20 @@ export default function App() {
 
   return (
     <div className="app-container">
+      {/* ── FAB — reopen sidebar when hidden on mobile ── */}
+      {!sidebarVisible && (
+        <button className="mobile-fab" onClick={toggleSidebar}>
+          🔍 חיפוש וסינון
+        </button>
+      )}
+
       {/* ── Sidebar ── */}
-      <aside className="sidebar">
+      <aside className={`sidebar${sidebarVisible ? '' : ' sidebar--hidden'}`}>
+        {/* Drag handle — tap to close on mobile */}
+        <div className="sidebar-drag-handle" onClick={toggleSidebar}>
+          <div className="drag-bar" />
+        </div>
+
         <div className="sidebar-header">
           <span className="flag-emoji">🇮🇱</span>
           <h1 className="sidebar-title">נציגויות ישראל בעולם</h1>
