@@ -282,13 +282,13 @@ body, html, #root {
   padding: 6px 8px !important;
 }
 
-.popup-card  { min-width: 200px; max-width: 280px; }
+.popup-card  { min-width: 200px; max-width: 280px; overflow-wrap: anywhere; }
 .popup-type  { font-size: 11px; font-weight: 600; text-transform: uppercase; margin-bottom: 4px; }
 .popup-title { font-size: 15px; display: block; color: #fff; margin-bottom: 6px; }
-.popup-addr  { font-size: 12px; color: #90a0b0; margin-bottom: 6px; }
+.popup-addr  { font-size: 12px; color: #90a0b0; margin-bottom: 6px; overflow-wrap: anywhere; }
 .popup-notes { font-size: 12px; color: #7090a0; margin-bottom: 6px; font-style: italic; }
 .popup-meta  { display: flex; flex-direction: column; gap: 3px; margin-bottom: 8px; }
-.popup-meta span { font-size: 12px; color: #8090a8; }
+.popup-meta span { font-size: 12px; color: #8090a8; overflow-wrap: anywhere; }
 .popup-link  { font-size: 12px; color: #90b8ff; text-decoration: none; }
 .popup-link:hover { text-decoration: underline; }
 .popup-maps    { display: block; margin-top: 8px; }

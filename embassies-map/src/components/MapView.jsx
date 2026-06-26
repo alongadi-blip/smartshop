@@ -453,6 +453,16 @@ function cleanUrl(raw) {
   return url;
 }
 
+// Same issue affects the "email" field — extract the bare address from any embedded markup.
+function cleanEmail(raw) {
+  if (!raw) return '';
+  const str = String(raw).trim();
+  const mailtoMatch = str.match(/mailto:([^"'>\s]+)/i);
+  const stripped = mailtoMatch ? mailtoMatch[1] : str.replace(/<[^>]+>/g, '').trim();
+  const emailMatch = stripped.match(/[^\s<>"']+@[^\s<>"']+/);
+  return emailMatch ? emailMatch[0] : stripped;
+}
+
 function buildGroupTooltip(members) {
   const primary      = members[0];
   const cityLabel    = primary.city_he    ? `${primary.city_he} / ${primary.city}`       : primary.city;
@@ -467,15 +477,16 @@ function buildGroupTooltip(members) {
 }
 
 function buildMissionBlock(m) {
-  const c         = CATEGORIES[m.type];
+  const c          = CATEGORIES[m.type];
   const websiteUrl = cleanUrl(m.website);
+  const email      = cleanEmail(m.email);
   return `
     <div class="popup-mission">
       <div class="popup-type" style="color:${c.color}">${c.emoji} ${c.label}</div>
       ${m.address ? `<p class="popup-addr">${m.address}</p>` : ''}
       <div class="popup-meta">
         ${m.tel       ? `<span>📞 ${esc(m.tel)}</span>`                                                                    : ''}
-        ${m.email     ? `<span>✉️ <a href="mailto:${esc(m.email)}">${esc(m.email)}</a></span>`                            : ''}
+        ${email       ? `<span>✉️ <a href="mailto:${esc(email)}" title="${esc(email)}">שלח מייל</a></span>`               : ''}
         ${m.hours     ? `<span>🕐 ${esc(m.hours)}</span>`                                                                  : ''}
         ${websiteUrl  ? `<span>🌐 <a href="${esc(websiteUrl)}" target="_blank" rel="noopener">אתר רשמי ↗</a></span>`       : ''}
       </div>
