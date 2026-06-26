@@ -442,6 +442,17 @@ function esc(s) {
     .replace(/>/g, '&gt;');
 }
 
+// data.gov.il's "Atar" (website) field sometimes already contains a full
+// <a href="...">...</a> tag instead of a plain URL — pull the real URL out.
+function cleanUrl(raw) {
+  if (!raw) return '';
+  const str = String(raw).trim();
+  const hrefMatch = str.match(/href\s*=\s*["']([^"']+)["']/i);
+  let url = hrefMatch ? hrefMatch[1] : str.replace(/<[^>]+>/g, '').trim();
+  if (url && !/^https?:\/\//i.test(url)) url = `https://${url}`;
+  return url;
+}
+
 function buildGroupTooltip(members) {
   const primary      = members[0];
   const cityLabel    = primary.city_he    ? `${primary.city_he} / ${primary.city}`       : primary.city;
@@ -456,16 +467,17 @@ function buildGroupTooltip(members) {
 }
 
 function buildMissionBlock(m) {
-  const c = CATEGORIES[m.type];
+  const c         = CATEGORIES[m.type];
+  const websiteUrl = cleanUrl(m.website);
   return `
     <div class="popup-mission">
       <div class="popup-type" style="color:${c.color}">${c.emoji} ${c.label}</div>
       ${m.address ? `<p class="popup-addr">${m.address}</p>` : ''}
       <div class="popup-meta">
-        ${m.tel     ? `<span>📞 ${esc(m.tel)}</span>`                                                                    : ''}
-        ${m.email   ? `<span>✉️ <a href="mailto:${esc(m.email)}">${esc(m.email)}</a></span>`                             : ''}
-        ${m.hours   ? `<span>🕐 ${esc(m.hours)}</span>`                                                                   : ''}
-        ${m.website ? `<span>🌐 <a href="${esc(m.website)}" target="_blank" rel="noopener">אתר רשמי ↗</a></span>`        : ''}
+        ${m.tel       ? `<span>📞 ${esc(m.tel)}</span>`                                                                    : ''}
+        ${m.email     ? `<span>✉️ <a href="mailto:${esc(m.email)}">${esc(m.email)}</a></span>`                            : ''}
+        ${m.hours     ? `<span>🕐 ${esc(m.hours)}</span>`                                                                  : ''}
+        ${websiteUrl  ? `<span>🌐 <a href="${esc(websiteUrl)}" target="_blank" rel="noopener">אתר רשמי ↗</a></span>`       : ''}
       </div>
     </div>`;
 }
