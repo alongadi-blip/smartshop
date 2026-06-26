@@ -530,6 +530,7 @@ function buildPoiPopup(poi, cat) {
 
 function buildChabadPopup(house) {
   const c = CATEGORIES.chabad;
+  const websiteUrl = cleanUrl(house.url);
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${house.lat},${house.lng}`;
   return `
     <div class="popup-card">
@@ -537,8 +538,8 @@ function buildChabadPopup(house) {
       <strong class="popup-title">${house.name}</strong>
       ${house.address ? `<p class="popup-addr">${house.address}</p>` : ''}
       <div class="popup-meta">
-        ${house.phone ? `<span>📞 ${esc(house.phone)}</span>` : ''}
-        ${house.url   ? `<span>🌐 <a href="${esc(house.url)}" target="_blank" rel="noopener">אתר ↗</a></span>` : ''}
+        ${house.phone   ? `<span>📞 ${esc(house.phone)}</span>` : ''}
+        ${websiteUrl    ? `<span>🌐 <a href="${esc(websiteUrl)}" target="_blank" rel="noopener">אתר ↗</a></span>` : ''}
       </div>
       <a href="${mapsUrl}" target="_blank" rel="noopener" class="popup-link popup-maps">📍 Google Maps ↗</a>
     </div>`;
@@ -546,6 +547,7 @@ function buildChabadPopup(house) {
 
 function buildOsmPoiPopup(item, cat) {
   const c = CATEGORIES[cat] ?? CATEGORIES.other;
+  const websiteUrl = cleanUrl(item.website);
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lng}`;
   return `
     <div class="popup-card">
@@ -553,9 +555,9 @@ function buildOsmPoiPopup(item, cat) {
       <strong class="popup-title">${item.name}</strong>
       ${item.address ? `<p class="popup-addr">${item.address}</p>` : ''}
       <div class="popup-meta">
-        ${item.phone   ? `<span>📞 ${esc(item.phone)}</span>`                                                             : ''}
-        ${item.website ? `<span>🌐 <a href="${esc(item.website)}" target="_blank" rel="noopener">אתר ↗</a></span>`        : ''}
-        ${item.hours   ? `<span>🕐 ${esc(item.hours)}</span>`                                                             : ''}
+        ${item.phone ? `<span>📞 ${esc(item.phone)}</span>`                                                               : ''}
+        ${websiteUrl ? `<span>🌐 <a href="${esc(websiteUrl)}" target="_blank" rel="noopener">אתר ↗</a></span>`            : ''}
+        ${item.hours ? `<span>🕐 ${esc(item.hours)}</span>`                                                               : ''}
       </div>
       <a href="${mapsUrl}" target="_blank" rel="noopener" class="popup-link popup-maps">📍 Google Maps ↗</a>
     </div>`;
