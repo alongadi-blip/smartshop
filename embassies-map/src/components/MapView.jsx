@@ -5,6 +5,7 @@ import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import 'leaflet.markercluster';
 import { CATEGORIES, OSM_CATS } from '../data/embassies';
+import chabadHouses from '../data/chabad-houses.json';
 
 // Fix Leaflet's broken default icon URLs when bundled with Vite
 delete L.Icon.Default.prototype._getIconUrl;
@@ -338,6 +339,23 @@ const MapView = forwardRef(function MapView(
     });
   }, [missions]);
 
+  // ── Chabad houses (static dataset, loaded once) ───────────────────────────
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+    const catDef = CATEGORIES.chabad;
+    const icon   = makePoiIcon(catDef.color, catDef.emoji);
+
+    chabadHouses.forEach((house) => {
+      const marker = L.marker([house.lat, house.lng], { icon });
+      marker.bindTooltip(
+        `<strong>${house.name}</strong>${house.address ? `<br/><span style="font-size:11px">${house.address}</span>` : ''}`,
+        { direction: 'top', offset: [0, -4], className: 'map-tooltip' },
+      );
+      marker.bindPopup(makePopupEl(buildChabadPopup(house)));
+      clusterGroupsRef.current.chabad?.addLayer(marker);
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Manual POI markers (Firestore) ────────────────────────────────────────
   useEffect(() => {
     if (!mapInstanceRef.current) return;
@@ -483,6 +501,22 @@ function buildPoiPopup(poi, cat) {
       <strong class="popup-title">${poi.name}</strong>
       ${poi.address ? `<p class="popup-addr">${poi.address}</p>`  : ''}
       ${poi.notes   ? `<p class="popup-notes">${poi.notes}</p>`   : ''}
+      <a href="${mapsUrl}" target="_blank" rel="noopener" class="popup-link popup-maps">📍 Google Maps ↗</a>
+    </div>`;
+}
+
+function buildChabadPopup(house) {
+  const c = CATEGORIES.chabad;
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${house.lat},${house.lng}`;
+  return `
+    <div class="popup-card">
+      <div class="popup-type" style="color:${c.color}">${c.emoji} ${c.label}</div>
+      <strong class="popup-title">${house.name}</strong>
+      ${house.address ? `<p class="popup-addr">${house.address}</p>` : ''}
+      <div class="popup-meta">
+        ${house.phone ? `<span>📞 ${esc(house.phone)}</span>` : ''}
+        ${house.url   ? `<span>🌐 <a href="${esc(house.url)}" target="_blank" rel="noopener">אתר ↗</a></span>` : ''}
+      </div>
       <a href="${mapsUrl}" target="_blank" rel="noopener" class="popup-link popup-maps">📍 Google Maps ↗</a>
     </div>`;
 }

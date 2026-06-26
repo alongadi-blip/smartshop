@@ -132,7 +132,11 @@ export const CATEGORIES = {
   school:    { label: "בית ספר",   color: "#2E7D32", emoji: "🏫" },
   safe_zone: { label: "אזור מאובטח",color: "#F57F17", emoji: "🛡️" },
   police:    { label: "משטרה",      color: "#4A148C", emoji: "👮" },
+  chabad:    { label: "בית חב\"ד",  color: "#6A1B9A", emoji: "🕎" },
   other:     { label: "אחר",        color: "#546E7A", emoji: "📍" },
 };
+
+// Static dataset (not live OSM) — see public/data/chabad-houses.json
+export const STATIC_CATS = new Set(['chabad']);
 
 export default embassies;

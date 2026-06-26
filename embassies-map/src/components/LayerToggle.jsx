@@ -1,8 +1,9 @@
-import { CATEGORIES, OSM_CATS } from '../data/embassies';
+import { CATEGORIES, OSM_CATS, STATIC_CATS } from '../data/embassies';
+import chabadHouses from '../data/chabad-houses.json';
 
 export default function LayerToggle({ layers, onChange, pois = [] }) {
   // Count manually-added POIs per non-OSM, non-embassy category
-  const poiCounts = {};
+  const poiCounts = { chabad: chabadHouses.length };
   pois.forEach((p) => {
     if (!OSM_CATS.has(p.category)) {
       poiCounts[p.category] = (poiCounts[p.category] || 0) + 1;
@@ -15,6 +16,7 @@ export default function LayerToggle({ layers, onChange, pois = [] }) {
       {Object.entries(CATEGORIES).map(([key, { label, color, emoji }]) => {
         const isApiLayer = key === 'embassy' || key === 'consulate';
         const isOsmLayer = OSM_CATS.has(key);
+        const isStatic   = STATIC_CATS.has(key);
         const count      = !isApiLayer && !isOsmLayer ? (poiCounts[key] ?? 0) : null;
 
         return (
@@ -28,6 +30,9 @@ export default function LayerToggle({ layers, onChange, pois = [] }) {
             <span className="layer-label">{emoji} {label}</span>
             {isOsmLayer && (
               <span className="layer-osm-badge">🌍 OSM</span>
+            )}
+            {isStatic && (
+              <span className="layer-osm-badge">📦 Chabad.org</span>
             )}
             {count !== null && (
               <span className={`layer-count${count === 0 ? ' layer-count--empty' : ''}`}>
