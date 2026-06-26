@@ -8,7 +8,10 @@ import { useEmbassyData } from './hooks/useEmbassyData';
 import { CATEGORIES } from './data/embassies';
 import './App.css';
 
-const DEFAULT_LAYERS = Object.fromEntries(Object.keys(CATEGORIES).map((k) => [k, true]));
+const OPEN_BY_DEFAULT = new Set(['embassy', 'consulate']);
+const DEFAULT_LAYERS  = Object.fromEntries(
+  Object.keys(CATEGORIES).map((k) => [k, OPEN_BY_DEFAULT.has(k)]),
+);
 const isMobile = () => window.innerWidth <= 768;
 
 export default function App() {
