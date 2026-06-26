@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useNavigate } from 'react-router-dom';
-import { Trophy, LayoutList, Star, Sun, Moon, Grid2X2, ChevronDown } from 'lucide-react';
+import { Trophy, LayoutList, Star, Sun, Moon, Grid2X2, ChevronDown, Swords } from 'lucide-react';
 import { useAuth } from './hooks/useAuth';
 import { useTheme } from './lib/theme';
 import { LeagueProvider, useLeagueContext } from './contexts/LeagueContext';
 import LoginPage from './pages/LoginPage';
 import MatchesPage from './pages/MatchesPage';
+import KnockoutPage from './pages/KnockoutPage';
 import LeaderboardPage from './pages/LeaderboardPage';
 import OutrightPage from './pages/OutrightPage';
 import AdminPage from './pages/AdminPage';
@@ -170,6 +171,7 @@ function Layout() {
         <Routes>
           <Route path="/" element={<Navigate to="/matches" replace />} />
           <Route path="/matches" element={<MatchesPage />} />
+          <Route path="/knockout" element={<KnockoutPage />} />
           <Route path="/groups" element={<GroupsPage />} />
           <Route path="/leaderboard" element={<LeaderboardPage />} />
           <Route path="/outright" element={<OutrightPage />} />
@@ -183,6 +185,7 @@ function Layout() {
         style={{ background: 'var(--bg-nav)', borderTop: '1px solid var(--border-card)' }}>
         {[
           { to: '/matches', icon: <LayoutList size={20} />, label: 'משחקים' },
+          { to: '/knockout', icon: <Swords size={20} />, label: 'נוקאוט' },
           { to: '/groups', icon: <Grid2X2 size={20} />, label: 'בתים' },
           { to: '/leaderboard', icon: <Trophy size={20} />, label: 'טבלה' },
           { to: '/outright', icon: <Star size={20} />, label: 'טורניר' },

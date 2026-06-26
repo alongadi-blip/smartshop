@@ -1,57 +1,49 @@
 import { useState, useEffect } from 'react';
-import { format } from 'date-fns';
-import { he } from 'date-fns/locale';
 import { useMatches, useUserPredictions } from '../hooks/useMatches';
 import { useAuth } from '../hooks/useAuth';
 import { useLeagueContext } from '../contexts/LeagueContext';
+import { isKnockoutStage, STAGE_HE } from '../utils/scoring';
 import MatchCard from '../components/matches/MatchCard';
 import type { Match } from '../types';
 
-function dateKey(matchTime: string): string {
-  return format(new Date(matchTime), 'yyyy-MM-dd');
-}
+const STAGE_ORDER: Match['stage'][] = [
+  'round_of_32',
+  'round_of_16',
+  'quarter_final',
+  'semi_final',
+  'third_place',
+  'final',
+];
 
-function dateLabel(matchTime: string): string {
-  const d = new Date(matchTime);
-  const day = format(d, 'EEEE', { locale: he });
-  const date = format(d, "d 'ב'MMMM", { locale: he });
-  return `${day} · ${date}`;
-}
-
-export default function MatchesPage() {
+export default function KnockoutPage() {
   const { matches, loading } = useMatches();
   const { profile } = useAuth();
   const { selectedLeague } = useLeagueContext();
   const { predictions, savePrediction } = useUserPredictions(profile?.id, selectedLeague?.id);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
-  // Collapse past dates once matches load
+  const knockoutMatches = matches.filter(m => isKnockoutStage(m.stage));
+
+  const byStage = STAGE_ORDER.map(stage => ({
+    stage,
+    matches: knockoutMatches
+      .filter(m => m.stage === stage)
+      .sort((a, b) => new Date(a.match_time).getTime() - new Date(b.match_time).getTime()),
+  })).filter(g => g.matches.length > 0);
+
+  // Collapse finished rounds once matches load
   useEffect(() => {
-    if (matches.length === 0) return;
-    const today = format(new Date(), 'yyyy-MM-dd');
-    const past = new Set(
-      matches.map(m => dateKey(m.match_time)).filter(k => k < today)
+    if (byStage.length === 0) return;
+    const done = new Set(
+      byStage.filter(g => g.matches.every(m => m.status === 'finished')).map(g => g.stage)
     );
-    setCollapsed(past);
-  }, [matches.length]);
+    setCollapsed(done);
+  }, [knockoutMatches.length]);
 
-  // Sort by time, then group by date — group stage only (knockout has its own page)
-  const sorted = matches
-    .filter(m => m.stage === 'group')
-    .sort((a, b) => new Date(a.match_time).getTime() - new Date(b.match_time).getTime());
-
-  const byDate = sorted.reduce<{ key: string; label: string; matches: Match[] }[]>((acc, m) => {
-    const key = dateKey(m.match_time);
-    const existing = acc.find(g => g.key === key);
-    if (existing) existing.matches.push(m);
-    else acc.push({ key, label: dateLabel(m.match_time), matches: [m] });
-    return acc;
-  }, []);
-
-  function toggle(key: string) {
+  function toggle(stage: string) {
     setCollapsed(prev => {
       const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
+      next.has(stage) ? next.delete(stage) : next.add(stage);
       return next;
     });
   }
@@ -66,15 +58,14 @@ export default function MatchesPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-3 py-4 pb-8">
-      {/* Date sections */}
       <div className="space-y-2">
-        {byDate.map(({ key, label, matches: dayMatches }) => {
-          const isOpen = !collapsed.has(key);
-          const finished = dayMatches.filter(m => m.status === 'finished').length;
+        {byStage.map(({ stage, matches: stageMatches }) => {
+          const isOpen = !collapsed.has(stage);
+          const finished = stageMatches.filter(m => m.status === 'finished').length;
           return (
-            <section key={key}>
+            <section key={stage}>
               <button
-                onClick={() => toggle(key)}
+                onClick={() => toggle(stage)}
                 className="w-full cursor-pointer"
                 style={{ padding: '0 4px', marginBottom: isOpen ? '10px' : '4px' }}
               >
@@ -84,22 +75,22 @@ export default function MatchesPage() {
                     fontWeight: 700,
                     fontSize: '13px',
                     letterSpacing: '0.04em',
-                    color: '#22C55E',
+                    color: '#818CF8',
                     margin: 0,
                     whiteSpace: 'nowrap',
                   }}>
-                    {label}
+                    {STAGE_HE[stage]}
                   </h2>
                   <div className="flex-1 h-px" style={{ background: 'var(--border-card)' }} />
                   <span style={{ color: 'var(--text-7)', fontSize: '11px', whiteSpace: 'nowrap' }}>
-                    {finished > 0 ? `${finished}/${dayMatches.length}` : dayMatches.length} מ׳
+                    {finished > 0 ? `${finished}/${stageMatches.length}` : stageMatches.length} מ׳
                   </span>
                   <span style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     width: '20px', height: '20px', borderRadius: '50%',
-                    background: isOpen ? 'rgba(34,197,94,0.12)' : 'var(--bg-input)',
-                    border: isOpen ? '1px solid rgba(34,197,94,0.3)' : '1px solid var(--border-input)',
-                    color: isOpen ? '#22C55E' : 'var(--text-6)',
+                    background: isOpen ? 'rgba(99,102,241,0.12)' : 'var(--bg-input)',
+                    border: isOpen ? '1px solid rgba(99,102,241,0.3)' : '1px solid var(--border-input)',
+                    color: isOpen ? '#818CF8' : 'var(--text-6)',
                     fontSize: '14px', lineHeight: 1, transition: 'all 0.2s', flexShrink: 0,
                   }}>
                     {isOpen ? '−' : '+'}
@@ -109,7 +100,7 @@ export default function MatchesPage() {
 
               {isOpen && (
                 <div className="space-y-2">
-                  {dayMatches.map((match) => (
+                  {stageMatches.map((match) => (
                     <MatchCard
                       key={match.id}
                       match={match}
@@ -126,15 +117,17 @@ export default function MatchesPage() {
           );
         })}
 
-        {matches.length === 0 && (
+        {knockoutMatches.length === 0 && (
           <div className="text-center py-20">
             <p style={{ color: 'var(--text-7)', fontFamily: "'Barlow Condensed', sans-serif", fontSize: '18px' }}>
-              אין משחקים עדיין
+              שלב הנוקאוט עדיין לא נקבע
+            </p>
+            <p style={{ color: 'var(--text-7)', fontSize: '13px', marginTop: '6px' }}>
+              המשחקים יתעדכנו אוטומטית כשהבתים יסתיימו
             </p>
           </div>
         )}
       </div>
-
     </div>
   );
 }
