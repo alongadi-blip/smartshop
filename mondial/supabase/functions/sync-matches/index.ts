@@ -13,6 +13,18 @@ const RAPIDAPI_KEY = Deno.env.get('RAPIDAPI_KEY')!;
 const WC_LEAGUE_ID = 1;
 const WC_SEASON = 2026;
 
+function stageFromRound(round: string | undefined): string {
+  const r = (round ?? '').toLowerCase();
+  if (r.includes('group')) return 'group';
+  if (r.includes('32')) return 'round_of_32';
+  if (r.includes('16')) return 'round_of_16';
+  if (r.includes('quarter')) return 'quarter_final';
+  if (r.includes('semi')) return 'semi_final';
+  if (r.includes('3rd') || r.includes('third')) return 'third_place';
+  if (r.includes('final')) return 'final';
+  return 'group';
+}
+
 async function apiFetch(endpoint: string) {
   const res = await fetch(`https://api-football-v1.p.rapidapi.com/v3${endpoint}`, {
     headers: {
@@ -51,7 +63,7 @@ Deno.serve(async () => {
       home_team_flag: teams.home.logo,
       away_team_flag: teams.away.logo,
       group_name: league.round,
-      stage: league.round?.toLowerCase().includes('group') ? 'group' : 'group',
+      stage: stageFromRound(league.round),
       match_time: f.date,
       home_score: goals.home,
       away_score: goals.away,
