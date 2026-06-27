@@ -10,7 +10,7 @@ export function useMatches() {
     fetchMatches();
 
     const channel = supabase
-      .channel('matches')
+      .channel(`matches-${Math.random().toString(36).slice(2)}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, () => {
         fetchMatches();
       })
