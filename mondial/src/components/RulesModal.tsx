@@ -181,9 +181,17 @@ export default function RulesModal({ onClose }: Props) {
 
           {/* ── ליגות ── */}
           <Section label="ליגות" labelColor="#475569">
-            <p style={{ color: '#94A3B8', fontSize: '14px', lineHeight: 1.7 }}>
-              התחרות מתנהלת <strong style={{ color: '#F1F5F9' }}>בתוך ליגות פרטיות</strong>. הצטרף דרך לינק הזמנה שקיבלת. טבלת הניקוד, הניחושים וכל הנתונים — גלויים <strong style={{ color: '#F1F5F9' }}>רק לחברי הליגה שלך</strong>.
-            </p>
+            <div style={{ color: '#94A3B8', fontSize: '14px', lineHeight: 1.7, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <p>
+                התחרות מתנהלת <strong style={{ color: '#F1F5F9' }}>בתוך ליגות פרטיות</strong>. הצטרף דרך לינק הזמנה שקיבלת. טבלת הניקוד, הניחושים וכל הנתונים — גלויים <strong style={{ color: '#F1F5F9' }}>רק לחברי הליגה שלך</strong>.
+              </p>
+              <p>
+                כל ליגה היא <strong style={{ color: '#F1F5F9' }}>תחרות נפרדת ועצמאית לחלוטין</strong> — כולל ניחושי שלב הבתים, לא רק נוקאוט ובחירות הטורניר. אם אתה חבר בכמה ליגות, תוכל לבחור בכל אחת ניחוש שונה לאותו משחק.
+              </p>
+              <p>
+                בורר הליגה בראש המסך קובע <strong style={{ color: '#F1F5F9' }}>לאיזו ליגה נשמר הניחוש שלך</strong> ואיזו טבלת ניקוד אתה רואה. החלף ליגה כדי לעדכן ניחושים או לבדוק דירוג בליגה אחרת.
+              </p>
+            </div>
           </Section>
 
         </div>
