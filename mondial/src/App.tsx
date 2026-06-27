@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useNavigate } from 'react-router-dom';
 import { Trophy, LayoutList, Star, Sun, Moon, Grid2X2, ChevronDown, Swords } from 'lucide-react';
 import { useAuth } from './hooks/useAuth';
+import { useMatches } from './hooks/useMatches';
 import { useTheme } from './lib/theme';
 import { LeagueProvider, useLeagueContext } from './contexts/LeagueContext';
 import LoginPage from './pages/LoginPage';
@@ -105,6 +106,8 @@ function Layout() {
   const { user, profile, signOut } = useAuth();
   const { theme, toggle } = useTheme();
   const [showRules, setShowRules] = useState(false);
+  const { matches } = useMatches();
+  const knockoutStarted = matches.some(m => m.stage !== 'group');
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg-app)' }}>
@@ -186,7 +189,7 @@ function Layout() {
         {[
           { to: '/matches', icon: <LayoutList size={20} />, label: 'משחקים' },
           { to: '/knockout', icon: <Swords size={20} />, label: 'נוקאוט' },
-          { to: '/groups', icon: <Grid2X2 size={20} />, label: 'בתים' },
+          ...(knockoutStarted ? [] : [{ to: '/groups', icon: <Grid2X2 size={20} />, label: 'בתים' }]),
           { to: '/leaderboard', icon: <Trophy size={20} />, label: 'טבלה' },
           { to: '/outright', icon: <Star size={20} />, label: 'טורניר' },
         ].map(({ to, icon, label }) => (
