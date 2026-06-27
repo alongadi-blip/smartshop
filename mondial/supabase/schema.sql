@@ -35,7 +35,7 @@ create trigger on_auth_user_created
 -- MATCHES
 -- ============================================================
 create type match_status as enum ('scheduled', 'live', 'finished', 'postponed');
-create type match_stage as enum ('group', 'round_of_16', 'quarter_final', 'semi_final', 'third_place', 'final');
+create type match_stage as enum ('group', 'round_of_32', 'round_of_16', 'quarter_final', 'semi_final', 'third_place', 'final');
 
 create table public.matches (
   id              uuid default uuid_generate_v4() primary key,
