@@ -88,8 +88,8 @@ export default function OutrightPage() {
 
       <p style={{ color: locked ? '#EF4444' : '#475569', fontSize: '13px', marginBottom: '20px', paddingInline: '4px' }}>
         {locked
-          ? 'נעול — שלב המוקדמות הסתיים.'
-          : '+10 נקודות לכל ניחוש נכון · ניתן לשנות עד סיום שלב המוקדמות'}
+          ? 'נעול — שלב הנוקאוט התחיל.'
+          : '+10 נקודות לכל ניחוש נכון · ניתן לשנות עד 5 דקות לפני המשחק הראשון בנוקאוט'}
       </p>
 
       <div className="space-y-3">

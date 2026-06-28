@@ -155,7 +155,7 @@ export default function RulesModal({ onClose }: Props) {
           <Section label="בחירות טורניר" labelColor="#F59E0B">
             <div style={{ color: '#94A3B8', fontSize: '14px', lineHeight: 1.7, marginBottom: '12px' }}>
               בחר <strong style={{ color: '#F59E0B' }}>מנצח הגביע</strong> ו<strong style={{ color: '#3B82F6' }}>מלך השערים</strong>.
-              ניתן לשנות עד סיום שלב הבתים (<strong style={{ color: '#F1F5F9' }}>29.6</strong>).
+              ניתן לשנות עד <strong style={{ color: '#F1F5F9' }}>5 דקות לפני המשחק הראשון בנוקאוט</strong>.
             </div>
             <ScoreRow pts="+10" label="מנצח הגביע" sub="הקבוצה שבחרת מרימה את הגביע" color="#F59E0B" />
             <ScoreRow pts="+10" label="מלך השערים" sub="השחקן שבחרת מסיים כמבקיע השערים המוביל" color="#3B82F6" last />
