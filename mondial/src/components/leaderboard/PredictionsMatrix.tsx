@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { supabase } from '../../lib/supabase';
-import { TEAM_HE, GROUP_HE } from '../../lib/i18n';
+import { TEAM_HE } from '../../lib/i18n';
+import { STAGE_HE } from '../../utils/scoring';
 
 interface PlayerRow {
   id: string;
@@ -18,6 +19,7 @@ interface MatchRow {
   match_time: string;
   group_name: string | null;
   status: string;
+  stage: string;
 }
 
 interface PredRow {
@@ -49,7 +51,7 @@ export default function PredictionsMatrix({ leagueId }: { leagueId?: string }) {
 
       const [{ data: profilesRaw }, { data: matchData }, { data: predData }] = await Promise.all([
         playersQ,
-        supabase.from('matches').select('id, home_team, away_team, home_score, away_score, match_time, group_name, status')
+        supabase.from('matches').select('id, home_team, away_team, home_score, away_score, match_time, group_name, status, stage')
           .order('match_time', { ascending: true }),
         predsQ,
       ]);
@@ -60,8 +62,10 @@ export default function PredictionsMatrix({ leagueId }: { leagueId?: string }) {
         : (profilesRaw ?? []) as PlayerRow[];
 
       setPlayers(profiles);
-      // Only show locked/finished matches
-      const locked = (matchData ?? []).filter(m => new Date(m.match_time) <= new Date(Date.now() + 5 * 60 * 1000));
+      // Only show locked/finished knockout matches — group stage is excluded from the table
+      const locked = (matchData ?? []).filter(m =>
+        m.stage !== 'group' && new Date(m.match_time) <= new Date(Date.now() + 5 * 60 * 1000)
+      );
       setMatches(locked);
 
       const map = new Map<string, PredRow>();
@@ -86,9 +90,9 @@ export default function PredictionsMatrix({ leagueId }: { leagueId?: string }) {
     </div>
   );
 
-  // Group matches
+  // Group matches by knockout stage
   const grouped = matches.reduce<Record<string, MatchRow[]>>((acc, m) => {
-    const key = m.group_name ?? 'Other';
+    const key = m.stage;
     acc[key] = [...(acc[key] ?? []), m];
     return acc;
   }, {});
@@ -99,7 +103,7 @@ export default function PredictionsMatrix({ leagueId }: { leagueId?: string }) {
         <section key={group}>
           <div className="flex items-center gap-3 mb-3 px-1">
             <h3 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '12px', letterSpacing: '0.05em', color: '#22C55E' }}>
-              {GROUP_HE[group] ?? group}
+              {STAGE_HE[group] ?? group}
             </h3>
             <div className="flex-1 h-px" style={{ background: '#1E2D45' }} />
           </div>
