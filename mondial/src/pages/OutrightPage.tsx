@@ -16,6 +16,7 @@ export default function OutrightPage() {
   const [outright, setOutright] = useState<Partial<OutrightPrediction>>({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState(false);
 
   const locked = isOutrightLocked(matches);
 
@@ -41,6 +42,7 @@ export default function OutrightPage() {
   async function handleSave() {
     if (!profile?.id || locked) return;
     setSaving(true);
+    setSaveError(false);
     const payload: any = {
       user_id: profile.id,
       predicted_winner_team: outright.predicted_winner_team,
@@ -50,10 +52,20 @@ export default function OutrightPage() {
     };
     if (selectedLeague) payload.league_id = selectedLeague.id;
 
-    const conflictCol = selectedLeague ? 'user_id,league_id' : 'user_id';
-    await supabase.from('outright_predictions').upsert(payload, { onConflict: conflictCol });
+    // outright_predictions only has PARTIAL unique indexes (league_id IS NULL
+    // vs league_id = X), which Postgres can't use as a bare ON CONFLICT
+    // arbiter — upsert() fails every time. Check-then-write instead.
+    let existingQuery = supabase.from('outright_predictions').select('id').eq('user_id', profile.id);
+    existingQuery = selectedLeague ? existingQuery.eq('league_id', selectedLeague.id) : existingQuery.is('league_id', null);
+    const { data: existingRow } = await existingQuery.maybeSingle();
+
+    const { error } = existingRow
+      ? await supabase.from('outright_predictions').update(payload).eq('id', existingRow.id)
+      : await supabase.from('outright_predictions').insert(payload);
+
     setSaving(false);
-    setSaved(true);
+    if (error) { console.error('Failed to save outright prediction', error); setSaveError(true); }
+    else setSaved(true);
   }
 
   const selectStyle = {
@@ -165,9 +177,9 @@ export default function OutrightPage() {
             disabled={saving || (!outright.predicted_winner_team && !outright.predicted_top_scorer_id && !outright.predicted_top_scorer_name)}
             className="w-full cursor-pointer transition-all duration-200 disabled:opacity-40"
             style={{
-              background: saved ? 'rgba(34,197,94,0.2)' : 'linear-gradient(135deg, #16A34A, #22C55E)',
-              color: saved ? '#22C55E' : 'white',
-              border: saved ? '1px solid rgba(34,197,94,0.4)' : 'none',
+              background: saveError ? 'rgba(239,68,68,0.15)' : saved ? 'rgba(34,197,94,0.2)' : 'linear-gradient(135deg, #16A34A, #22C55E)',
+              color: saveError ? '#EF4444' : saved ? '#22C55E' : 'white',
+              border: saveError ? '1px solid rgba(239,68,68,0.4)' : saved ? '1px solid rgba(34,197,94,0.4)' : 'none',
               borderRadius: '14px',
               padding: '14px',
               fontFamily: "'Barlow Condensed', sans-serif",
@@ -175,10 +187,10 @@ export default function OutrightPage() {
               fontSize: '15px',
               letterSpacing: '0.1em',
               textTransform: 'uppercase',
-              boxShadow: saved ? 'none' : '0 4px 20px rgba(34,197,94,0.3)',
+              boxShadow: saveError || saved ? 'none' : '0 4px 20px rgba(34,197,94,0.3)',
             }}
           >
-            {saved ? 'נשמר ✓' : saving ? 'שומר…' : 'שמור בחירות טורניר'}
+            {saveError ? 'שמירה נכשלה — נסה שוב' : saved ? 'נשמר ✓' : saving ? 'שומר…' : 'שמור בחירות טורניר'}
           </button>
         )}
       </div>

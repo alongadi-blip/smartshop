@@ -77,16 +77,18 @@ export function useUserPredictions(userId: string | undefined, leagueId?: string
       }
     }
 
-    const conflictCol = leagueId
-      ? 'user_id,match_id,league_id'
-      : 'user_id,match_id';
+    // predictions only has PARTIAL unique indexes (one for league_id IS NULL,
+    // one for league_id = X), which Postgres can't use as a bare ON CONFLICT
+    // arbiter — upsert() fails with 42P10 every time. Check-then-write instead.
+    let existingQuery = supabase.from('predictions').select('id').eq('user_id', userId).eq('match_id', matchId);
+    existingQuery = leagueId ? existingQuery.eq('league_id', leagueId) : existingQuery.is('league_id', null);
+    const { data: existingRow } = await existingQuery.maybeSingle();
 
-    const { data } = await supabase
-      .from('predictions')
-      .upsert(payload, { onConflict: conflictCol })
-      .select()
-      .single();
+    const { data, error } = existingRow
+      ? await supabase.from('predictions').update(payload).eq('id', existingRow.id).select().single()
+      : await supabase.from('predictions').insert(payload).select().single();
 
+    if (error) throw error;
     if (data) setPredictions((prev) => ({ ...prev, [matchId]: data }));
   }
 

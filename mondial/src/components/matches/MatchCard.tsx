@@ -64,6 +64,7 @@ export default function MatchCard({ match, prediction, leagueId, onSave }: Props
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState(false);
   const [showPreds, setShowPreds] = useState(false);
   const [userPreds, setUserPreds] = useState<UserPred[]>([]);
   const [predsLoading, setPredsLoading] = useState(false);
@@ -82,15 +83,22 @@ export default function MatchCard({ match, prediction, leagueId, onSave }: Props
     const h = Number(home), a = Number(away);
     if (isNaN(h) || isNaN(a) || h < 0 || a < 0) return;
     setSaving(true);
-    await onSave(
-      h,
-      a,
-      isKnockout && etHome !== '' ? Number(etHome) : undefined,
-      isKnockout && etAway !== '' ? Number(etAway) : undefined,
-      isKnockout ? penWinner || undefined : undefined
-    );
-    setSaving(false);
-    setSaved(true);
+    setSaveError(false);
+    try {
+      await onSave(
+        h,
+        a,
+        isKnockout && etHome !== '' ? Number(etHome) : undefined,
+        isKnockout && etAway !== '' ? Number(etAway) : undefined,
+        isKnockout ? penWinner || undefined : undefined
+      );
+      setSaved(true);
+    } catch (err) {
+      console.error('Failed to save prediction', err);
+      setSaveError(true);
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function togglePreds() {
@@ -339,9 +347,9 @@ export default function MatchCard({ match, prediction, leagueId, onSave }: Props
           style={{
             marginTop: '12px',
             width: '100%',
-            background: saved ? 'rgba(34,197,94,0.2)' : 'linear-gradient(135deg, #16A34A, #22C55E)',
-            color: saved ? '#22C55E' : 'white',
-            border: saved ? '1px solid rgba(34,197,94,0.4)' : 'none',
+            background: saveError ? 'rgba(239,68,68,0.15)' : saved ? 'rgba(34,197,94,0.2)' : 'linear-gradient(135deg, #16A34A, #22C55E)',
+            color: saveError ? '#EF4444' : saved ? '#22C55E' : 'white',
+            border: saveError ? '1px solid rgba(239,68,68,0.4)' : saved ? '1px solid rgba(34,197,94,0.4)' : 'none',
             borderRadius: '12px',
             padding: '10px',
             fontFamily: "'Barlow Condensed', sans-serif",
@@ -349,10 +357,10 @@ export default function MatchCard({ match, prediction, leagueId, onSave }: Props
             fontSize: '14px',
             letterSpacing: '0.08em',
             textTransform: 'uppercase',
-            boxShadow: saved ? 'none' : '0 4px 15px rgba(34,197,94,0.25)',
+            boxShadow: saveError || saved ? 'none' : '0 4px 15px rgba(34,197,94,0.25)',
           }}
         >
-          {saved ? 'נשמר ✓' : saving ? 'שומר…' : prediction ? 'ערוך ניחוש' : 'שמור ניחוש'}
+          {saveError ? 'שמירה נכשלה — נסה שוב' : saved ? 'נשמר ✓' : saving ? 'שומר…' : prediction ? 'ערוך ניחוש' : 'שמור ניחוש'}
         </button>
       )}
 
