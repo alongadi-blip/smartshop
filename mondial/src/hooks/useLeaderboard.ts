@@ -31,13 +31,21 @@ export function useLeaderboard(leagueId?: string | null) {
   }
 
   async function fetchLeagueLeaderboard(lId: string) {
-    // Fetch league members with profiles
-    const { data: members } = await supabase
+    // league_members.user_id references auth.users, not public.profiles, so
+    // PostgREST can't embed profiles directly — fetch and merge manually.
+    const { data: memberRows } = await supabase
       .from('league_members')
-      .select('user_id, profiles(id, display_name, avatar_url)')
+      .select('user_id')
       .eq('league_id', lId);
 
-    if (!members) { setEntries([]); return; }
+    if (!memberRows || memberRows.length === 0) { setEntries([]); return; }
+
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, display_name, avatar_url')
+      .in('id', memberRows.map(m => m.user_id));
+    const profileMap = new Map((profiles ?? []).map(p => [p.id, p]));
+    const members = memberRows.map(m => ({ user_id: m.user_id, profiles: profileMap.get(m.user_id) }));
 
     // Fetch all predictions for this league that have been scored
     const { data: preds } = await supabase

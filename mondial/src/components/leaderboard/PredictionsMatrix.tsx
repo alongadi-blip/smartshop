@@ -39,9 +39,11 @@ export default function PredictionsMatrix({ leagueId }: { leagueId?: string }) {
   useEffect(() => {
     setLoading(true);
     async function load() {
-      // Fetch players: league members if leagueId, otherwise all profiles
+      // Fetch players: league members if leagueId, otherwise all profiles.
+      // league_members.user_id references auth.users, not public.profiles,
+      // so PostgREST can't embed profiles directly — fetch ids then profiles separately.
       const playersQ = leagueId
-        ? supabase.from('league_members').select('user_id, profiles(id, display_name)').eq('league_id', leagueId)
+        ? supabase.from('league_members').select('user_id').eq('league_id', leagueId)
         : supabase.from('profiles').select('id, display_name').order('display_name');
 
       let predsQ = supabase.from('predictions').select('user_id, match_id, predicted_home_score, predicted_away_score, points_earned');
@@ -49,7 +51,7 @@ export default function PredictionsMatrix({ leagueId }: { leagueId?: string }) {
         predsQ = predsQ.or(`league_id.is.null,league_id.eq.${leagueId}`);
       }
 
-      const [{ data: profilesRaw }, { data: matchData }, { data: predData }] = await Promise.all([
+      const [{ data: playersRaw }, { data: matchData }, { data: predData }] = await Promise.all([
         playersQ,
         supabase.from('matches').select('id, home_team, away_team, home_score, away_score, match_time, group_name, status, stage')
           .order('match_time', { ascending: true }),
@@ -57,9 +59,16 @@ export default function PredictionsMatrix({ leagueId }: { leagueId?: string }) {
       ]);
 
       // Normalize to same shape regardless of query type
-      const profiles: PlayerRow[] = leagueId
-        ? (profilesRaw ?? []).map((m: any) => ({ id: m.profiles?.id ?? m.user_id, display_name: m.profiles?.display_name ?? '?' }))
-        : (profilesRaw ?? []) as PlayerRow[];
+      let profiles: PlayerRow[];
+      if (leagueId) {
+        const userIds = (playersRaw ?? []).map((m: any) => m.user_id);
+        const { data: profilesData } = userIds.length
+          ? await supabase.from('profiles').select('id, display_name').in('id', userIds)
+          : { data: [] as PlayerRow[] };
+        profiles = profilesData ?? [];
+      } else {
+        profiles = (playersRaw ?? []) as PlayerRow[];
+      }
 
       setPlayers(profiles);
       // Only show locked/finished knockout matches — group stage is excluded from the table

@@ -58,12 +58,22 @@ export function useLeague() {
   }
 
   async function fetchLeagueMembers(leagueId: string): Promise<LeagueMember[]> {
-    const { data } = await supabase
+    // league_members.user_id references auth.users, not public.profiles, so
+    // PostgREST can't embed profiles directly — fetch and merge manually.
+    const { data: members } = await supabase
       .from('league_members')
-      .select('*, profiles(display_name, avatar_url)')
+      .select('*')
       .eq('league_id', leagueId)
       .order('joined_at', { ascending: true });
-    return (data ?? []) as LeagueMember[];
+    if (!members || members.length === 0) return [];
+
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, display_name, avatar_url')
+      .in('id', members.map(m => m.user_id));
+    const profileMap = new Map((profiles ?? []).map(p => [p.id, p]));
+
+    return members.map(m => ({ ...m, profiles: profileMap.get(m.user_id) })) as LeagueMember[];
   }
 
   async function leaveLeague(leagueId: string): Promise<{ error: string | null }> {
