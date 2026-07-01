@@ -9,7 +9,7 @@
       },
       "global": {
         ".read": "auth != null",
-        ".write": "auth != null"
+        ".write": "auth != null && auth.token.email === 'alon.gadi@gmail.com' && auth.token.email_verified === true"
       },
       "$listId": {
         ".read": "auth != null",
