@@ -1165,6 +1165,7 @@
 
 <!-- FIREBASE -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-check-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -1957,6 +1958,13 @@ function init() {
   }
   try {
     firebase.initializeApp(firebaseConfig);
+
+    // App Check — reCAPTCHA v3 (blocks non-browser clients from accessing Firebase services)
+    firebase.appCheck().activate(
+      new firebase.appCheck.ReCaptchaV3Provider('6LcD1D8tAAAAAFeaDnyWmzLypHmMLHdkis7Sbc6z'),
+      true // auto-refresh token
+    );
+
     db = firebase.database();
     auth = firebase.auth();
 
