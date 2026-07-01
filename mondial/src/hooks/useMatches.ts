@@ -80,9 +80,16 @@ export function useUserPredictions(userId: string | undefined, leagueId?: string
     // predictions only has PARTIAL unique indexes (one for league_id IS NULL,
     // one for league_id = X), which Postgres can't use as a bare ON CONFLICT
     // arbiter — upsert() fails with 42P10 every time. Check-then-write instead.
-    let existingQuery = supabase.from('predictions').select('id').eq('user_id', userId).eq('match_id', matchId);
-    existingQuery = leagueId ? existingQuery.eq('league_id', leagueId) : existingQuery.is('league_id', null);
-    const { data: existingRow } = await existingQuery.maybeSingle();
+    // Also reuse any existing null-league row (saved before the GRANT fix) to
+    // avoid duplicates that would double-count in the leaderboard.
+    const { data: existingRows } = await supabase
+      .from('predictions')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('match_id', matchId)
+      .order('league_id', { ascending: false, nullsFirst: false }) // prefer league-specific over null
+      .limit(1);
+    const existingRow = existingRows?.[0] ?? null;
 
     const { data, error } = existingRow
       ? await supabase.from('predictions').update(payload).eq('id', existingRow.id).select().single()
