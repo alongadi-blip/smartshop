@@ -47,11 +47,15 @@ export function useLeaderboard(leagueId?: string | null) {
     const profileMap = new Map((profiles ?? []).map(p => [p.id, p]));
     const members = memberRows.map(m => ({ user_id: m.user_id, profiles: profileMap.get(m.user_id) }));
 
-    // Fetch all predictions for this league that have been scored
+    // Fetch predictions: include both league-specific AND null-league (global)
+    // predictions for members, since some were saved before league assignment
+    // was fixed. Filter by user_id IN members to avoid pulling other users' data.
+    const memberIds = memberRows.map(m => m.user_id);
     const { data: preds } = await supabase
       .from('predictions')
       .select('user_id, points_earned, et_points_earned, penalty_points_earned')
-      .eq('league_id', lId);
+      .or(`league_id.is.null,league_id.eq.${lId}`)
+      .in('user_id', memberIds);
 
     // Build per-user totals
     const map: Record<string, LeaderboardEntry> = {};
