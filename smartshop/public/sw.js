@@ -1,4 +1,4 @@
-const CACHE = 'smartshop-v1';
+const CACHE = 'smartshop-v2';
 const OFFLINE = ['/'];
 
 self.addEventListener('install', e => {
@@ -16,12 +16,9 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  // Network-first for Firebase/API calls
-  if (e.request.url.includes('firebase') ||
-      e.request.url.includes('openfoodfacts') ||
-      e.request.url.includes('spoonacular')) {
-    return;
-  }
+  // Only intercept same-origin requests — let external CDNs/APIs pass through untouched
+  if (!e.request.url.startsWith(self.location.origin)) return;
+
   e.respondWith(
     fetch(e.request).catch(() => caches.match(e.request))
   );
