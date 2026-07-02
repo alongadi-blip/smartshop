@@ -111,7 +111,8 @@ export default function MatchCard({ match, prediction, leagueId, onSave }: Props
       if (match.stage === 'group') {
         q = q.is('league_id', null);
       } else if (leagueId) {
-        q = q.eq('league_id', leagueId);
+        // Include both null-league preds (saved before GRANT fix) and league-specific
+        q = q.or(`league_id.is.null,league_id.eq.${leagueId}`);
       }
 
       const { data } = await q;

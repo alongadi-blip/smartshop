@@ -41,7 +41,8 @@ export function useUserPredictions(userId: string | undefined, leagueId?: string
       // Group stage predictions (league_id IS NULL) + league-specific knockout predictions
       q = q.or(`league_id.is.null,league_id.eq.${leagueId}`);
     }
-    q.then(({ data }) => {
+    q.then(({ data, error }) => {
+      if (error) { console.error('[useUserPredictions] fetch failed:', error); return; }
       const map: Record<string, Prediction> = {};
       (data ?? []).forEach((p) => { map[p.match_id] = p; });
       setPredictions(map);

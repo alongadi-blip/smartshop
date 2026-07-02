@@ -300,6 +300,39 @@ async function run() {
     }
   }
 
+  // ── Catch-up scoring pass ─────────────────────────────────────────────────
+  // If a match was inserted directly as 'finished' (e.g. first seen by ESPN after
+  // it ended), the transition-based scoring above never fires. Find all finished
+  // matches that still have unscored predictions and score them now.
+  try {
+    const finishedMatches = await sbGet(
+      'matches?status=eq.finished&select=id,home_score,away_score,stage,went_to_et,et_home_score,et_away_score,penalty_winner'
+    );
+    for (const m of finishedMatches) {
+      if (m.home_score === null || m.away_score === null) continue;
+      const isKo = m.stage !== 'group';
+      const unscoredPreds = await sbGet(
+        `predictions?match_id=eq.${m.id}&points_earned=is.null&select=id,predicted_home_score,predicted_away_score,predicted_et_home_score,predicted_et_away_score,predicted_penalty_winner`
+      );
+      if (unscoredPreds.length === 0) continue;
+      console.log(`  [catch-up] ${unscoredPreds.length} unscored preds for match ${m.id}`);
+      for (const pred of unscoredPreds) {
+        const pts = calcPoints(m.home_score, m.away_score, pred.predicted_home_score, pred.predicted_away_score);
+        const updatePred = { points_earned: pts };
+        if (isKo && m.went_to_et && m.et_home_score !== null && m.et_away_score !== null) {
+          updatePred.et_points_earned = calcEtPoints(m.et_home_score, m.et_away_score, pred.predicted_et_home_score, pred.predicted_et_away_score);
+        }
+        if (isKo && m.penalty_winner) {
+          updatePred.penalty_points_earned = calcPenPoints(m.penalty_winner, pred.predicted_penalty_winner);
+        }
+        await sbPatch('predictions', pred.id, updatePred);
+        pointsCount++;
+      }
+    }
+  } catch (e) {
+    console.error('  ✗ Catch-up scoring pass failed:', e.message);
+  }
+
   console.log(`\nDone. ${newCount} new matches added, ${updatedCount} scores updated, ${pointsCount} predictions scored.`);
 }
 
