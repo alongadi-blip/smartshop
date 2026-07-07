@@ -1,11 +1,12 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // POIs: anyone can read, nobody can write from the client
-    // (admin writes through the app but we rely on the password gate)
+    // POIs: anyone can read, only the admin (Google Sign-In) can write
     match /pois/{poiId} {
       allow read: if true;
-      allow write: if true;  // tighten by adding Firebase Auth later if needed
+      allow write: if request.auth != null
+                   && request.auth.token.email == 'alon.gadi@gmail.com'
+                   && request.auth.token.email_verified == true;
     }
   }
 }

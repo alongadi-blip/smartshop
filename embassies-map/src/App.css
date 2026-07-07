@@ -223,6 +223,23 @@ body, html, #root {
 }
 .btn-secondary:hover { background: #1a3a70; }
 
+.admin-user {
+  font-size: 11px;
+  color: #7a93c4;
+  margin: 0 0 6px;
+  direction: rtl;
+}
+
+.btn-link {
+  border: none;
+  background: none;
+  padding: 0;
+  color: #90b8ff;
+  font-size: 11px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
 .error-text { font-size: 12px; color: #ef5350; }
 
 .divider { border: none; border-top: 1px solid #0f3460; margin: 8px 0; }

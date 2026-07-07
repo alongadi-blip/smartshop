@@ -1,23 +1,34 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
+import { auth, googleProvider } from '../firebase';
 import { CATEGORIES } from '../data/embassies';
 
-const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || 'admin123';
+// Authorization is enforced server-side in firestore.rules;
+// this email is only used to show a friendly message to non-admins.
+const ADMIN_EMAIL = 'alon.gadi@gmail.com';
 
 const BLANK = { name: '', category: 'hospital', lat: '', lng: '', address: '', notes: '' };
 
 export default function AdminPanel({ pois, onAdd, onDelete, onPickLocation, pendingLatLng }) {
-  const [authed, setAuthed]     = useState(false);
-  const [pwInput, setPwInput]   = useState('');
-  const [pwError, setPwError]   = useState(false);
+  const [user, setUser]         = useState(null);
+  const [authErr, setAuthErr]   = useState('');
   const [form, setForm]         = useState(BLANK);
   const [saving, setSaving]     = useState(false);
   const [saveOk, setSaveOk]     = useState(false);
   const [saveErr, setSaveErr]   = useState('');
   const [pickMode, setPickMode] = useState(false);
 
-  const login = () => {
-    if (pwInput === ADMIN_PASSWORD) { setAuthed(true); setPwError(false); }
-    else { setPwError(true); }
+  useEffect(() => onAuthStateChanged(auth, setUser), []);
+
+  const login = async () => {
+    setAuthErr('');
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (err) {
+      if (err.code !== 'auth/popup-closed-by-user') {
+        setAuthErr('שגיאה בהתחברות: ' + (err.message || 'נסה שנית'));
+      }
+    }
   };
 
   if (pendingLatLng && (form.lat !== String(pendingLatLng.lat) || form.lng !== String(pendingLatLng.lng))) {
@@ -50,21 +61,22 @@ export default function AdminPanel({ pois, onAdd, onDelete, onPickLocation, pend
     }
   };
 
-  if (!authed) {
+  if (!user) {
     return (
       <div className="admin-panel">
         <h3 className="panel-title">🔐 Admin</h3>
-        <input
-          type="password"
-          placeholder="סיסמה"
-          value={pwInput}
-          onChange={(e) => setPwInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && login()}
-          className="admin-input"
-          dir="rtl"
-        />
-        {pwError && <p className="error-text">סיסמה שגויה</p>}
-        <button className="btn-primary" onClick={login}>כניסה</button>
+        <button className="btn-primary" onClick={login}>התחבר עם Google</button>
+        {authErr && <p className="error-text">{authErr}</p>}
+      </div>
+    );
+  }
+
+  if (user.email !== ADMIN_EMAIL) {
+    return (
+      <div className="admin-panel">
+        <h3 className="panel-title">🔐 Admin</h3>
+        <p className="error-text">אין הרשאת ניהול לחשבון {user.email}</p>
+        <button className="btn-secondary" onClick={() => signOut(auth)}>התנתק</button>
       </div>
     );
   }
@@ -72,6 +84,7 @@ export default function AdminPanel({ pois, onAdd, onDelete, onPickLocation, pend
   return (
     <div className="admin-panel">
       <h3 className="panel-title">✏️ הוסף נקודת עניין</h3>
+      <p className="admin-user">מחובר כ-{user.email} · <button type="button" className="btn-link" onClick={() => signOut(auth)}>התנתק</button></p>
       <form onSubmit={handleSubmit} dir="rtl">
         <input
           className="admin-input"
