@@ -2025,7 +2025,8 @@ function validateAndContinue() {
       db.ref('smartshop/' + listId + '/meta').update({ token: listToken, owner: currentUser.uid });
       history.replaceState(null, '', '#' + listId + '~' + listToken);
       continueInit(false);
-    } else if (!listToken || listToken === storedToken) {
+    } else if (listToken === storedToken || (meta.owner && meta.owner === currentUser.uid)) {
+      // Access requires the exact share token; only the list owner may enter without one
       listToken = storedToken;
       history.replaceState(null, '', '#' + listId + '~' + listToken);
       const isShared = !!(meta.owner && meta.owner !== currentUser.uid);
@@ -2607,14 +2608,14 @@ function renderSidebar(active) {
     const cls = c.key === activeCat ? ' active' : '';
     return `<div class="cat-row${cls}" onclick="setCat('${esc(c.key)}')">`
       + `<span>${c.key === 'all' ? '🛒' : (CAT_ICON[c.key] || '📦')}</span>`
-      + `<span style="flex:1">${c.lbl}</span>`
+      + `<span style="flex:1">${hEsc(c.lbl)}</span>`
       + `<span class="badge">${c.n}</span></div>`;
   };
 
   const mkChip = (c) => {
     const cls = c.key === activeCat ? ' active' : '';
     return `<div class="chip${cls}" onclick="setCat('${esc(c.key)}')">`
-      + `${c.key === 'all' ? '🛒 הכל' : (CAT_ICON[c.key] || '📦') + ' ' + c.lbl} (${c.n})</div>`;
+      + `${c.key === 'all' ? '🛒 הכל' : (CAT_ICON[c.key] || '📦') + ' ' + hEsc(c.lbl)} (${c.n})</div>`;
   };
 
   document.getElementById('catFilters').innerHTML = cats.map(mkRow).join('');
@@ -2708,14 +2709,14 @@ function itemHTML(id, it, purch) {
   if (it.qtyN) qtyStr = it.qtyN + ' ' + (it.qtyU || "יח'");
   else if (it.qty) qtyStr = it.qty; // backward compat
 
-  const checkBtn = `<button class="check${purch ? ' done-chk' : ''}" onclick="togglePurch('${id}')" title="${purch ? 'בטל סימון' : 'סמן כנרכש'}">✓</button>`;
+  const checkBtn = `<button class="check${purch ? ' done-chk' : ''}" onclick="togglePurch('${esc(id)}')" title="${purch ? 'בטל סימון' : 'סמן כנרכש'}">✓</button>`;
 
   // Build sub-line: qty + note
   const subParts = [];
   if (qtyStr) {
     subParts.push(purch
       ? `<span class="item-sub-note">${hEsc(qtyStr)}</span>`
-      : `<span class="item-qty" id="qty-wrap-${id}" onclick="event.stopPropagation();startQtyEdit('${id}')">${hEsc(qtyStr)}</span>`);
+      : `<span class="item-qty" id="qty-wrap-${hEsc(id)}" onclick="event.stopPropagation();startQtyEdit('${esc(id)}')">${hEsc(qtyStr)}</span>`);
   }
   if (it.note) subParts.push(`<span class="item-sub-note">${hEsc(it.note)}</span>`);
   const subHtml = subParts.length
@@ -2723,7 +2724,7 @@ function itemHTML(id, it, purch) {
     : '';
 
   if (purch) {
-    return `<div class="item done" data-id="${id}">
+    return `<div class="item done" data-id="${hEsc(id)}">
       ${checkBtn}
       <div class="item-body">
         <div class="item-name">${hEsc(it.name)}</div>
@@ -2732,14 +2733,14 @@ function itemHTML(id, it, purch) {
     </div>`;
   }
 
-  return `<div class="item" data-id="${id}">
+  return `<div class="item" data-id="${hEsc(id)}">
     ${checkBtn}
-    <div class="item-body" onclick="openEdit('${id}')">
+    <div class="item-body" onclick="openEdit('${esc(id)}')">
       <div class="item-name">${hEsc(it.name)}</div>
       ${subHtml}
     </div>
     <div class="item-actions">
-      <button class="act del" onclick="event.stopPropagation();askDel('${id}')" title="מחק">🗑️</button>
+      <button class="act del" onclick="event.stopPropagation();askDel('${esc(id)}')" title="מחק">🗑️</button>
     </div>
   </div>`;
 }
@@ -2770,14 +2771,14 @@ function startQtyEdit(id) {
   wrap.className = 'qty-inline';
   wrap.removeAttribute('onclick');
   wrap.removeAttribute('title');
-  wrap.innerHTML = `<input type="number" class="qty-num-in" id="qin-${id}" value="${currN}"
+  wrap.innerHTML = `<input type="number" class="qty-num-in" id="qin-${hEsc(id)}" value="${hEsc(currN)}"
          min="0" step="0.1" dir="ltr"
-         onkeydown="qtyKey(event,'${id}')" onclick="event.stopPropagation()">
-    <select class="qty-unit-in" id="qun-${id}" onclick="event.stopPropagation()">
+         onkeydown="qtyKey(event,'${esc(id)}')" onclick="event.stopPropagation()">
+    <select class="qty-unit-in" id="qun-${hEsc(id)}" onclick="event.stopPropagation()">
       ${unitOpts}
     </select>
-    <button class="qty-ok-btn" onclick="event.stopPropagation();saveQtyEdit('${id}')">✓</button>
-    <button class="qty-x-btn"  onclick="event.stopPropagation();cancelQtyEdit('${id}')">✕</button>`;
+    <button class="qty-ok-btn" onclick="event.stopPropagation();saveQtyEdit('${esc(id)}')">✓</button>
+    <button class="qty-x-btn"  onclick="event.stopPropagation();cancelQtyEdit('${esc(id)}')">✕</button>`;
   setTimeout(() => {
     const inp = document.getElementById('qin-' + id);
     if (inp) { inp.focus(); inp.select(); }
@@ -3182,7 +3183,16 @@ function hEsc(s) {
   if (!s) return '';
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
-function esc(s) { return String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
+// Escapes a value for use as a JS string literal inside a double-quoted
+// onclick attribute: JS-escape \ and ', then HTML-escape chars that could
+// terminate the attribute or open a tag (the parser decodes entities back
+// to literal characters inside the JS string).
+function esc(s) {
+  return String(s || '')
+    .replace(/\\/g, '\\\\').replace(/'/g, "\\'")
+    .replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
 
 // ============================================================
 //  KEYBOARD
