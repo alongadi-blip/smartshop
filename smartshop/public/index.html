@@ -2525,22 +2525,24 @@ function browseAdd(idx) {
   if (alreadyIn || _browseAddPending.has(name)) { toast('⚠️ ' + name + ' כבר ברשימה'); renderBrowseProducts(); return; }
   _browseAddPending.add(name);
   setTimeout(() => _browseAddPending.delete(name), 3000);
-  addItem({ name, cat: browseCat, qtyN: '1', qtyU: "יח'" });
-  toast('✅ ' + name + ' נוסף');
+  const added = addItem({ name, cat: browseCat, qtyN: '1', qtyU: "יח'" });
+  toast(added ? '✅ ' + name + ' נוסף' : '⚠️ ' + name + ' כבר ברשימה');
   renderBrowseProducts();
 }
 
 // ============================================================
 //  CRUD
 // ============================================================
+// Returns false when a non-purchased item with the same name already exists
 function addItem(item) {
-  if (Object.values(items).some(i => !i.purchased && i.name === item.name)) return;
+  if (Object.values(items).some(i => !i.purchased && i.name === item.name)) return false;
   const id = 'i' + Date.now() + secureRandHex(3);
   item = { ...item, purchased: false, addedAt: Date.now() };
   // Optimistic local update (important for browse modal to reflect ✓ immediately)
   items[id] = item;
   if (offlineMode) { persist(); render(); }
   else { render(); db.ref('smartshop/' + listId + '/items/' + id).set(item); }
+  return true;
 }
 
 function upd(id, patch) {
@@ -2861,14 +2863,18 @@ function onSearchKey(e) {
   if (e.key === 'Escape') closeSearch();
   else if (e.key === 'Enter') {
     const q = e.target.value.trim();
-    if (q) { addItem({ name: q, cat: 'כללי', qtyN: '1', qtyU: "יח'" }); toast('✅ ' + q + ' נוסף'); closeSearch(); }
+    if (q) {
+      const added = addItem({ name: q, cat: 'כללי', qtyN: '1', qtyU: "יח'" });
+      toast(added ? '✅ ' + q + ' נוסף' : '⚠️ ' + q + ' כבר ברשימה');
+      closeSearch();
+    }
   }
 }
 
 function pickSearch(idx) {
   const p = searchResults[idx]; if (!p) return;
-  addItem({ name: p.name, cat: p.cat, qtyN: '1', qtyU: "יח'" });
-  toast('✅ ' + p.name + ' נוסף');
+  const added = addItem({ name: p.name, cat: p.cat, qtyN: '1', qtyU: "יח'" });
+  toast(added ? '✅ ' + p.name + ' נוסף' : '⚠️ ' + p.name + ' כבר ברשימה');
   closeSearch();
 }
 
@@ -2939,14 +2945,14 @@ function submitAdd() {
   if (note.length > 200) { toast('⚠️ הערה ארוכה מדי (מקסימום 200 תווים)'); return; }
   const qtyNum  = document.getElementById('mQtyNum').value.trim();
   const qtyUnit = document.getElementById('mQtyUnit').value;
-  addItem({
+  const added = addItem({
     name,
     cat:  document.getElementById('mCat').value || 'כללי',
     qtyN: qtyNum || '1',
     qtyU: qtyUnit,
     note
   });
-  toast('✅ ' + name + ' נוסף לרשימה');
+  toast(added ? '✅ ' + name + ' נוסף לרשימה' : '⚠️ ' + name + ' כבר ברשימה');
   closeAdd();
 }
 
@@ -3446,8 +3452,8 @@ function addScannedProduct() {
   const name = document.getElementById('scanFoundName').value.trim();
   const cat  = document.getElementById('scanCat').value || 'כללי';
   if (!name) { document.getElementById('scanFoundName').focus(); return; }
-  addItem({ name, cat, qtyN: '1', qtyU: "יח'" });
-  toast('✅ ' + name + ' נוסף לרשימה');
+  const added = addItem({ name, cat, qtyN: '1', qtyU: "יח'" });
+  toast(added ? '✅ ' + name + ' נוסף לרשימה' : '⚠️ ' + name + ' כבר ברשימה');
   closeScan();
 }
 
