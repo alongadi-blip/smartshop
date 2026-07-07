@@ -2016,25 +2016,49 @@ function initWithFirebase() {
   validateAndContinue();
 }
 
+// Membership model: the database rules only allow reading/writing a list to
+// its members (or owner). Joining = writing members/{uid} with the correct
+// share token; the rules validate the token server-side, so the token is a
+// join credential and membership persists until the owner revokes the link.
 function validateAndContinue() {
-  db.ref('smartshop/' + listId + '/meta').once('value', snap => {
-    const meta = snap.val() || {};
-    const storedToken = meta.token;
-    if (!storedToken) {
-      if (!listToken) listToken = generateToken();
-      db.ref('smartshop/' + listId + '/meta').update({ token: listToken, owner: currentUser.uid });
-      history.replaceState(null, '', '#' + listId + '~' + listToken);
-      continueInit(false);
-    } else if (listToken === storedToken || (meta.owner && meta.owner === currentUser.uid)) {
-      // Access requires the exact share token; only the list owner may enter without one
-      listToken = storedToken;
-      history.replaceState(null, '', '#' + listId + '~' + listToken);
-      const isShared = !!(meta.owner && meta.owner !== currentUser.uid);
-      continueInit(isShared);
-    } else {
-      showAccessDenied();
-    }
-  });
+  const base = db.ref('smartshop/' + listId);
+  base.child('meta').once('value')
+    .then(snap => {
+      // Read succeeded — we're the owner, an existing member, or the list is new
+      const meta = snap.val() || {};
+      const storedToken = meta.token;
+      if (!storedToken) {
+        // New list: claim ownership first, then register our membership
+        // (two sequential writes — multi-path updates are validated per-path,
+        // so the member record can't see the new meta/token in one update)
+        if (!listToken) listToken = generateToken();
+        base.child('meta').update({ token: listToken, owner: currentUser.uid })
+          .then(() => base.child('members/' + currentUser.uid).set({ token: listToken, ts: Date.now() }))
+          .then(() => {
+            history.replaceState(null, '', '#' + listId + '~' + listToken);
+            continueInit(false);
+          })
+          .catch(() => showAccessDenied());
+      } else {
+        listToken = storedToken;
+        history.replaceState(null, '', '#' + listId + '~' + listToken);
+        const isShared = !!(meta.owner && meta.owner !== currentUser.uid);
+        // Backfill a membership record (legacy lists created before the members model)
+        base.child('members/' + currentUser.uid).set({ token: storedToken, ts: Date.now() }).catch(() => {});
+        continueInit(isShared);
+      }
+    })
+    .catch(() => {
+      // No read access — we're not a member. Try to join with the token from
+      // the URL; the rules accept the write only if the token matches.
+      if (!listToken) { showAccessDenied(); return; }
+      base.child('members/' + currentUser.uid).set({ token: listToken, ts: Date.now() })
+        .then(() => {
+          history.replaceState(null, '', '#' + listId + '~' + listToken);
+          continueInit(true);
+        })
+        .catch(() => showAccessDenied());
+    });
 }
 
 function continueInit(isShared) {
@@ -2340,12 +2364,10 @@ function renameListBtn(btn) {
   if (id === listId) {
     listName = trimmed;
     renderListName();
-    localStorage.setItem('ss_meta_' + id, JSON.stringify({ name: trimmed }));
-    if (!offlineMode && db) db.ref('smartshop/' + id + '/meta/name').set(trimmed);
-  } else {
-    localStorage.setItem('ss_meta_' + id, JSON.stringify({ name: trimmed }));
-    if (!offlineMode && db) db.ref('smartshop/' + id + '/meta/name').set(trimmed);
   }
+  localStorage.setItem('ss_meta_' + id, JSON.stringify({ name: trimmed }));
+  // May be rejected for lists we're no longer a member of — registry name still updates
+  if (!offlineMode && db) db.ref('smartshop/' + id + '/meta/name').set(trimmed).catch(() => {});
   updateRegistry(id, trimmed, '');
   if (currentUser && db) db.ref('smartshop/users/' + currentUser.uid + '/lists/' + id + '/name').set(trimmed);
   renderLists();
@@ -3119,7 +3141,14 @@ function copyListAsText() {
 function revokeAccess() {
   if (!confirm('לבטל את הקישור הנוכחי?\nמי שיש לו את הקישור הישן לא יוכל יותר לגשת לרשימה.')) return;
   listToken = generateToken();
-  if (!offlineMode && db) db.ref('smartshop/' + listId + '/meta/token').set(listToken);
+  if (!offlineMode && db) {
+    const base = db.ref('smartshop/' + listId);
+    // Change the token first, then reset membership to just us —
+    // existing members must re-join via the new link
+    base.child('meta/token').set(listToken)
+      .then(() => base.child('members').set({ [currentUser.uid]: { token: listToken, ts: Date.now() } }))
+      .catch(() => toast('⚠️ שגיאה בעדכון הקישור — נסה שוב'));
+  }
   history.replaceState(null, '', '#' + listId + '~' + listToken);
   closeShare();
   setTimeout(openShare, 180);
