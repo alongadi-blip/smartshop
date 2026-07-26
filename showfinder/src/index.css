@@ -1,0 +1,67 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Righteous&display=swap');
+
+:root {
+  --bg: #0f0f23;
+  --surface: #17172e;
+  --surface-2: #1e1b4b;
+  --border: #2e2b5e;
+  --text: #f8fafc;
+  --text-muted: #a5a3c4;
+  --accent: #ca8a04;
+  --accent-2: #fbbf24;
+  --music: #ca8a04;
+  --theater: #7c3aed;
+  --standup: #db2777;
+  --kids: #14b8a6;
+  --other: #64748b;
+
+  color-scheme: dark;
+  font-family: 'Poppins', system-ui, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  background: radial-gradient(ellipse at top, #1e1b4b 0%, #0f0f23 55%);
+  background-attachment: fixed;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+}
+
+button {
+  font-family: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent-2);
+  outline-offset: 2px;
+}
