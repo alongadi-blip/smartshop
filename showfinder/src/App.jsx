@@ -100,6 +100,8 @@ export default function App() {
   const [city, setCity] = useState('all');
   const [category, setCategory] = useState('all');
   const [search, setSearch] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   useEffect(() => {
     async function load() {
@@ -118,8 +120,13 @@ export default function App() {
   const filtered = useMemo(() => {
     const now = Date.now();
     const term = search.trim().toLowerCase();
+    const fromTime = dateFrom ? new Date(`${dateFrom}T00:00:00`).getTime() : null;
+    const toTime = dateTo ? new Date(`${dateTo}T23:59:59`).getTime() : null;
     return events.filter((ev) => {
-      if (new Date(ev.date).getTime() < now) return false;
+      const evTime = new Date(ev.date).getTime();
+      if (evTime < now) return false;
+      if (fromTime != null && evTime < fromTime) return false;
+      if (toTime != null && evTime > toTime) return false;
       if (city !== 'all' && ev.city !== city) return false;
       if (category !== 'all' && ev.category !== category) return false;
       if (term) {
@@ -128,7 +135,7 @@ export default function App() {
       }
       return true;
     });
-  }, [events, city, category, search]);
+  }, [events, city, category, search, dateFrom, dateTo]);
 
   return (
     <div className="page">
@@ -174,6 +181,40 @@ export default function App() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
+        </div>
+        <div className="date-row">
+          <div className="date-field">
+            <label htmlFor="date-from">מתאריך</label>
+            <input
+              id="date-from"
+              type="date"
+              value={dateFrom}
+              max={dateTo || undefined}
+              onChange={(e) => setDateFrom(e.target.value)}
+            />
+          </div>
+          <div className="date-field">
+            <label htmlFor="date-to">עד תאריך</label>
+            <input
+              id="date-to"
+              type="date"
+              value={dateTo}
+              min={dateFrom || undefined}
+              onChange={(e) => setDateTo(e.target.value)}
+            />
+          </div>
+          {(dateFrom || dateTo) && (
+            <button
+              type="button"
+              className="date-clear"
+              onClick={() => {
+                setDateFrom('');
+                setDateTo('');
+              }}
+            >
+              נקה תאריכים
+            </button>
+          )}
         </div>
       </div>
 

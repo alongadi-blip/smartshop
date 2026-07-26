@@ -116,6 +116,58 @@
   outline: none;
 }
 
+.date-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.date-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.date-field label {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.date-field input[type='date'] {
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 15px;
+  color-scheme: dark;
+}
+
+.date-field input[type='date']:focus {
+  border-color: var(--accent-2);
+  outline: none;
+}
+
+.date-clear {
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  transition: border-color 150ms, color 150ms;
+}
+
+.date-clear:hover {
+  border-color: var(--accent-2);
+  color: var(--text);
+}
+
 /* Results grid */
 .results {
   min-height: 40vh;
