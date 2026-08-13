@@ -67,3 +67,6 @@ node_modules/
 
 # dataconnect generated files
 .dataconnect
+
+# meazen has its own repo: https://github.com/alongadi-blip/meazen
+meazen/
