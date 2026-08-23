@@ -1,8 +1,9 @@
 """
-Step 1+2: Fetch the transcript of a single YouTube video.
+Fetch the transcript of a single YouTube video.
 
-Usage:
+Usable both as a CLI tool and as a library:
     py get_transcript.py "https://www.youtube.com/watch?v=VIDEO_ID"
+    from get_transcript import get_transcript_text
 """
 
 import re
@@ -10,6 +11,7 @@ import sys
 
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import (
+    CouldNotRetrieveTranscript,
     NoTranscriptFound,
     TranscriptsDisabled,
     VideoUnavailable,
@@ -42,16 +44,17 @@ def extract_video_id(url_or_id: str) -> str:
     raise ValueError(f"Could not find a video id in: {url_or_id}")
 
 
-def fetch_transcript(video_id: str):
+def fetch_transcript(video_id: str, verbose: bool = True):
     """Return (language_code, list_of_snippets) for the best available transcript."""
     api = YouTubeTranscriptApi()
     transcript_list = api.list(video_id)
 
-    print("Available transcripts:")
-    for t in transcript_list:
-        kind = "auto-generated" if t.is_generated else "manual"
-        print(f"  - {t.language_code:<6} {t.language} ({kind})")
-    print()
+    if verbose:
+        print("Available transcripts:")
+        for t in transcript_list:
+            kind = "auto-generated" if t.is_generated else "manual"
+            print(f"  - {t.language_code:<6} {t.language} ({kind})")
+        print()
 
     # 1. Try a real transcript in a preferred language.
     try:
@@ -63,6 +66,15 @@ def fetch_transcript(video_id: str):
             transcript = transcript.translate("he")
 
     return transcript.language_code, transcript.fetch()
+
+
+def get_transcript_text(video_id: str) -> str | None:
+    """Full transcript as one string, or None when the video has no usable transcript."""
+    try:
+        _language, snippets = fetch_transcript(video_id, verbose=False)
+    except CouldNotRetrieveTranscript:
+        return None
+    return " ".join(snippet.text for snippet in snippets)
 
 
 def main() -> int:
