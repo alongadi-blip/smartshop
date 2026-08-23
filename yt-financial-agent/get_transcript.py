@@ -9,6 +9,7 @@ Usable both as a CLI tool and as a library:
 import re
 import sys
 
+import requests
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import (
     CouldNotRetrieveTranscript,
@@ -16,6 +17,8 @@ from youtube_transcript_api._errors import (
     TranscriptsDisabled,
     VideoUnavailable,
 )
+
+import supadata_source
 
 # Transcript languages we want, in order of preference.
 PREFERRED_LANGUAGES = ["he", "iw", "en"]
@@ -69,12 +72,26 @@ def fetch_transcript(video_id: str, verbose: bool = True):
 
 
 def get_transcript_text(video_id: str) -> str | None:
-    """Full transcript as one string, or None when the video has no usable transcript."""
+    """
+    Full transcript as one string, or None when no source can supply one.
+
+    Tries YouTube directly first — it is free and works from a home connection.
+    YouTube blocks datacenter IPs, so in the cloud that always fails and we fall
+    back to Supadata (only if SUPADATA_API_KEY is set).
+    """
     try:
         _language, snippets = fetch_transcript(video_id, verbose=False)
-    except CouldNotRetrieveTranscript:
+        return " ".join(snippet.text for snippet in snippets)
+    except CouldNotRetrieveTranscript as exc:
+        if not supadata_source.is_configured():
+            return None
+        print(f"    youtube refused ({type(exc).__name__}), trying Supadata...", flush=True)
+
+    try:
+        return supadata_source.get_transcript_text(video_id)
+    except (supadata_source.SupadataError, requests.RequestException) as exc:
+        print(f"    Supadata failed: {exc}", flush=True)
         return None
-    return " ".join(snippet.text for snippet in snippets)
 
 
 def main() -> int:

@@ -80,7 +80,8 @@ Telegram — silence should never be mistaken for "no news today".
 
 - Transcripts come from YouTube's public RSS feed and the transcript endpoint —
   no Google API key, no quota.
-- YouTube blocks transcript requests from datacenter IPs, so this is built to run
-  on your own machine rather than in the cloud.
+- YouTube blocks transcript requests from datacenter IPs. Locally that never
+  matters; in GitHub Actions every transcript comes from Supadata instead
+  (100 free/month, set `SUPADATA_API_KEY`). The fallback is automatic.
 - A typical day (one video) costs a few cents.
 - **Not financial advice.** The summary reflects what a video said, nothing more.
