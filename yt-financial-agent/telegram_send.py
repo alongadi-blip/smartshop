@@ -49,6 +49,11 @@ def render_html(summary: DailySummary, videos: list[dict]) -> str:
     lines.append(esc(summary.market_overview))
     lines.append("")
 
+    if summary.bottom_line:
+        lines.append("<b>🎯 שורה תחתונה</b>")
+        lines.append(esc(summary.bottom_line))
+        lines.append("")
+
     if summary.recommendations:
         lines.append("<b>💡 מניות שהוזכרו</b>")
         for rec in summary.recommendations:
@@ -58,7 +63,9 @@ def render_html(summary: DailySummary, videos: list[dict]) -> str:
                 f"{icon} <b>{esc(rec.company)}</b>{ticker} — {esc(rec.action)}"
                 f" | ודאות {esc(rec.confidence)}"
             )
-            lines.append(f"<i>{esc(rec.reason)}</i>")
+            lines.append(esc(rec.reason))
+            if rec.levels:
+                lines.append(f"📐 <code>{esc(rec.levels)}</code>")
             lines.append("")
 
     if summary.attention_points:

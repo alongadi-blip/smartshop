@@ -34,12 +34,18 @@ SYSTEM_PROMPT = """\
   הוודאות שלו (למשל "מזכיר לעקוב" מול "אומר לקנות").
 - אם משהו לא נאמר בסרטונים, השאר את השדה ריק. אל תמציא.
 
-הסיכום נקרא בטלגרם בטלפון, בבוקר, תוך דקה. לכן קיצור הוא דרישה, לא בקשה:
-- אל תנסה לכסות הכל. תעדף אכזרית — רק מה שבאמת משנה למשקיע היום.
-- אם יותר מדי מניות הוזכרו, בחר את החשובות ביותר וזרוק את השאר.
-- מניה שרק הוזכרה בחטף בלי אמירה של ממש — לא נכנסת לרשימה בכלל.
+הסיכום אמור להחליף את הצפייה בסרטון. מי שקורא אותו צריך לדעת מה נאמר בלי לפתוח
+את יוטיוב. לכן:
+- כלול את המספרים הקונקרטיים שנאמרו: אחוזים, רמות מחיר, סטופים, יעדים, תשואות.
+  מספר שנאמר בסרטון ולא הופיע בסיכום הוא מידע שאבד.
+- הסבר *למה*, לא רק *מה*. "ירדה 6%" חסר ערך; "ירדה 6% על גיוס חוב של 60 מיליארד
+  עבור אנתרופיק" הוא מידע.
+- מניה שרק הוזכרה בחטף בלי אמירה של ממש — לא נכנסת לרשימה.
 
-כתוב בעברית תקינה, בגוף שלישי, קצר וענייני. בלי מילות מילוי.\
+מה שאסור: מילות מילוי, חזרות, ניסוחים כלליים בלי תוכן, ומשפטי קישור מיותרים.
+צפיפות מידע גבוהה — לא טקסט קצר.
+
+כתוב בעברית תקינה, בגוף שלישי.\
 """
 
 
@@ -52,12 +58,30 @@ class Recommendation(BaseModel):
     confidence: Literal["גבוהה", "בינונית", "נמוכה"] = Field(
         description="עד כמה היוצר היה נחרץ"
     )
-    reason: str = Field(description="הנימוק שנאמר בסרטון. משפט אחד קצר, עד 15 מילים")
+    reason: str = Field(
+        description="מה נאמר על המניה ולמה. 1-3 משפטים, כולל המספרים והנימוקים שנאמרו"
+    )
+    levels: str = Field(
+        description=(
+            "אם נאמר בסרטון מספר כלשהו שקשור למניה הזו — סטופ, תמיכה, התנגדות, יעד, "
+            "ממוצע נע, מחיר נוכחי — העתק אותו לכאן בקצרה, למשל 'סטופ 137, ממוצע 150'. "
+            "מחרוזת ריקה רק אם באמת לא נאמר שום מספר על המניה"
+        )
+    )
 
 
 class DailySummary(BaseModel):
     market_overview: str = Field(
-        description="סקירת שוק כללית. 2-3 משפטים בלבד, רק המספרים והכיוון שבאמת חשובים"
+        description=(
+            "סקירת שוק כללית, 4-6 משפטים. כלול את תנועות המדדים באחוזים, סקטורים "
+            "מובילים ונחשלים, ונתוני מאקרו שהוזכרו (תשואות, נפט, VIX, קריפטו)"
+        )
+    )
+    bottom_line: str = Field(
+        description=(
+            "השורה התחתונה: מה היוצר אומר למשקיע לעשות או לצפות לו בטווח הקרוב. "
+            "1-2 משפטים, מנוסח כפי שהוא אמר"
+        )
     )
     sentiment: Literal["חיובי", "שלילי", "מעורב", "ניטרלי"] = Field(
         description="הסנטימנט הכללי שעולה מהסרטונים"
@@ -70,14 +94,14 @@ class DailySummary(BaseModel):
     )
     attention_points: list[str] = Field(
         description=(
-            f"עד {config.MAX_ATTENTION_POINTS} נקודות תשומת לב מרכזיות: סיכונים ואזהרות. "
-            "כל אחת שורה אחת קצרה"
+            f"עד {config.MAX_ATTENTION_POINTS} נקודות תשומת לב: סיכונים, אזהרות, "
+            "מגמות מאקרו. כל אחת משפט או שניים עם הנתון שנאמר, לא כותרת"
         )
     )
     upcoming_events: list[str] = Field(
         description=(
-            f"עד {config.MAX_EVENTS} אירועים קרובים חשובים: דוחות, נתוני מאקרו, ריבית. "
-            "כל אחד שורה אחת קצרה"
+            f"עד {config.MAX_EVENTS} אירועים קרובים: דוחות, נתוני מאקרו, ריבית, כנסים. "
+            "ציין מתי ומה מצופה"
         )
     )
 
@@ -164,6 +188,11 @@ def render(summary: DailySummary, videos: list[dict]) -> str:
     lines.append(summary.market_overview)
     lines.append("")
 
+    if summary.bottom_line:
+        lines.append("🎯 שורה תחתונה")
+        lines.append(summary.bottom_line)
+        lines.append("")
+
     if summary.recommendations:
         lines.append("💡 מניות שהוזכרו")
         for rec in summary.recommendations:
@@ -171,7 +200,9 @@ def render(summary: DailySummary, videos: list[dict]) -> str:
             ticker = f" ({rec.ticker})" if rec.ticker else ""
             lines.append(f"{icon} {rec.company}{ticker} — {rec.action} | ודאות {rec.confidence}")
             lines.append(f"   {rec.reason}")
-        lines.append("")
+            if rec.levels:
+                lines.append(f"   📐 {rec.levels}")
+            lines.append("")
 
     if summary.attention_points:
         lines.append("⚠️ נקודות תשומת לב")
