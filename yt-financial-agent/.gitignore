@@ -1,4 +1,6 @@
 transcript_*.txt
 latest_videos.json
+summary.json
+summary.txt
 __pycache__/
 .env
