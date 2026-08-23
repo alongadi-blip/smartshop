@@ -34,7 +34,12 @@ SYSTEM_PROMPT = """\
   הוודאות שלו (למשל "מזכיר לעקוב" מול "אומר לקנות").
 - אם משהו לא נאמר בסרטונים, השאר את השדה ריק. אל תמציא.
 
-כתוב את כל הפלט בעברית תקינה, בגוף שלישי, קצר וענייני.\
+הסיכום נקרא בטלגרם בטלפון, בבוקר, תוך דקה. לכן קיצור הוא דרישה, לא בקשה:
+- אל תנסה לכסות הכל. תעדף אכזרית — רק מה שבאמת משנה למשקיע היום.
+- אם יותר מדי מניות הוזכרו, בחר את החשובות ביותר וזרוק את השאר.
+- מניה שרק הוזכרה בחטף בלי אמירה של ממש — לא נכנסת לרשימה בכלל.
+
+כתוב בעברית תקינה, בגוף שלישי, קצר וענייני. בלי מילות מילוי.\
 """
 
 
@@ -47,22 +52,33 @@ class Recommendation(BaseModel):
     confidence: Literal["גבוהה", "בינונית", "נמוכה"] = Field(
         description="עד כמה היוצר היה נחרץ"
     )
-    reason: str = Field(description="הנימוק שנאמר בסרטון, משפט או שניים")
+    reason: str = Field(description="הנימוק שנאמר בסרטון. משפט אחד קצר, עד 15 מילים")
 
 
 class DailySummary(BaseModel):
-    market_overview: str = Field(description="סקירת שוק כללית, 3-5 משפטים")
+    market_overview: str = Field(
+        description="סקירת שוק כללית. 2-3 משפטים בלבד, רק המספרים והכיוון שבאמת חשובים"
+    )
     sentiment: Literal["חיובי", "שלילי", "מעורב", "ניטרלי"] = Field(
         description="הסנטימנט הכללי שעולה מהסרטונים"
     )
     recommendations: list[Recommendation] = Field(
-        description="המלצות ספציפיות למניות שהוזכרו. רשימה ריקה אם אין"
+        description=(
+            f"עד {config.MAX_RECOMMENDATIONS} המניות החשובות ביותר, מהחשובה לפחות חשובה. "
+            "רק מניות שנאמר עליהן משהו ממשי. רשימה ריקה אם אין"
+        )
     )
     attention_points: list[str] = Field(
-        description="נקודות תשומת לב: סיכונים, אזהרות, דברים לעקוב אחריהם"
+        description=(
+            f"עד {config.MAX_ATTENTION_POINTS} נקודות תשומת לב מרכזיות: סיכונים ואזהרות. "
+            "כל אחת שורה אחת קצרה"
+        )
     )
     upcoming_events: list[str] = Field(
-        description="אירועים קרובים שהוזכרו: דוחות, נתוני מאקרו, החלטות ריבית"
+        description=(
+            f"עד {config.MAX_EVENTS} אירועים קרובים חשובים: דוחות, נתוני מאקרו, ריבית. "
+            "כל אחד שורה אחת קצרה"
+        )
     )
 
 
@@ -126,7 +142,15 @@ def analyze(videos: list[dict]) -> DailySummary:
         f"\r  done in {time.monotonic() - started:.1f}s | "
         f"{usage.input_tokens} in / {usage.output_tokens} out tokens | ~${cost:.3f}\n"
     )
-    return response.parsed_output
+    return trim(response.parsed_output)
+
+
+def trim(summary: DailySummary) -> DailySummary:
+    """The prompt asks for brevity; this guarantees it. Lists come pre-sorted by importance."""
+    summary.recommendations = summary.recommendations[: config.MAX_RECOMMENDATIONS]
+    summary.attention_points = summary.attention_points[: config.MAX_ATTENTION_POINTS]
+    summary.upcoming_events = summary.upcoming_events[: config.MAX_EVENTS]
+    return summary
 
 
 ACTION_ICONS = {"קנייה": "🟢", "מכירה": "🔴", "החזקה": "🟡", "מעקב": "👀"}
