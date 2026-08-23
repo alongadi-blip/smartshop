@@ -8,6 +8,7 @@ Usage:
 import json
 import os
 import sys
+import time
 from typing import Literal
 
 import anthropic
@@ -78,10 +79,27 @@ def build_user_prompt(videos: list[dict]) -> str:
     return "".join(parts)
 
 
+PHASE_LABELS = {"thinking": "thinking", "text": "writing summary"}
+
+
 def analyze(videos: list[dict]) -> DailySummary:
+    """Stream the request so we get live progress and no HTTP timeout on long inputs."""
     client = anthropic.Anthropic()
 
-    response = client.messages.parse(
+    started = time.monotonic()
+    phase = "connecting"
+    chars = 0
+    last_drawn = 0.0
+
+    def draw(force: bool = False) -> None:
+        nonlocal last_drawn
+        now = time.monotonic()
+        if not force and now - last_drawn < 0.25:
+            return
+        last_drawn = now
+        print(f"\r  [{now - started:5.1f}s] {phase}... {chars} chars ", end="", flush=True)
+
+    with client.messages.stream(
         model=MODEL,
         max_tokens=16000,
         system=SYSTEM_PROMPT,
@@ -89,13 +107,24 @@ def analyze(videos: list[dict]) -> DailySummary:
         output_config={"effort": "high"},
         messages=[{"role": "user", "content": build_user_prompt(videos)}],
         output_format=DailySummary,
-    )
+    ) as stream:
+        for event in stream:
+            if event.type == "content_block_start":
+                block_type = event.content_block.type
+                phase = PHASE_LABELS.get(block_type, block_type)
+                chars = 0
+            elif event.type == "content_block_delta":
+                delta = event.delta
+                chars += len(getattr(delta, "text", None) or getattr(delta, "thinking", None) or "")
+            draw()
+        draw(force=True)
+        response = stream.get_final_message()
 
     usage = response.usage
+    cost = usage.input_tokens * 5e-6 + usage.output_tokens * 25e-6
     print(
-        f"Tokens: {usage.input_tokens} in / {usage.output_tokens} out"
-        f"  (~${usage.input_tokens * 5e-6 + usage.output_tokens * 25e-6:.3f})",
-        file=sys.stderr,
+        f"\r  done in {time.monotonic() - started:.1f}s | "
+        f"{usage.input_tokens} in / {usage.output_tokens} out tokens | ~${cost:.3f}\n"
     )
     return response.parsed_output
 
