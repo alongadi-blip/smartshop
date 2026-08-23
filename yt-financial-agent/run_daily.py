@@ -30,8 +30,10 @@ def log(message: str) -> None:
         f.write(line + "\n")
 
 
-def collect(hours: int) -> list[dict]:
+def collect(hours: int) -> tuple[list[dict], int]:
+    """Returns (videos with transcripts, how many videos were published at all)."""
     collected = []
+    found = 0
     for channel in config.CHANNELS:
         try:
             videos = filter_recent(list_channel_videos(channel["channel_id"]), hours)
@@ -40,6 +42,7 @@ def collect(hours: int) -> list[dict]:
             continue
 
         log(f"  {channel['name']}: {len(videos)} video(s) in the last {hours}h")
+        found += len(videos)
 
         for video in videos:
             text = get_transcript_text(video["video_id"])
@@ -49,7 +52,7 @@ def collect(hours: int) -> list[dict]:
             log(f"    ok ({len(text)} chars): {video['title']}")
             collected.append({**video, "channel": channel["name"], "transcript": text})
 
-    return collected
+    return collected, found
 
 
 def main() -> int:
@@ -60,11 +63,20 @@ def main() -> int:
     log("Daily run started")
 
     try:
-        videos = collect(hours)
+        videos, found = collect(hours)
 
-        if not videos:
-            log("No new videos - nothing to send. Done.")
+        # Nothing published is a normal quiet day - stay silent.
+        if found == 0:
+            log(f"No videos published in the last {hours}h - nothing to send. Done.")
             return 0
+
+        # Videos exist but none yielded a transcript. That is a real failure and
+        # must be reported, or a broken agent looks exactly like a quiet day.
+        if not videos:
+            raise RuntimeError(
+                f"{found} video(s) found but no transcript could be fetched. "
+                "In the cloud this usually means SUPADATA_API_KEY is missing or out of credits."
+            )
 
         # Cache what we fetched, so a failed analysis can be retried without re-downloading.
         with open(config.OUTPUT_FILE, "w", encoding="utf-8") as f:
