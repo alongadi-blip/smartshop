@@ -2,5 +2,6 @@ transcript_*.txt
 latest_videos.json
 summary.json
 summary.txt
+run_daily.log
 __pycache__/
 .env
