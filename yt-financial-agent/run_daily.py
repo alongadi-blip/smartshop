@@ -33,15 +33,20 @@ def log(message: str) -> None:
         f.write(line + "\n")
 
 
-def collect(hours: int) -> tuple[list[dict], int]:
-    """Returns (videos with transcripts, how many videos were published at all)."""
+def collect(hours: int) -> tuple[list[dict], int, list[str]]:
+    """Returns (videos with transcripts, videos published at all, feed errors)."""
     collected = []
     found = 0
+    feed_errors = []
     for channel in config.CHANNELS:
         try:
             videos = filter_recent(list_channel_videos(channel["channel_id"]), hours)
         except Exception as exc:
+            # Never swallow this: a feed we could not read is not the same as a
+            # feed with nothing new, and treating it as "quiet day" hides an
+            # outage behind exactly the silence a normal morning produces.
             log(f"  {channel['name']}: feed error - {exc}")
+            feed_errors.append(f"{channel['name']}: {type(exc).__name__}: {exc}")
             continue
 
         log(f"  {channel['name']}: {len(videos)} video(s) in the last {hours}h")
@@ -55,7 +60,7 @@ def collect(hours: int) -> tuple[list[dict], int]:
             log(f"    ok ({len(text)} chars): {video['title']}")
             collected.append({**video, "channel": channel["name"], "transcript": text})
 
-    return collected, found
+    return collected, found, feed_errors
 
 
 def main() -> int:
@@ -66,7 +71,12 @@ def main() -> int:
     log("Daily run started")
 
     try:
-        videos, found = collect(hours)
+        videos, found, feed_errors = collect(hours)
+
+        # A feed we could not read means we do not know what was published, so
+        # silence would be a guess. Report it.
+        if feed_errors:
+            raise RuntimeError("could not read channel feed -> " + " ;; ".join(feed_errors))
 
         # Nothing published is a normal quiet day - stay silent.
         if found == 0:
