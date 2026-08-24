@@ -39,7 +39,8 @@ export default function SenderTable({ senders, token, onUpdate }: Props) {
   }
 
   function handleManual(s: Sender) {
-    const url = `https://mail.google.com/mail/u/0/#search/from%3A${encodeURIComponent(s.email)}`;
+    const query = `category:promotions from:${s.email}`;
+    const url = `https://mail.google.com/mail/u/0/#search/${encodeURIComponent(query)}`;
     window.open(url, '_blank', 'noopener,noreferrer');
   }
 
@@ -83,11 +84,12 @@ export default function SenderTable({ senders, token, onUpdate }: Props) {
 
       {/* Table */}
       <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-        <div className="grid grid-cols-[1fr_auto_auto_auto] text-xs text-slate-500 uppercase tracking-wider px-4 py-3 border-b border-slate-800">
+        <div className="grid grid-cols-[1fr_auto_auto_auto_auto] text-xs text-slate-500 uppercase tracking-wider px-4 py-3 border-b border-slate-800">
           <span>Sender</span>
           <span className="text-center px-4">Emails</span>
           <span className="text-center px-4">Method</span>
-          <span className="text-center px-4">Action</span>
+          <span className="text-center px-4">Unsubscribe</span>
+          <span className="text-center px-4">Gmail</span>
         </div>
 
         {visible.length === 0 ? (
@@ -131,7 +133,7 @@ function SenderRow({
     : { label: '👁 Manual', color: 'text-slate-500' };
 
   return (
-    <div className="grid grid-cols-[1fr_auto_auto_auto] items-center px-4 py-3 border-b border-slate-800 last:border-0 hover:bg-slate-800/50 transition-colors">
+    <div className="grid grid-cols-[1fr_auto_auto_auto_auto] items-center px-4 py-3 border-b border-slate-800 last:border-0 hover:bg-slate-800/50 transition-colors">
       {/* Sender info */}
       <div className="min-w-0">
         <div className="text-slate-100 text-sm font-medium truncate">{s.name}</div>
@@ -148,7 +150,7 @@ function SenderRow({
         {method.label}
       </div>
 
-      {/* Action */}
+      {/* Unsubscribe action */}
       <div className="px-4">
         {s.status === 'done' ? (
           <span className="text-green-400 text-sm">✓ Done</span>
@@ -164,13 +166,19 @@ function SenderRow({
             Unsubscribe
           </button>
         ) : (
-          <button
-            onClick={() => onManual(s)}
-            className="bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs px-3 py-1.5 rounded-lg transition-colors cursor-pointer whitespace-nowrap"
-          >
-            Open in Gmail
-          </button>
+          <span className="text-slate-600 text-xs">—</span>
         )}
+      </div>
+
+      {/* Open filtered in Gmail (always available, e.g. for manual bulk delete) */}
+      <div className="px-4">
+        <button
+          onClick={() => onManual(s)}
+          title="Open this sender's emails in Gmail"
+          className="bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs px-3 py-1.5 rounded-lg transition-colors cursor-pointer whitespace-nowrap"
+        >
+          🗑 Open
+        </button>
       </div>
     </div>
   );

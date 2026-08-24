@@ -128,12 +128,20 @@ function encodeEmail(raw: string): string {
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
+const EMAIL_RE = /^[^\s@<>,]+@[^\s@<>,]+\.[^\s@<>,]+$/;
+
+function stripHeaderInjection(value: string): string {
+  return value.replace(/[\r\n]+/g, ' ').trim();
+}
+
 export async function sendUnsubscribeEmail(token: string, mailtoUrl: string): Promise<void> {
   const withoutScheme = mailtoUrl.replace(/^mailto:/i, '');
   const [toRaw, queryRaw] = withoutScheme.split('?');
-  const to = decodeURIComponent(toRaw);
+  const to = stripHeaderInjection(decodeURIComponent(toRaw));
+  if (!EMAIL_RE.test(to)) throw new Error('Invalid unsubscribe address');
+
   const params = new URLSearchParams(queryRaw || '');
-  const subject = params.get('subject') || 'unsubscribe';
+  const subject = stripHeaderInjection(params.get('subject') || 'unsubscribe');
 
   const raw = [
     `To: ${to}`,
