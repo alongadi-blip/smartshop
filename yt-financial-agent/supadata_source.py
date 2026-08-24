@@ -93,18 +93,55 @@ def _variants(video_id: str) -> list[tuple[str, dict]]:
     ]
 
 
+# Waits between 429 retries. The free plan's rate limit is not published, so
+# these are deliberately generous - a slow summary beats no summary.
+RATE_LIMIT_BACKOFF = (20, 45, 90)
+
+# Breathing room between differently-shaped attempts, so our own retries are
+# not what trips the rate limit.
+VARIANT_PAUSE = 3
+
+# Which request shape this API key accepts. Learned on the first success and
+# reused, so later videos in the same run cost one request instead of three.
+_working_variant: str | None = None
+
+
+def _get(params: dict) -> requests.Response:
+    """One request, retrying only on 429."""
+    response = requests.get(ENDPOINT, params=params, headers=_headers(), timeout=120)
+
+    for wait in RATE_LIMIT_BACKOFF:
+        if response.status_code != 429:
+            break
+        print(f"    Supadata rate-limited, retrying in {wait}s...", flush=True)
+        time.sleep(wait)
+        response = requests.get(ENDPOINT, params=params, headers=_headers(), timeout=120)
+
+    return response
+
+
 def get_transcript_text(video_id: str) -> str | None:
     """Full transcript text, or None if Supadata isn't configured or has no transcript."""
+    global _working_variant
+
     if not is_configured():
         return None
 
+    variants = _variants(video_id)
+    if _working_variant:
+        variants.sort(key=lambda v: v[0] != _working_variant)
+
     problems = []
 
-    for label, params in _variants(video_id):
-        response = requests.get(ENDPOINT, params=params, headers=_headers(), timeout=120)
+    for index, (label, params) in enumerate(variants):
+        if index:
+            time.sleep(VARIANT_PAUSE)
+
+        response = _get(params)
 
         # 202 means the video was long enough to be queued as a job.
         if response.status_code == 202:
+            _working_variant = label
             return _wait_for_job(response.json()["jobId"]) or None
 
         # 206 and 404 both mean "no transcript for this video" - not a failure.
@@ -112,12 +149,13 @@ def get_transcript_text(video_id: str) -> str | None:
             return None
 
         if response.ok:
-            if label != _variants(video_id)[0][0]:
+            if _working_variant != label:
                 print(f"    Supadata accepted the '{label}' request shape", flush=True)
+            _working_variant = label
             return response.json().get("content") or None
 
-        # 400 is the only status worth retrying with a different shape;
-        # auth, quota and server errors will fail identically every time.
+        # 400 is the only status worth retrying with a different shape; auth,
+        # quota and server errors will fail identically however we ask.
         try:
             _raise_for_error(response)
         except SupadataError as exc:
