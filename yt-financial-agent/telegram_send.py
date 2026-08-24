@@ -16,6 +16,7 @@ from dotenv import load_dotenv
 
 import config
 from analyze import ACTION_ICONS, DailySummary
+from redaction import redact
 
 load_dotenv()
 
@@ -30,7 +31,16 @@ def api_call(method: str, **payload) -> dict:
     if not token:
         raise RuntimeError("TELEGRAM_BOT_TOKEN is missing from .env")
 
-    response = requests.post(API.format(token=token, method=method), json=payload, timeout=30)
+    try:
+        response = requests.post(
+            API.format(token=token, method=method), json=payload, timeout=30
+        )
+    except requests.RequestException as exc:
+        # The token is part of the URL path, and connection errors quote that
+        # path verbatim. `from None` drops the __cause__ chain, which would
+        # otherwise reprint the original unredacted message in the traceback.
+        raise RuntimeError(f"Telegram request failed: {redact(str(exc))}") from None
+
     body = response.json()
     if not body.get("ok"):
         raise RuntimeError(f"Telegram API error: {body.get('description', body)}")

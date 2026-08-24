@@ -18,13 +18,16 @@ import telegram_send
 from analyze import analyze
 from fetch_recent import filter_recent, list_channel_videos
 from get_transcript import get_transcript_text
+from redaction import redact
 
 LOG_FILE = "run_daily.log"
 
 
 def log(message: str) -> None:
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    line = f"[{stamp}] {message}"
+    # Redact before anything is written: CI masks its own console stream, but
+    # nothing masks a file, so an unredacted line here would outlive the run.
+    line = redact(f"[{stamp}] {message}")
     print(line, flush=True)
     with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(line + "\n")
