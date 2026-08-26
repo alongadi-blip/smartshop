@@ -40,6 +40,8 @@ jobs:
           # GitHub runners are datacenter IPs, so YouTube always refuses us here
           # and every transcript comes from Supadata.
           SUPADATA_API_KEY: ${{ secrets.SUPADATA_API_KEY }}
+          # YouTube RSS returns 404 for days at a time; this is the fallback.
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
         run: python run_daily.py
 
       # No log artifact on purpose. The repo is public, and GitHub's secret

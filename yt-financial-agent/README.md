@@ -78,8 +78,9 @@ Telegram — silence should never be mistaken for "no news today".
 
 ## Notes
 
-- Transcripts come from YouTube's public RSS feed and the transcript endpoint —
-  no Google API key, no quota.
+- Video listing comes from YouTube's public RSS feed, which returns 404 for days
+  at a time. When it does, the official YouTube Data API takes over
+  (`YOUTUBE_API_KEY`, free, 10,000 units/day against our 1).
 - YouTube blocks transcript requests from datacenter IPs. Locally that never
   matters; in GitHub Actions every transcript comes from Supadata instead
   (100 free/month, set `SUPADATA_API_KEY`). The fallback is automatic.

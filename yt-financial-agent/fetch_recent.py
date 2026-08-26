@@ -14,6 +14,7 @@ from datetime import datetime, timedelta, timezone
 import requests
 
 import config
+import youtube_api_source
 from get_transcript import get_transcript_text
 
 RSS_URL = "https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"
@@ -26,7 +27,25 @@ NAMESPACES = {
 
 
 def list_channel_videos(channel_id: str) -> list[dict]:
-    """The 15 most recent uploads of a channel, newest first, from its public RSS feed."""
+    """
+    Recent uploads of a channel, newest first.
+
+    Prefers the public RSS feed - free and keyless - but that endpoint returns
+    404 for days at a time, so when it fails we fall back to the official Data
+    API if a key is configured.
+    """
+    try:
+        return videos_from_rss(channel_id)
+    except (requests.RequestException, ET.ParseError) as exc:
+        if not youtube_api_source.is_configured():
+            raise
+        print(f"    RSS feed unavailable ({type(exc).__name__}), using YouTube Data API", flush=True)
+
+    return youtube_api_source.list_channel_videos(channel_id)
+
+
+def videos_from_rss(channel_id: str) -> list[dict]:
+    """The 15 most recent uploads, from the channel's public RSS feed."""
     response = requests.get(RSS_URL.format(channel_id=channel_id), timeout=20)
     response.raise_for_status()
 
