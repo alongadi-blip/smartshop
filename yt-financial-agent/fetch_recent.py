@@ -38,7 +38,11 @@ def list_channel_videos(channel_id: str) -> list[dict]:
         return videos_from_rss(channel_id)
     except (requests.RequestException, ET.ParseError) as exc:
         if not youtube_api_source.is_configured():
-            raise
+            # Say why there was no second chance, not just that the first failed.
+            raise RuntimeError(
+                f"RSS feed failed ({exc}) and YOUTUBE_API_KEY is not set, "
+                "so there was no fallback to fall back to"
+            ) from None
         print(f"    RSS feed unavailable ({type(exc).__name__}), using YouTube Data API", flush=True)
 
     return youtube_api_source.list_channel_videos(channel_id)
