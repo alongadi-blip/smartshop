@@ -3,5 +3,6 @@ latest_videos.json
 summary.json
 summary.txt
 run_daily.log
+sent_videos.json
 __pycache__/
 .env

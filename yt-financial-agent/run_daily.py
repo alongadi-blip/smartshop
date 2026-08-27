@@ -14,6 +14,7 @@ import traceback
 from datetime import datetime, timezone
 
 import config
+import sent_log
 import telegram_send
 from analyze import analyze
 from fetch_recent import filter_recent, list_channel_videos
@@ -33,8 +34,8 @@ def log(message: str) -> None:
         f.write(line + "\n")
 
 
-def collect(hours: int) -> tuple[list[dict], int, list[str]]:
-    """Returns (videos with transcripts, videos published at all, feed errors)."""
+def collect(hours: int, already_sent: dict[str, str]) -> tuple[list[dict], int, list[str]]:
+    """Returns (videos with transcripts, NEW videos found, feed errors)."""
     collected = []
     found = 0
     feed_errors = []
@@ -49,10 +50,18 @@ def collect(hours: int) -> tuple[list[dict], int, list[str]]:
             feed_errors.append(f"{channel['name']}: {type(exc).__name__}: {exc}")
             continue
 
-        log(f"  {channel['name']}: {len(videos)} video(s) in the last {hours}h")
-        found += len(videos)
+        # Drop already-summarised videos before fetching transcripts, not after:
+        # a transcript we would throw away still costs a Supadata credit.
+        fresh = [v for v in videos if v["video_id"] not in already_sent]
+        skipped = len(videos) - len(fresh)
 
-        for video in videos:
+        log(
+            f"  {channel['name']}: {len(videos)} video(s) in the last {hours}h"
+            + (f", {skipped} already summarised" if skipped else "")
+        )
+        found += len(fresh)
+
+        for video in fresh:
             text = get_transcript_text(video["video_id"])
             if text is None or len(text) < config.MIN_TRANSCRIPT_CHARS:
                 log(f"    skipped (no usable transcript): {video['title']}")
@@ -71,16 +80,20 @@ def main() -> int:
     log("Daily run started")
 
     try:
-        videos, found, feed_errors = collect(hours)
+        already_sent = sent_log.load()
+        log(f"{len(already_sent)} video(s) summarised previously")
+
+        videos, found, feed_errors = collect(hours, already_sent)
 
         # A feed we could not read means we do not know what was published, so
         # silence would be a guess. Report it.
         if feed_errors:
             raise RuntimeError("could not read channel feed -> " + " ;; ".join(feed_errors))
 
-        # Nothing published is a normal quiet day - stay silent.
+        # Nothing new is a normal quiet run - either nothing was published, or an
+        # earlier run today already delivered it. Stay silent either way.
         if found == 0:
-            log(f"No videos published in the last {hours}h - nothing to send. Done.")
+            log(f"Nothing new in the last {hours}h - nothing to send. Done.")
             return 0
 
         # Videos exist but none yielded a transcript. That is a real failure and
@@ -113,6 +126,10 @@ def main() -> int:
         text = telegram_send.render_html(summary, videos)
         count = telegram_send.send(text)
         log(f"Sent to Telegram: {count} message(s), {len(text)} chars.")
+
+        # Only after a successful send - a crash before this point should leave
+        # the videos eligible for the next run.
+        sent_log.record([v["video_id"] for v in videos], already_sent)
         log("Done.")
         return 0
 

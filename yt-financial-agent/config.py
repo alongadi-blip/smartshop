@@ -5,8 +5,10 @@ CHANNELS = [
     {"name": "Micha.Stocks", "channel_id": "UCSxjNbPriyBh9RNl_QNSAtw"},
 ]
 
-# How far back to look for new videos, in hours.
-HOURS_BACK = 24
+# How far back to look for new videos, in hours. Wider than a day on purpose:
+# if a scheduled run is skipped entirely, the next one still catches yesterday.
+# Safe because already-summarised videos are skipped by id, not by date.
+HOURS_BACK = 36
 
 # Videos shorter than this are usually Shorts / teasers, not real analysis.
 MIN_TRANSCRIPT_CHARS = 500

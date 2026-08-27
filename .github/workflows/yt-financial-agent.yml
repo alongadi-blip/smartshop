@@ -3,8 +3,12 @@ name: YouTube Financial Agent
 on:
   schedule:
     # 05:00 UTC = 08:00 Israel in summer, 07:00 in winter.
-    # GitHub cron is UTC-only and can be delayed a few minutes under load.
+    # GitHub cron is best-effort: it runs late under load and some mornings does
+    # not fire at all. Three attempts, and whichever runs first delivers - the
+    # later ones find nothing new and exit quietly.
     - cron: "0 5 * * *"
+    - cron: "0 7 * * *"
+    - cron: "0 9 * * *"
   workflow_dispatch: # lets you run it by hand from the Actions tab
 
 # The job only reads the checkout; it never writes back to the repo.
@@ -31,6 +35,17 @@ jobs:
 
       - name: Install dependencies
         run: pip install -r requirements.txt
+
+      # Carries the "already summarised" list between runs. The key is unique
+      # per run so it never hits and always saves; restore-keys pulls forward
+      # the most recent list. Saved only when the job succeeds, which is what
+      # we want - a failed run delivered nothing to remember.
+      - name: Restore the sent-video memory
+        uses: actions/cache@v4
+        with:
+          path: yt-financial-agent/sent_videos.json
+          key: sent-videos-${{ github.run_id }}
+          restore-keys: sent-videos-
 
       - name: Run the daily summary
         env:
