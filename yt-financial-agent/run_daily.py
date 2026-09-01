@@ -34,11 +34,12 @@ def log(message: str) -> None:
         f.write(line + "\n")
 
 
-def collect(hours: int, already_sent: dict[str, str]) -> tuple[list[dict], int, list[str]]:
-    """Returns (videos with transcripts, NEW videos found, feed errors)."""
+def collect(hours: int, already_sent: dict[str, str]) -> tuple[list[dict], int, list[str], list[str]]:
+    """Returns (videos with transcripts, NEW videos found, feed errors, transcript errors)."""
     collected = []
     found = 0
     feed_errors = []
+    transcript_errors = []
     for channel in config.CHANNELS:
         try:
             videos = filter_recent(list_channel_videos(channel["channel_id"]), hours)
@@ -62,14 +63,17 @@ def collect(hours: int, already_sent: dict[str, str]) -> tuple[list[dict], int, 
         found += len(fresh)
 
         for video in fresh:
-            text = get_transcript_text(video["video_id"])
+            reasons: list[str] = []
+            text = get_transcript_text(video["video_id"], reasons)
             if text is None or len(text) < config.MIN_TRANSCRIPT_CHARS:
-                log(f"    skipped (no usable transcript): {video['title']}")
+                why = "; ".join(reasons) or f"only {len(text or '')} chars"
+                log(f"    skipped ({why}): {video['title']}")
+                transcript_errors.append(f"{video['title'][:40]}: {why}")
                 continue
             log(f"    ok ({len(text)} chars): {video['title']}")
             collected.append({**video, "channel": channel["name"], "transcript": text})
 
-    return collected, found, feed_errors
+    return collected, found, feed_errors, transcript_errors
 
 
 def main() -> int:
@@ -83,7 +87,7 @@ def main() -> int:
         already_sent = sent_log.load()
         log(f"{len(already_sent)} video(s) summarised previously")
 
-        videos, found, feed_errors = collect(hours, already_sent)
+        videos, found, feed_errors, transcript_errors = collect(hours, already_sent)
 
         # A feed we could not read means we do not know what was published, so
         # silence would be a guess. Report it.
@@ -100,8 +104,8 @@ def main() -> int:
         # must be reported, or a broken agent looks exactly like a quiet day.
         if not videos:
             raise RuntimeError(
-                f"{found} video(s) found but no transcript could be fetched. "
-                "In the cloud this usually means SUPADATA_API_KEY is missing or out of credits."
+                f"{found} video(s) found but no transcript could be fetched -> "
+                + " ;; ".join(transcript_errors)
             )
 
         # Cache what we fetched, so a failed analysis can be retried without re-downloading.

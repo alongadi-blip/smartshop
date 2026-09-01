@@ -71,27 +71,42 @@ def fetch_transcript(video_id: str, verbose: bool = True):
     return transcript.language_code, transcript.fetch()
 
 
-def get_transcript_text(video_id: str) -> str | None:
+def get_transcript_text(video_id: str, problems: list[str] | None = None) -> str | None:
     """
     Full transcript as one string, or None when no source can supply one.
 
     Tries YouTube directly first — it is free and works from a home connection.
     YouTube blocks datacenter IPs, so in the cloud that always fails and we fall
     back to Supadata (only if SUPADATA_API_KEY is set).
+
+    Pass `problems` to collect the reason each source failed. Without it the
+    reason only reaches stdout, and a caller that raises later can only report
+    *that* nothing was fetched, never *why*.
     """
+
+    def note(reason: str) -> None:
+        print(f"    {reason}", flush=True)
+        if problems is not None:
+            problems.append(reason)
+
     try:
         _language, snippets = fetch_transcript(video_id, verbose=False)
         return " ".join(snippet.text for snippet in snippets)
     except CouldNotRetrieveTranscript as exc:
         if not supadata_source.is_configured():
+            note(f"YouTube refused ({type(exc).__name__}) and Supadata is not configured")
             return None
         print(f"    youtube refused ({type(exc).__name__}), trying Supadata...", flush=True)
 
     try:
-        return supadata_source.get_transcript_text(video_id)
+        text = supadata_source.get_transcript_text(video_id)
     except (supadata_source.SupadataError, requests.RequestException) as exc:
-        print(f"    Supadata failed: {exc}", flush=True)
+        note(f"Supadata failed: {exc}")
         return None
+
+    if text is None:
+        note("Supadata has no transcript for this video")
+    return text
 
 
 def main() -> int:
