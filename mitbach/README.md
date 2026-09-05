@@ -1,36 +1,114 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# מטבח
 
-## Getting Started
+אפליקציה לריכוז מתכונים ממקורות שונים, ניהול גישה מבוסס הזמנות וקבוצות, ובניית תפריטי חגים ואירועים.
 
-First, run the development server:
+**Stack:** Next.js 16 (App Router) · Tailwind v4 · shadcn/ui (Base UI) · Supabase (Postgres + Auth + Storage)
+
+---
+
+## הקמה
+
+### 1. פרויקט Supabase
+
+צרו פרויקט ב-[supabase.com](https://supabase.com) והעתיקו מ-**Project Settings → API**:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env.local
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+מלאו ב-`.env.local`:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| משתנה | מאיפה |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `anon` `public` |
+| `SUPABASE_SERVICE_ROLE_KEY` | `service_role` — **שרת בלבד**, עוקף RLS |
+| `ANTHROPIC_API_KEY` | רשות. בלעדיו החילוץ החכם כבוי (ראו למטה) |
+| `NEXT_PUBLIC_SITE_URL` | הכתובת שממנה נבנים קישורי ההזמנה |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 2. סגירת ההרשמה החופשית — חובה
 
-## Learn More
+ב-**Authentication → Sign In / Providers → Email**, כבו את **Allow new users to sign up**.
 
-To learn more about Next.js, take a look at the following resources:
+בלי זה כל אחד שמחזיק ב-anon key (שהוא ציבורי מעצם טבעו) יכול לקרוא ל-`auth.signUp` וליצור חשבון בלי הזמנה. יצירת החשבונות באפליקציה עוברת דרך ה-service role ולכן ממשיכה לעבוד כשההרשמה החופשית סגורה. `supabase/config.toml` כבר מוגדר כך עבור סביבת פיתוח מקומית.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 3. הרצת המיגרציות
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npx supabase link --project-ref <PROJECT_REF>
+npm run db:push
+```
 
-## Deploy on Vercel
+### 4. ההזמנה הראשונה
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+המשתמש הראשון הוא בעיית ביצה-ותרנגולת: אין מי שיזמין אותו. לכן מנפיקים לו קוד מהטרמינל:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run invite
+```
+
+מכאן והלאה כל הזמנה נוצרת מתוך האפליקציה עצמה — במסך **קבוצות**.
+
+### 5. הרצה
+
+```bash
+npm install
+npm run dev
+```
+
+---
+
+## איך זה בנוי
+
+### הרשאות
+
+הכול נשען על שני כללים ב-RLS:
+
+* רואים את מה שיצרתם;
+* ובנוסף רואים שורה שסומנה כמשותפת (`is_private = false`) אם אתם חברים בקבוצה שאליה שותפה.
+
+בדיקות החברות בקבוצה עוברות דרך פונקציות `security definer` (`is_group_member`, `can_edit_group`, `is_group_admin`), כדי שה-policy על `group_members` לא יקרא לעצמו ברקורסיה — התקלה הקלאסית בסכימות מהסוג הזה.
+
+תפקידים: **מנהל** (חברים, הרשאות, מחיקה), **עורך** (הוספה ועריכה), **צופה** (צפייה). בעלי הקבוצה מוגנים בטריגר — מנהל אחר לא יכול להוריד אותם בדרגה או להסיר אותם.
+
+### חילוץ מתכונים
+
+`POST /api/extract` מנסה את המסלולים לפי עלות, מהזול ליקר:
+
+1. **JSON-LD** (`schema.org/Recipe`) — חינם, מדויק, קיים ברוב אתרי המתכונים;
+2. **Microdata** — חינם, לאתרים ותיקים יותר;
+3. **Claude** (`claude-opus-5`, structured output) — רק כשהשניים הראשונים חזרו ריקים.
+
+בפועל הרוב המכריע של אתרי המתכונים נעצר בשלב 1, ו-Claude נכנס לפעולה בעיקר בטקסט חופשי שהודבק.
+
+**אינסטגרם ופייסבוק** מגישות מסך התחברות לכל בקשה ללא session, ולכן מקישור לבדו מתקבלת בדרך כלל רק תמונת השער. הממשק אומר את זה במפורש ומפנה להעתקת הכיתוב ללשונית "טקסט חופשי", ששם החילוץ עובד היטב.
+
+כל הבאת עמוד או תמונה עוקבת אחרי ההפניות בעצמה ובודקת כל קפיצה מול טווחי כתובות פרטיים — כתובת ציבורית שמפנה ל-`169.254.169.254` היא בדיוק מה ש-SSRF נראה כמוהו.
+
+### תמונות
+
+תמונות שחולצו מועתקות ל-bucket שלנו במקום להיות מקושרות ישירות: כתובות ה-CDN של אינסטגרם ופייסבוק חתומות ופגות תוך שעות. ה-bucket פתוח לקריאה, והנתיבים הם `{user_id}/{uuid}` — כלומר לא ניתנים לניחוש, אבל מי שמחזיק בכתובת יכול לפתוח אותה בלי session. אם תמונות מתכונים יהפכו לרגישות, המעבר הוא ל-bucket פרטי עם signed URLs.
+
+### תפריטים
+
+תפריט עומד בפני עצמו ואינו מחייב מתכונים שמורים. פריט בתפריט יכול להיות מקושר למתכון (`recipe_id`), ואחראי ההבאה יכול להיות חבר בקבוצה (`assigned_to`) או סתם שם (`assigned_name`) — כי מי שמביא את הקוגל לא בהכרח פתח חשבון.
+
+---
+
+## פקודות
+
+| פקודה | מה היא עושה |
+|---|---|
+| `npm run dev` | שרת פיתוח |
+| `npm run build` | בילד production |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm run lint` | ESLint |
+| `npm run db:push` | דחיפת המיגרציות ל-Supabase המקושר |
+| `npm run db:types` | יצירת טיפוסים מהסכימה החיה |
+| `npm run invite` | הנפקת קוד הזמנה מהטרמינל |
+
+---
+
+## פריסה
+
+Next.js עם API routes דורש שרת, ולכן **Firebase Hosting** הסטטי לבדו לא מספיק — צריך **Firebase App Hosting** (או ה-frameworks integration), ושניהם דורשים תוכנית **Blaze**. לפני הפריסה יש להעביר את כל המשתנים מ-`.env.local` לסביבת ההרצה, ולעדכן את `NEXT_PUBLIC_SITE_URL` לדומיין האמיתי כדי שקישורי ההזמנה יצביעו למקום הנכון.

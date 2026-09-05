@@ -3,10 +3,10 @@ import { z } from 'zod'
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import { normalizeInviteCode } from '@/lib/invites'
+import { checkInvitationCode, INVALID_INVITE } from '@/lib/invitations-server'
 import { clientIp, isRateLimited } from '@/lib/rate-limit'
 
 
-const INVALID = 'קוד ההזמנה אינו תקין, כבר נוצל או שפג תוקפו.'
 
 /**
  * GET /api/join?code=MTB-XXXX-XXXX
@@ -15,35 +15,14 @@ const INVALID = 'קוד ההזמנה אינו תקין, כבר נוצל או ש�
  */
 export async function GET(request: NextRequest) {
   const raw = request.nextUrl.searchParams.get('code')
-  if (!raw) return NextResponse.json({ valid: false, error: INVALID }, { status: 400 })
+  if (!raw) return NextResponse.json({ valid: false, error: INVALID_INVITE }, { status: 400 })
 
   if (isRateLimited(`join-check:${clientIp(request)}`, 30, 60_000)) {
     return NextResponse.json({ valid: false, error: 'יותר מדי ניסיונות. נסו שוב בעוד דקה.' }, { status: 429 })
   }
 
-  const code = normalizeInviteCode(raw)
-  const admin = createAdminClient()
-
-  const { data: invitation } = await admin
-    .from('invitations')
-    .select('role, email, group_id, expires_at, status, groups(name)')
-    .eq('code', code)
-    .maybeSingle()
-
-  if (!invitation || invitation.status !== 'pending' || new Date(invitation.expires_at) <= new Date()) {
-    return NextResponse.json({ valid: false, error: INVALID }, { status: 404 })
-  }
-
-  // PostgREST types an embedded one-to-one as an array; normalise it.
-  const embedded = invitation.groups as unknown as { name: string }[] | { name: string } | null
-  const group = Array.isArray(embedded) ? (embedded[0] ?? null) : embedded
-
-  return NextResponse.json({
-    valid: true,
-    role: invitation.role,
-    email: invitation.email,
-    groupName: group?.name ?? null,
-  })
+  const result = await checkInvitationCode(raw)
+  return NextResponse.json(result, { status: result.valid ? 200 : 404 })
 }
 
 const redeemSchema = z.object({
@@ -84,7 +63,7 @@ export async function POST(request: NextRequest) {
     .maybeSingle()
 
   if (!invitation) {
-    return NextResponse.json({ error: INVALID }, { status: 400 })
+    return NextResponse.json({ error: INVALID_INVITE }, { status: 400 })
   }
 
   const release = async () => {
