@@ -1,8 +1,14 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-/** Reachable without a session. Everything else redirects to /login. */
-const PUBLIC_PATHS = ['/login', '/join', '/auth', '/api/auth']
+/**
+ * Reachable without a session. Everything else redirects to /login.
+ *
+ * /api/join has to be here: it is how an account comes into existence, so by
+ * definition its callers have no session yet. It does its own rate limiting
+ * and only ever acts on a valid, unredeemed invitation code.
+ */
+const PUBLIC_PATHS = ['/login', '/join', '/auth', '/api/auth', '/api/join']
 
 function isPublic(pathname: string) {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'))
@@ -41,6 +47,12 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   if (!user && !isPublic(pathname)) {
+    // An API caller wants a status code, not a login page — a redirect here
+    // turns a clean 401 into an HTML body that fails to parse as JSON.
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'לא מחוברים' }, { status: 401 })
+    }
+
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     // So the user lands back where they were aiming after signing in.
