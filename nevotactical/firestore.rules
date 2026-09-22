@@ -13,5 +13,14 @@ service cloud.firestore {
     match /settings/orderCounter {
       allow read, write: if true;
     }
+    // המלאי נקרא בחנות כדי לחסום מידה שאזלה, ומתעדכן בכל הזמנה חדשה.
+    // מבקר לא מזוהה רשאי להזיז רק את ordered — הכמות שנקלטה נעולה לאדמין.
+    match /settings/inventory {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null
+                    || (request.resource.data.shirt.total == resource.data.shirt.total
+                        && request.resource.data.pants.total == resource.data.pants.total);
+    }
   }
 }

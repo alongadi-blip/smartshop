@@ -3,11 +3,16 @@ import { db, auth } from './firebase';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { sendOrderEmail } from './emailService';
 import {
-  collection, addDoc, getDocs, getDoc, setDoc, updateDoc,
-  deleteDoc, doc, serverTimestamp, query, orderBy, where, runTransaction, arrayUnion,
+  collection, getDocs, getDoc, setDoc, updateDoc,
+  deleteDoc, doc, serverTimestamp, query, orderBy, where, arrayUnion,
 } from 'firebase/firestore';
-import { PRODUCTS } from './products';
+import { PRODUCTS, SIZES } from './products';
 import { streamChatMessage, getOrderInsights, askAdminQuestion } from './claudeService';
+import {
+  ROLES, ROLE_LABELS, loadInventory, emptyInventory, availableOf, totalOf, orderedOf,
+  isTracked, countUnits, addUnits, negateUnits, holdsStock, adjustOrdered,
+  createOrderWithStock, saveTotals, resyncOrdered, OutOfStockError, shortageText,
+} from './inventory';
 
 
 const ADMIN_EMAIL = 'admin@nevotactical.com';
@@ -162,6 +167,7 @@ export default function App() {
   const [orderSuccess, setOrderSuccess] = useState(null);
   const [showMyOrders, setShowMyOrders] = useState(false);
   const [theme, setTheme]         = useState(getInitialTheme);
+  const [inventory, setInventory] = useState(emptyInventory);
 
   // Apply theme to <html>
   useEffect(() => { applyTheme(theme); }, [theme]);
@@ -172,6 +178,10 @@ export default function App() {
       if (snap.exists()) setPrices(snap.data());
     }).catch(() => {});
   }, []);
+
+  // המלאי נטען גם בחנות — בורר המידות חוסם מידה שאזלה
+  const refreshInventory = () => loadInventory().then(setInventory).catch(() => {});
+  useEffect(() => { refreshInventory(); }, []);
 
   // Products (no individual price)
   const products = PRODUCTS;
@@ -219,6 +229,7 @@ export default function App() {
       const snap = await getDocs(q);
       setOrders(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     } catch (e) { console.error(e); }
+    await refreshInventory();
     setLoadingOrders(false);
   };
 
@@ -242,12 +253,26 @@ export default function App() {
       await setDoc(doc(db, 'settings', 'prices'), newPrices);
       setPrices(newPrices);
     };
+    // ביטול הזמנה משחרר את היחידות שלה חזרה למלאי; החזרה מביטול תופסת אותן שוב.
     const updateOrderStatus = async (orderId, status) => {
+      const order = orders.find(o => o.id === orderId);
+      const held  = holdsStock(order?.status);
+      const holds = holdsStock(status);
       await updateDoc(doc(db, 'orders', orderId), { status });
+      if (order && held !== holds) {
+        const units = countUnits(order.sets);
+        const next  = await adjustOrdered(holds ? units : negateUnits(units));
+        if (next) setInventory(next);
+      }
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
     };
     const deleteOrder = async (orderId) => {
+      const order = orders.find(o => o.id === orderId);
       await deleteDoc(doc(db, 'orders', orderId));
+      if (order && holdsStock(order.status)) {
+        const next = await adjustOrdered(negateUnits(countUnits(order.sets)));
+        if (next) setInventory(next);
+      }
       setOrders(prev => prev.filter(o => o.id !== orderId));
     };
     const addPaymentToOrder = async (orderId, payment) => {
@@ -258,11 +283,30 @@ export default function App() {
     };
     const deleteAllOrders = async () => {
       await Promise.all(orders.map(o => deleteDoc(doc(db, 'orders', o.id))));
+      const next = await resyncOrdered();
+      if (next) setInventory(next);
       setOrders([]);
     };
+    // עריכת סטים באדמין מזיזה את המלאי בהפרש בין הסטים הישנים לחדשים.
     const updateOrder = async (orderId, data) => {
+      const order = orders.find(o => o.id === orderId);
       await updateDoc(doc(db, 'orders', orderId), data);
+      if (order && data.sets && holdsStock(order.status)) {
+        const delta = addUnits(countUnits(data.sets), negateUnits(countUnits(order.sets)));
+        const next  = await adjustOrdered(delta);
+        if (next) setInventory(next);
+      }
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...data } : o));
+    };
+    const saveStock = async (totals) => {
+      const next = await saveTotals(totals);
+      setInventory(next);
+      return next;
+    };
+    const syncStock = async () => {
+      const next = await resyncOrdered();
+      if (next) setInventory(next);
+      return next;
     };
     return (
       <AdminDashboard
@@ -275,6 +319,7 @@ export default function App() {
         onAddPayment={addPaymentToOrder}
         onDeleteAll={deleteAllOrders}
         onUpdateOrder={updateOrder}
+        inventory={inventory} onSaveStock={saveStock} onSyncStock={syncStock}
         theme={theme} onToggleTheme={toggleTheme}
       />
     );
@@ -291,6 +336,7 @@ export default function App() {
         onChangeQty={changeQty}
         onBack={goHome}
         onOrderDone={(orderNumber) => { setOrderSuccess({ orderNumber }); goHome(); }}
+        inventory={inventory} onInventoryChange={setInventory}
         theme={theme} onToggleTheme={toggleTheme}
       />
     );
@@ -315,6 +361,8 @@ export default function App() {
           setPrice={setPrice}
           onAddSet={addSet}
           onGoCart={goCart}
+          inventory={inventory}
+          cart={cart}
         />
       </main>
 
@@ -414,7 +462,36 @@ function Hero() {
 }
 
 // ─── SET CONFIGURATOR ────────────────────────────────────────────────────────
-function SetConfigurator({ shirtProduct: sh, pantsProduct: pa, setPrice, onAddSet, onGoCart }) {
+// בורר מידות אחד לפריט. מידה שאזלה מוצגת מסומנת ואינה ניתנת ללחיצה.
+function SizeGrid({ product, role, value, onChange, inventory, inCart, labelId, kind }) {
+  const tracked = isTracked(inventory);
+  return (
+    <div className="nt-size-grid" role="group" aria-labelledby={labelId}>
+      {product.sizes.map(s => {
+        const free = tracked ? availableOf(inventory, role, s) - (inCart?.[role]?.[s] || 0) : Infinity;
+        const out  = tracked && free <= 0;
+        const low  = tracked && free > 0 && free <= 3;
+        return (
+          <button
+            key={s}
+            className={`nt-size-opt${value === s ? ' sel' : ''}${out ? ' out' : ''}`}
+            onClick={() => { if (!out) onChange(s); }}
+            disabled={out}
+            aria-pressed={value === s}
+            aria-label={out ? `מידת ${kind} ${s} — אזל מהמלאי` : `מידת ${kind} ${s}`}
+            title={out ? 'אזל מהמלאי' : low ? `נשארו ${free} במלאי` : undefined}
+          >
+            <span className="nt-size-opt-val">{s}</span>
+            {out && <span className="nt-size-opt-note">אזל</span>}
+            {low && <span className="nt-size-opt-note low">נשארו {free}</span>}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function SetConfigurator({ shirtProduct: sh, pantsProduct: pa, setPrice, onAddSet, onGoCart, inventory, cart }) {
   const [shirtSize, setShirtSize] = useState('');
   const [pantsSize, setPantsSize] = useState('');
   const [qty, setQty]             = useState(1);
@@ -425,10 +502,27 @@ function SetConfigurator({ shirtProduct: sh, pantsProduct: pa, setPrice, onAddSe
   const shirtLabel = shirtSize ? `מידה ${shirtSize}` : '';
   const pantsLabel = pantsSize ? `מידה ${pantsSize}` : '';
 
+  const tracked = isTracked(inventory);
+  // מה שכבר מונח בסל תפוס בפועל, גם אם ההזמנה טרם נשלחה
+  const inCart  = countUnits((cart || []).map(i => ({
+    shirtSize: i.shirtSize, pantsSize: i.pantsSize, quantity: i.quantity,
+  })));
+  const freeFor = (role, size) =>
+    (!tracked || !size) ? Infinity : availableOf(inventory, role, size) - (inCart[role]?.[size] || 0);
+
+  // כמה סטים אפשר עוד להוסיף — הפריט המוגבל מבין השניים
+  const maxQty  = isReady ? Math.max(0, Math.min(freeFor('shirt', shirtSize), freeFor('pants', pantsSize))) : Infinity;
+  const soldOut = isReady && maxQty <= 0;
+
+  // מידה שאזלה בזמן שהייתה מסומנת (או שהסל בלע את המלאי) מתנקה מעצמה
+  useEffect(() => { if (shirtSize && freeFor('shirt', shirtSize) <= 0) setShirtSize(''); }, [inventory, shirtSize, cart]);
+  useEffect(() => { if (pantsSize && freeFor('pants', pantsSize) <= 0) setPantsSize(''); }, [inventory, pantsSize, cart]);
+  useEffect(() => { if (Number.isFinite(maxQty) && qty > maxQty) setQty(Math.max(1, maxQty)); }, [maxQty, qty]);
+
   const handleAdd = () => {
     setTried(true);
-    if (!isReady) return;
-    onAddSet(shirtSize, pantsSize, qty);
+    if (!isReady || soldOut) return;
+    onAddSet(shirtSize, pantsSize, Math.min(qty, maxQty));
     setAdded(true);
     setTimeout(() => {
       setAdded(false);
@@ -470,19 +564,12 @@ function SetConfigurator({ shirtProduct: sh, pantsProduct: pa, setPrice, onAddSe
             >
               {tried && !shirtSize ? 'בחר מידת חולצה — חובה' : 'מידת חולצה'}
             </label>
-            <div className="nt-size-grid" role="group" aria-labelledby="shirt-size-label">
-              {sh.sizes.map(s => (
-                <button
-                  key={s}
-                  className={`nt-size-opt${shirtSize === s ? ' sel' : ''}`}
-                  onClick={() => setShirtSize(s)}
-                  aria-pressed={shirtSize === s}
-                  aria-label={`מידת חולצה ${s}`}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
+            <SizeGrid
+              product={sh} role="shirt" kind="חולצה"
+              value={shirtSize} onChange={setShirtSize}
+              inventory={inventory} inCart={inCart}
+              labelId="shirt-size-label"
+            />
           </div>
         </div>
 
@@ -504,19 +591,12 @@ function SetConfigurator({ shirtProduct: sh, pantsProduct: pa, setPrice, onAddSe
             >
               {tried && !pantsSize ? 'בחר מידת מכנסיים — חובה' : 'מידת מכנסיים'}
             </label>
-            <div className="nt-size-grid" role="group" aria-labelledby="pants-size-label">
-              {pa.sizes.map(s => (
-                <button
-                  key={s}
-                  className={`nt-size-opt${pantsSize === s ? ' sel' : ''}`}
-                  onClick={() => setPantsSize(s)}
-                  aria-pressed={pantsSize === s}
-                  aria-label={`מידת מכנסיים ${s}`}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
+            <SizeGrid
+              product={pa} role="pants" kind="מכנסיים"
+              value={pantsSize} onChange={setPantsSize}
+              inventory={inventory} inCart={inCart}
+              labelId="pants-size-label"
+            />
           </div>
         </div>
       </div>
@@ -541,8 +621,16 @@ function SetConfigurator({ shirtProduct: sh, pantsProduct: pa, setPrice, onAddSe
             <div className="nt-qty" role="group" aria-labelledby="set-qty-label">
               <button className="nt-qty-btn" onClick={() => setQty(q => Math.max(1, q - 1))} disabled={qty <= 1} aria-label="הפחת כמות">−</button>
               <div className="nt-qty-val" aria-live="polite" aria-label={`${qty} סטים`}>{qty}</div>
-              <button className="nt-qty-btn" onClick={() => setQty(q => q + 1)} aria-label="הגדל כמות">+</button>
+              <button
+                className="nt-qty-btn"
+                onClick={() => setQty(q => Math.min(q + 1, maxQty))}
+                disabled={Number.isFinite(maxQty) && qty >= maxQty}
+                aria-label="הגדל כמות"
+              >+</button>
             </div>
+            {isReady && Number.isFinite(maxQty) && maxQty > 0 && qty >= maxQty && (
+              <p className="nt-stock-hint" aria-live="polite">זו כל הכמות שנשארה במלאי למידות שבחרת</p>
+            )}
           </div>
 
           {/* Shipping note */}
@@ -558,24 +646,26 @@ function SetConfigurator({ shirtProduct: sh, pantsProduct: pa, setPrice, onAddSe
         <button
           className="btn btn-primary"
           onClick={handleAdd}
-          disabled={added}
+          disabled={added || soldOut}
           style={{
             padding: '14px 32px',
             fontSize: '14px',
             letterSpacing: '2px',
             fontWeight: 800,
             minWidth: 200,
-            background: added ? 'var(--success)' : (!isReady && tried) ? 'var(--danger)' : 'var(--accent)',
-            borderColor: added ? 'var(--success)' : (!isReady && tried) ? 'var(--danger)' : 'var(--accent)',
+            background: added ? 'var(--success)' : (soldOut || (!isReady && tried)) ? 'var(--danger)' : 'var(--accent)',
+            borderColor: added ? 'var(--success)' : (soldOut || (!isReady && tried)) ? 'var(--danger)' : 'var(--accent)',
           }}
-          aria-label={added ? 'הסט נוסף לסל' : `הוסף ${qty} סט${qty > 1 ? 'ים' : ''} לסל`}
+          aria-label={added ? 'הסט נוסף לסל' : soldOut ? 'אזל מהמלאי' : `הוסף ${qty} סט${qty > 1 ? 'ים' : ''} לסל`}
           aria-busy={added}
         >
           {added
             ? '✓  נוסף לסל!'
-            : isReady
-              ? `הוסף לסל${qty > 1 ? ` (${qty})` : ''}`
-              : tried ? 'בחר מידות קודם' : 'הוסף לסל'
+            : soldOut
+              ? 'אזל מהמלאי'
+              : isReady
+                ? `הוסף לסל${qty > 1 ? ` (${qty})` : ''}`
+                : tried ? 'בחר מידות קודם' : 'הוסף לסל'
           }
         </button>
       </div>
@@ -692,7 +782,7 @@ function ChatAssistant() {
 }
 
 // ─── CART PAGE ────────────────────────────────────────────────────────────────
-function CartPage({ cart, shirtProduct: sh, pantsProduct: pa, onRemove, onChangeQty, onBack, onOrderDone, theme, onToggleTheme }) {
+function CartPage({ cart, shirtProduct: sh, pantsProduct: pa, onRemove, onChangeQty, onBack, onOrderDone, inventory, onInventoryChange, theme, onToggleTheme }) {
   const [mode, setMode]               = useState('delivery');
   const [name, setName]               = useState('');
   const [phone, setPhone]             = useState('');
@@ -704,6 +794,7 @@ function CartPage({ cart, shirtProduct: sh, pantsProduct: pa, onRemove, onChange
   const [zip, setZip]                 = useState('');
   const [errors, setErrors]           = useState({});
   const [submitting, setSubmitting]   = useState(false);
+  const [stockError, setStockError]   = useState('');
 
   const totalSets  = cart.reduce((s, i) => s + (i.quantity || 1), 0);
   const itemsTotal = cart.reduce((s, i) => s + (i.setPrice || 0) * (i.quantity || 1), 0);
@@ -722,15 +813,8 @@ function CartPage({ cart, shirtProduct: sh, pantsProduct: pa, onRemove, onChange
     const e = validate();
     if (Object.keys(e).length) { setErrors(e); return; }
     setSubmitting(true);
+    setStockError('');
     try {
-      const counterRef = doc(db, 'settings', 'orderCounter');
-      let orderNumber;
-      await runTransaction(db, async (tx) => {
-        const snap = await tx.get(counterRef);
-        orderNumber = (snap.exists() ? snap.data().count : 0) + 1;
-        tx.set(counterRef, { count: orderNumber });
-      });
-
       const sets = cart.map(i => ({
         shirtSize: i.shirtSize, pantsSize: i.pantsSize,
         quantity:  i.quantity || 1, setPrice: i.setPrice || 0,
@@ -743,19 +827,30 @@ function CartPage({ cart, shirtProduct: sh, pantsProduct: pa, onRemove, onChange
       const zipVal = mode === 'delivery' ? zip.trim() : '';
 
       const orderData = {
-        orderNumber, sets, total,
+        sets, total,
         shipping: shipping ?? 'הצעה טלפונית',
         deliveryType: mode,
         name: name.trim(), phone: phone.trim(), email: email.trim(),
         city: cityVal, address: addressVal, zip: zipVal,
         timestamp: serverTimestamp(),
       };
-      await addDoc(collection(db, 'orders'), orderData);
+      // ההזמנה תופסת את היחידות במלאי; אם אין כיסוי היא לא נוצרת כלל
+      const { orderNumber, inventory: nextInv } = await createOrderWithStock(orderData, sets);
+      onInventoryChange?.(nextInv);
 
       onOrderDone(orderNumber);
     } catch (err) {
-      console.error(err);
-      alert('שגיאה בשמירה. נסה שוב.');
+      if (err instanceof OutOfStockError) {
+        loadInventory().then(inv => onInventoryChange?.(inv)).catch(() => {});
+        setStockError(
+          'חלק מהפריטים בסל אזלו מהמלאי בינתיים ולא ניתן להשלים את ההזמנה:\n' +
+          shortageText(err.shortages) +
+          '\nהסר או החלף אותם בסל ונסה שוב.'
+        );
+      } else {
+        console.error(err);
+        alert('שגיאה בשמירה. נסה שוב.');
+      }
     }
     setSubmitting(false);
   };
@@ -935,6 +1030,13 @@ function CartPage({ cart, shirtProduct: sh, pantsProduct: pa, onRemove, onChange
               </div>
             )}
 
+            {/* Out of stock */}
+            {stockError && (
+              <div className="nt-stock-alert" role="alert" aria-live="assertive">
+                {stockError}
+              </div>
+            )}
+
             {/* Submit */}
             <button
               className="btn btn-primary btn-full"
@@ -994,7 +1096,7 @@ function StatusBadge({ status }) {
 }
 
 // ─── ORDER DETAIL MODAL ───────────────────────────────────────────────────────
-const EDIT_SIZES = ['S','M','L','XL','XXL','3XL','4XL','5XL'];
+const EDIT_SIZES = SIZES;
 
 function OrderDetailModal({ order: o, onClose, onUpdateStatus, onDelete, onAddPayment, onUpdateOrder }) {
   const status = o.status || 'new';
@@ -1556,7 +1658,7 @@ function ColFilterDropdown({ col, colLabel, anchor, values, selected, filterSear
 }
 
 // ─── ADMIN DASHBOARD ──────────────────────────────────────────────────────────
-function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, onSavePrices, onUpdateStatus, onDeleteOrder, onAddPayment, onDeleteAll, onUpdateOrder, theme, onToggleTheme }) {
+function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, onSavePrices, onUpdateStatus, onDeleteOrder, onAddPayment, onDeleteAll, onUpdateOrder, inventory, onSaveStock, onSyncStock, theme, onToggleTheme }) {
   // Aggregate sets from all orders
   const allSets = orders.flatMap(o =>
     (o.sets || []).flatMap(s => Array(s.quantity || 1).fill({ shirtSize: s.shirtSize, pantsSize: s.pantsSize }))
@@ -1570,7 +1672,7 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
     if (s.pantsSize) pantsCounts[s.pantsSize] = (pantsCounts[s.pantsSize] || 0) + 1;
   });
 
-  const SIZE_ORDER = ['XS','S','M','L','XL','XXL'];
+  const SIZE_ORDER = SIZES;
   const sortedSizes = (obj) => Object.entries(obj).sort((a, b) => SIZE_ORDER.indexOf(a[0]) - SIZE_ORDER.indexOf(b[0]));
 
   const cityMap = {};
@@ -1608,6 +1710,19 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
   const [savingPrices, setSavingPrices] = useState(false);
   const [pricesSaved, setPricesSaved]   = useState(false);
   const [pricesOpen, setPricesOpen]     = useState(false);
+  const [stockOpen, setStockOpen]       = useState(false);
+  const [savingStock, setSavingStock]   = useState(false);
+  const [stockSaved, setStockSaved]     = useState(false);
+  const [syncingStock, setSyncingStock] = useState(false);
+  // הטבלה מחזיקה מחרוזות כדי שאפשר יהיה למחוק שדה ולהקליד מחדש
+  const [editStock, setEditStock]       = useState(() => ({ shirt: {}, pants: {} }));
+  useEffect(() => {
+    setEditStock({
+      shirt: Object.fromEntries(SIZES.map(s => [s, String(totalOf(inventory, 'shirt', s) || '')])),
+      pants: Object.fromEntries(SIZES.map(s => [s, String(totalOf(inventory, 'pants', s) || '')])),
+    });
+  }, [inventory]);
+
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [insightsOpen, setInsightsOpen]   = useState(false);
   const [insights, setInsights]           = useState('');
@@ -1724,6 +1839,42 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
     setTimeout(() => setPricesSaved(false), 2000);
   };
 
+  // קליטת מלאי: מה שהוזן הוא הכמות הכללית שנקלטה, וממנה יורדות מיד
+  // כל ההזמנות שלא בוטלו — נשלחו, שולמו וממתינות לתשלום כאחד.
+  const handleSaveStock = async () => {
+    setSavingStock(true);
+    try {
+      const totals = {};
+      for (const role of ROLES) {
+        totals[role] = Object.fromEntries(
+          Object.entries(editStock[role] || {})
+            .map(([size, v]) => [size, Number(v)])
+            .filter(([, v]) => Number.isFinite(v) && v !== 0)
+        );
+      }
+      await onSaveStock(totals);
+      setStockSaved(true);
+      setTimeout(() => setStockSaved(false), 2000);
+    } catch (e) {
+      console.error(e);
+      alert('שגיאה בשמירת המלאי. נסה שוב.');
+    }
+    setSavingStock(false);
+  };
+
+  const handleSyncStock = async () => {
+    setSyncingStock(true);
+    try { await onSyncStock(); } catch (e) { console.error(e); alert('שגיאה בסנכרון. נסה שוב.'); }
+    setSyncingStock(false);
+  };
+
+  const stockRows = (role) => SIZES.map(size => {
+    const total     = Number(editStock[role]?.[size]) || 0;
+    const ordered   = orderedOf(inventory, role, size);
+    return { size, total, ordered, available: total - ordered };
+  });
+  const soldOutSizes = ROLES.flatMap(role => stockRows(role).filter(r => r.total > 0 && r.available <= 0));
+
   return (
     <div className="nt-admin-page">
       <header className="nt-page-header">
@@ -1802,6 +1953,91 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
                 ))}
               </div>
             )}
+
+            {/* Stock */}
+            <section className="nt-section-collapse">
+              <button className="nt-section-collapse-header" onClick={() => setStockOpen(o => !o)} aria-expanded={stockOpen}>
+                <span className="nt-section-collapse-title">
+                  ניהול מלאי
+                  {soldOutSizes.length > 0 && (
+                    <span className="nt-stock-flag">{soldOutSizes.length} מידות אזלו</span>
+                  )}
+                </span>
+                <span className={`nt-chevron${stockOpen ? ' open' : ''}`}><IcChevron /></span>
+              </button>
+              {stockOpen && (
+                <div className="nt-section-collapse-body">
+                  <p className="nt-stock-help">
+                    הזן בעמודת <b>נקלט</b> את הכמות הכללית שנקנתה לכל מידה. עם השמירה יורדות ממנה
+                    כל ההזמנות שלא בוטלו — נשלחו, שולמו וממתינות לתשלום — והיתרה היא מה שזמין למכירה.
+                    מידה שהגיעה לאפס נחסמת אוטומטית בחנות.
+                  </p>
+
+                  {ROLES.map(role => {
+                    const rows = stockRows(role);
+                    const sum  = rows.reduce((a, r) => ({
+                      total: a.total + r.total, ordered: a.ordered + r.ordered, available: a.available + r.available,
+                    }), { total: 0, ordered: 0, available: 0 });
+                    return (
+                      <div key={role} className="nt-table-wrap" style={{ marginBottom: 4 }}>
+                        <p className="nt-stock-table-title">{ROLE_LABELS[role]}</p>
+                        <table className="nt-table nt-stock-table">
+                          <thead>
+                            <tr>
+                              <th>מידה</th>
+                              <th style={{ textAlign: 'center' }}>נקלט</th>
+                              <th style={{ textAlign: 'center' }}>בהזמנות</th>
+                              <th style={{ textAlign: 'center' }}>זמין</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {rows.map(r => (
+                              <tr key={r.size} style={{ cursor: 'default' }}>
+                                <td style={{ fontWeight: 700 }}>{r.size}</td>
+                                <td style={{ textAlign: 'center' }}>
+                                  <input
+                                    type="number" min="0" inputMode="numeric"
+                                    value={editStock[role]?.[r.size] ?? ''}
+                                    placeholder="0"
+                                    onChange={e => setEditStock(s => ({
+                                      ...s, [role]: { ...s[role], [r.size]: e.target.value },
+                                    }))}
+                                    className="nt-price-input"
+                                    aria-label={`כמות שנקלטה — ${ROLE_LABELS[role]} מידה ${r.size}`}
+                                  />
+                                </td>
+                                <td style={{ textAlign: 'center', color: 'var(--text-muted)' }}>{r.ordered}</td>
+                                <td style={{ textAlign: 'center' }}>
+                                  <span className={`nt-stock-left${r.available <= 0 ? ' out' : r.available <= 3 ? ' low' : ''}`}>
+                                    {r.available}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                            <tr className="nt-stock-total-row" style={{ cursor: 'default' }}>
+                              <td style={{ fontWeight: 800 }}>סה״כ</td>
+                              <td style={{ textAlign: 'center', fontWeight: 800 }}>{sum.total}</td>
+                              <td style={{ textAlign: 'center', fontWeight: 800 }}>{sum.ordered}</td>
+                              <td style={{ textAlign: 'center', fontWeight: 800 }}>{sum.available}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  })}
+
+                  <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                    <button className="btn btn-ghost btn-sm" onClick={handleSyncStock} disabled={syncingStock}
+                      title="מחשב מחדש את עמודת ההזמנות מכל ההזמנות שבמסד">
+                      {syncingStock ? <><span className="spinner" aria-hidden="true" /> מסנכרן...</> : 'סנכרן מול ההזמנות'}
+                    </button>
+                    <button className={`btn ${stockSaved ? 'btn-success' : 'btn-primary'} btn-sm`} onClick={handleSaveStock} disabled={savingStock}>
+                      {stockSaved ? '✓ נקלט' : savingStock ? <><span className="spinner" aria-hidden="true" /> שומר...</> : 'קלוט מלאי'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </section>
 
             {/* Prices */}
             <section className="nt-section-collapse">
@@ -2376,7 +2612,7 @@ function ReportsPanel({ orders, onSelectOrder }) {
     if (s.shirtSize) shirtCounts[s.shirtSize] = (shirtCounts[s.shirtSize] || 0) + 1;
     if (s.pantsSize) pantsCounts[s.pantsSize] = (pantsCounts[s.pantsSize] || 0) + 1;
   });
-  const SIZE_ORDER = ['S', 'M', 'L', 'XL', 'XXL', '3XL', '4XL', '5XL'];
+  const SIZE_ORDER = SIZES;
   const shirtData = SIZE_ORDER.filter(s => shirtCounts[s]).map(s => ({ label: s, value: shirtCounts[s] }));
   const pantsData = SIZE_ORDER.filter(s => pantsCounts[s]).map(s => ({ label: s, value: pantsCounts[s] }));
 
