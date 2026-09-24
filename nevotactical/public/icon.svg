@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Nevo Tactical">
+  <title>Nevo Tactical</title>
+  <rect width="512" height="512" fill="#12160f"/>
+  <!--
+    A combat shirt: stand collar, raglan sleeves, slanted chest pockets and the
+    hem band. Detail stops there on purpose — shoulder patches and seam lines
+    turn to mush once the favicon is down at 16px, and the silhouette plus the
+    placket already say "uniform".
+  -->
+  <g transform="translate(256 256) scale(1.1) translate(-256 -256)">
+    <path
+      fill="#4d8a22"
+      d="M222 108 L290 108 L300 152 L356 170
+         Q400 202 426 254 L392 306 Q364 272 336 256
+         L342 404 Q256 418 170 404 L176 256
+         Q148 272 120 306 L86 254 Q112 202 156 170
+         L212 152 Z"/>
+    <g fill="none" stroke="#12160f" stroke-width="15" stroke-linecap="round" stroke-linejoin="round">
+      <!-- open collar, then the placket running to the hem -->
+      <path d="M222 150 L256 200 L290 150"/>
+      <path d="M256 206 L256 396"/>
+      <!-- slanted chest pockets -->
+      <path d="M190 250 L236 240 L238 296 L192 301 Z"/>
+      <path d="M322 250 L276 240 L274 296 L320 301 Z"/>
+      <!-- hem band -->
+      <path d="M178 372 Q256 385 334 372"/>
+    </g>
+  </g>
+</svg>
