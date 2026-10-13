@@ -85,3 +85,6 @@ meazen/
 
 # Lives in its own repository — see the gmail-invoices remote.
 /gmail-invoices/
+
+# Lives in its own repository — see the travel-approval remote.
+/travel-approval/
