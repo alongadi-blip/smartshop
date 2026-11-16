@@ -1,4 +1,0 @@
-requests
-youtube-transcript-api
-anthropic
-python-dotenv
