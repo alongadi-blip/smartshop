@@ -459,6 +459,40 @@
     .fab:active { transform: translateY(0); }
 
     /* ============================================================
+       VOICE INPUT
+       ============================================================ */
+    .voice-modal { text-align: center; }
+    .voice-mic {
+      width: 76px; height: 76px; border-radius: 50%; border: none; cursor: pointer;
+      background: var(--primary-dim); color: var(--primary); margin: 4px auto 12px;
+      display: flex; align-items: center; justify-content: center; position: relative;
+      transition: background var(--tr), color var(--tr), transform var(--tr);
+    }
+    .voice-mic:active { transform: scale(0.95); }
+    .voice-mic.listening { background: var(--danger); color: #fff; }
+    .voice-mic.listening::after {
+      content: ''; position: absolute; inset: -6px; border-radius: 50%;
+      border: 3px solid var(--danger); opacity: 0.5; animation: voicePulse 1.2s ease-out infinite;
+    }
+    @keyframes voicePulse { from { transform: scale(0.9); opacity: 0.6; } to { transform: scale(1.35); opacity: 0; } }
+    @media (prefers-reduced-motion: reduce) { .voice-mic.listening::after { animation: none; } }
+    .voice-status { font-size: 0.875rem; font-weight: 600; color: var(--text-muted); }
+    .voice-transcript { min-height: 1.4em; margin-top: 8px; font-size: 1rem; color: var(--text); }
+    .voice-hint { font-size: 0.75rem; color: var(--text-subtle); margin-top: 4px; }
+    .voice-chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 14px; }
+    .voice-chip {
+      display: inline-flex; align-items: center; gap: 6px; padding: 6px 6px 6px 12px;
+      border-radius: var(--radius-full); background: var(--surface2); border: 1px solid var(--border);
+      font-size: 0.875rem; color: var(--text);
+    }
+    .voice-chip .vc-qty { color: var(--primary); font-weight: 700; }
+    .voice-chip button {
+      width: 24px; height: 24px; border-radius: 50%; border: none; cursor: pointer;
+      background: transparent; color: var(--text-muted); font-size: 1rem; line-height: 1;
+    }
+    .voice-chip button:hover { background: var(--danger-dim); color: var(--danger); }
+
+    /* ============================================================
        MODALS (shared)
        ============================================================ */
     .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); backdrop-filter: blur(4px); z-index: 300; display: none; align-items: center; justify-content: center; }
@@ -739,6 +773,11 @@
         <div class="presence-badge" id="presenceBadge">
           <span class="presence-dot"></span><span id="presenceText"></span>
         </div>
+        <button class="hdr-icon-btn" onclick="openVoice()" id="voiceBtn" aria-label="הקראה לרשימה" style="display:none">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/>
+          </svg>
+        </button>
         <button class="hdr-icon-btn" onclick="toggleSearch()" id="searchToggleBtn" aria-label="חיפוש">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
@@ -862,6 +901,26 @@
     </svg>
   </button>
   <div class="toast" id="toast"></div>
+</div>
+
+<!-- VOICE MODAL -->
+<div class="overlay" id="voiceOverlay" onclick="if(event.target===this)closeVoice()">
+  <div class="modal voice-modal" role="dialog" aria-label="הקראה לרשימה">
+    <div class="modal-title">🎤 הקראה לרשימה</div>
+    <button class="voice-mic" id="voiceMic" onclick="toggleVoiceListen()" aria-label="התחל / עצור הקלטה">
+      <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/>
+      </svg>
+    </button>
+    <div class="voice-status" id="voiceStatus">לחץ על המיקרופון ודבר</div>
+    <div class="voice-transcript" id="voiceTranscript"></div>
+    <div class="voice-hint" id="voiceHint">למשל: "חלב, 2 לחם, קילו עגבניות וביצים"</div>
+    <div class="voice-chips" id="voiceChips"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeVoice()">ביטול</button>
+      <button class="btn btn-primary" id="voiceAddBtn" onclick="addVoiceItems()" disabled>הוסף לרשימה</button>
+    </div>
+  </div>
 </div>
 
 <!-- ADD MODAL -->
@@ -3473,6 +3532,167 @@ function addScannedProduct() {
 }
 
 // ============================================================
+//  VOICE INPUT (Web Speech API, he-IL)
+// ============================================================
+const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+let _voiceRec = null, _voiceListening = false, _voiceItems = [], _voiceFinal = '';
+
+const VOICE_NUM = {
+  'אחד':1,'אחת':1,'שני':2,'שתי':2,'שניים':2,'שנים':2,'שתיים':2,'שתים':2,'זוג':2,
+  'שלוש':3,'שלושה':3,'ארבע':4,'ארבעה':4,'חמש':5,'חמישה':5,'שש':6,'שישה':6,
+  'שבע':7,'שבעה':7,'שמונה':8,'תשע':9,'תשעה':9,'עשר':10,'עשרה':10,'חצי':0.5
+};
+const VOICE_UNIT = {
+  'קילו':'ק"ג','קילוגרם':'ק"ג','קילוגרמים':'ק"ג','ק"ג':'ק"ג','קג':'ק"ג',
+  'גרם':'גרם','גרמים':'גרם','ליטר':'ליטר','ליטרים':'ליטר','מ"ל':'מ"ל',
+  'חבילה':'חבילה','חבילות':'חבילה','צרור':'צרור','צרורות':'צרור','קרטון':'קרטון','קרטונים':'קרטון',
+  'יחידה':"יח'",'יחידות':"יח'"
+};
+const VOICE_FILLER = new Set(['תוסיף','תוסיפי','תוסיפו','הוסף','הוסיפי','לרשימה','ברשימה','צריך','צריכה',
+  'צריכים','לקנות','קנה','תקנה','תקני','בבקשה','את','גם','עוד','וגם','ועוד','של','שלי','ו','אה','אממ','יש','לנו']);
+
+// Turns a free Hebrew sentence into [{name, cat, qtyN, qtyU}]
+function parseVoiceText(text) {
+  const prod = new Map(), head = new Map();
+  ALL_PRODUCTS.forEach(p => {
+    prod.set(p.name, p.cat);
+    const h = p.name.split(' ')[0];            // "חלב 3%" -> "חלב"
+    if (h !== p.name && !head.has(h)) head.set(h, p.cat);
+  });
+  const stripVav = w => (w.length > 2 && w[0] === 'ו' && w[1] !== 'ו') ? w.slice(1) : w;
+  const lookup = w => prod.has(w) ? w : (prod.has(stripVav(w)) ? stripVav(w) : null);
+  const out = [];
+  let qtyN = null, qtyU = null, buf = [];
+  const push = (name, cat) => {
+    if (!name || out.some(x => x.name === name)) { qtyN = null; qtyU = null; return; }
+    out.push({ name, cat: cat || 'כללי', qtyN: String(qtyN || 1), qtyU: qtyU || "יח'" });
+    qtyN = null; qtyU = null;
+  };
+  const flush = () => { if (buf.length) { push(buf.join(' '), head.get(buf[0])); buf = []; } };
+
+  // Commas / periods are explicit separators
+  text = text.replace(/׳/g, "'").replace(/״/g, '"');
+  const chunks = text.replace(/[.!?;]/g, ',').split(',');
+  for (const chunk of chunks) {
+    const w = chunk.trim().split(/\s+/).filter(Boolean);
+    let i = 0;
+    while (i < w.length) {
+      let word = w[i];
+      const bare = /^ו\d/.test(word) ? word.slice(1) : word.replace(/^ו(?=.{2,})/, '');
+      const num = /^\d+([.,]\d+)?$/.test(bare) ? parseFloat(bare.replace(',', '.')) : VOICE_NUM[bare];
+      if (num === 0.5 && word === 'וחצי' && qtyN && !buf.length) { qtyN += 0.5; i++; continue; } // "קילו וחצי"
+      if (num) { flush(); qtyN = num; i++; continue; }
+      if (VOICE_UNIT[bare]) { flush(); qtyU = VOICE_UNIT[bare]; if (!qtyN) qtyN = 1; i++; continue; }
+      if (VOICE_FILLER.has(word)) { flush(); i++; continue; }
+      // longest known product starting here (up to 4 words)
+      let hit = null, len = 0;
+      for (let n = Math.min(4, w.length - i); n >= 1; n--) {
+        const name = lookup(w.slice(i, i + n).join(' '));
+        if (name) { hit = name; len = n; break; }
+      }
+      if (hit) { flush(); push(hit, prod.get(hit)); i += len; continue; }
+      // unknown word: a generic head word ("חלב", "לחם") or a leading ו starts a new item
+      const sv = stripVav(word);
+      if (head.has(word)) flush();
+      else if (sv !== word && (head.has(sv) || buf.length)) { flush(); word = sv; }
+      buf.push(word);
+      i++;
+    }
+    flush();
+  }
+  return out;
+}
+
+function renderVoiceChips() {
+  const box = document.getElementById('voiceChips');
+  box.innerHTML = _voiceItems.map((it, i) => {
+    const q = (it.qtyN !== '1' || it.qtyU !== "יח'") ? `<span class="vc-qty">${hEsc(it.qtyN)} ${hEsc(it.qtyU)}</span>` : '';
+    return `<span class="voice-chip">${CAT_ICON[it.cat] || '📦'} ${q}${hEsc(it.name)}
+      <button onclick="removeVoiceItem(${i})" aria-label="הסר ${hEsc(it.name)}">×</button></span>`;
+  }).join('');
+  const btn = document.getElementById('voiceAddBtn');
+  btn.disabled = !_voiceItems.length;
+  btn.textContent = _voiceItems.length > 1 ? `הוסף ${_voiceItems.length} מוצרים` : 'הוסף לרשימה';
+  document.getElementById('voiceHint').style.display = _voiceItems.length ? 'none' : '';
+}
+function removeVoiceItem(i) { _voiceItems.splice(i, 1); renderVoiceChips(); }
+
+function _voiceSetUI(listening, status) {
+  _voiceListening = listening;
+  document.getElementById('voiceMic').classList.toggle('listening', listening);
+  document.getElementById('voiceStatus').textContent = status;
+}
+
+function startVoiceListen() {
+  if (!SpeechRec) return;
+  const old = _voiceRec; _voiceRec = null;
+  try { old && old.abort(); } catch (e) {}
+  const rec = new SpeechRec();
+  rec.lang = 'he-IL';
+  rec.interimResults = true;
+  rec.continuous = true;
+  rec.maxAlternatives = 1;
+  _voiceFinal = '';
+  let errMsg = '';
+  rec.onresult = e => {
+    let interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const t = e.results[i][0].transcript;
+      if (e.results[i].isFinal) _voiceFinal += ', ' + t; else interim += t;
+    }
+    document.getElementById('voiceTranscript').textContent =
+      (_voiceFinal.replace(/^,\s*/, '') + ' ' + interim).trim();
+  };
+  rec.onerror = e => {
+    errMsg = e.error === 'not-allowed' || e.error === 'service-not-allowed'
+      ? 'אין הרשאה למיקרופון — אפשר אותה בהגדרות הדפדפן'
+      : e.error === 'no-speech' ? 'לא שמעתי כלום, נסה שוב' : 'שגיאה בזיהוי דיבור, נסה שוב';
+  };
+  rec.onend = () => {
+    if (_voiceRec !== rec) return;
+    const text = _voiceFinal.trim();
+    if (text) {
+      const parsed = parseVoiceText(text);
+      parsed.forEach(p => { if (!_voiceItems.some(x => x.name === p.name)) _voiceItems.push(p); });
+      renderVoiceChips();
+      _voiceSetUI(false, parsed.length ? 'בדוק ואשר · לחץ על המיקרופון כדי להוסיף עוד' : 'לא זוהו מוצרים, נסה שוב');
+    } else {
+      _voiceSetUI(false, errMsg || 'לחץ על המיקרופון ודבר');
+    }
+  };
+  _voiceRec = rec;
+  document.getElementById('voiceTranscript').textContent = '';
+  _voiceSetUI(true, 'מקשיב… לחץ שוב לסיום');
+  try { rec.start(); } catch (e) { _voiceRec = null; _voiceSetUI(false, 'לא ניתן להפעיל את המיקרופון'); }
+}
+function stopVoiceListen() { try { _voiceRec && _voiceRec.stop(); } catch (e) {} }
+function toggleVoiceListen() { _voiceListening ? stopVoiceListen() : startVoiceListen(); }
+
+function openVoice() {
+  if (!SpeechRec) { toast('⚠️ הדפדפן לא תומך בהקראה'); return; }
+  _voiceItems = [];
+  renderVoiceChips();
+  document.getElementById('voiceTranscript').textContent = '';
+  document.getElementById('voiceOverlay').classList.add('open');
+  startVoiceListen();
+}
+function closeVoice() {
+  const rec = _voiceRec; _voiceRec = null;
+  try { rec && rec.abort(); } catch (e) {}
+  _voiceSetUI(false, 'לחץ על המיקרופון ודבר');
+  document.getElementById('voiceOverlay').classList.remove('open');
+}
+function addVoiceItems() {
+  let added = 0, dup = 0;
+  _voiceItems.forEach(it => addItem({ ...it }) ? added++ : dup++);
+  closeVoice();
+  if (added && dup) toast(`✅ נוספו ${added} מוצרים · ${dup} כבר ברשימה`);
+  else if (added) toast(added === 1 ? '✅ מוצר אחד נוסף' : `✅ נוספו ${added} מוצרים`);
+  else toast('⚠️ כל המוצרים כבר ברשימה');
+}
+if (SpeechRec) document.getElementById('voiceBtn').style.display = '';
+
+// ============================================================
 //  START
 // ============================================================
 init();
@@ -3499,7 +3719,7 @@ function _pushNav() {
   const wrap = (fn) => function(...a) { _pushNav(); return fn.apply(this, a); };
 
   const fns = ['openAdd','openEdit','openShare','openHelp','openAdmin',
-                'openBrowse','openLists','openScan','openMoreMenu','showHomeScreen'];
+                'openBrowse','openLists','openScan','openMoreMenu','showHomeScreen','openVoice'];
   fns.forEach(name => {
     if (typeof window[name] === 'function') window[name] = wrap(window[name]);
   });
@@ -3518,6 +3738,7 @@ window.addEventListener('popstate', function(e) {
   // Close layers from topmost to bottommost
   const layers = [
     // id / classList check → close function
+    { id: 'voiceOverlay', cls: 'open', close: closeVoice },
     { id: 'scanOverlay',  cls: 'open', close: closeScan },
     { id: 'adminOverlay', cls: 'open', close: closeAdmin },
     { id: 'helpOverlay',  cls: 'open', close: closeHelp },
