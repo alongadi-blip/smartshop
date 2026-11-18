@@ -66,12 +66,28 @@ jobs:
           for k in ("type", "project_id", "private_key", "client_email"):
               if k not in d:
                   sys.exit(f"Service account secret is missing field: {k}")
+          # Rebuild the PEM key: copying on a phone can wrap lines or turn \n into spaces.
+          import re, textwrap
+          k = d["private_key"].replace("\\n", "\n")
+          m = re.search(r"-----BEGIN PRIVATE KEY-----(.*?)-----END PRIVATE KEY-----", k, re.S)
+          if not m:
+              sys.exit("private_key has no BEGIN/END PRIVATE KEY markers")
+          body = re.sub(r"[^A-Za-z0-9+/=]", "", m.group(1))
+          d["private_key"] = "-----BEGIN PRIVATE KEY-----\n" + "\n".join(textwrap.wrap(body, 64)) + "\n-----END PRIVATE KEY-----\n"
+          open(sys.argv[2], "w").write(d["private_key"])
+          print("project_id:", d["project_id"], "| key body length:", len(body))
           json.dump(d, open(sys.argv[1], "w"))
-          ' "$RUNNER_TEMP/firebase-sa.json"
+          ' "$RUNNER_TEMP/firebase-sa.json" "$RUNNER_TEMP/firebase-key.pem"
+          if ! openssl pkey -in "$RUNNER_TEMP/firebase-key.pem" -noout 2>/dev/null; then
+            rm -f "$RUNNER_TEMP/firebase-key.pem"
+            echo "::error::The private key in FIREBASE_SERVICE_ACCOUNT_NEVOTACTICAL is damaged. Re-add the secret."
+            exit 1
+          fi
+          rm -f "$RUNNER_TEMP/firebase-key.pem"
           echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-sa.json" >> "$GITHUB_ENV"
 
       - name: Deploy to Firebase Hosting
-        run: npx --yes firebase-tools@15 deploy --only hosting --project nevotactical --non-interactive
+        run: npx --yes firebase-tools@15 deploy --only hosting --project nevotactical --non-interactive --debug 2>&1 | grep -vE 'Bearer|private_key|access_token' ; exit ${PIPESTATUS[0]}
 
       - name: Remove credentials file
         if: always()
