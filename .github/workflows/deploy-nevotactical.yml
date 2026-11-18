@@ -51,11 +51,28 @@ jobs:
           VITE_GROQ_API_KEY: ${{ secrets.VITE_GROQ_API_KEY }}
         run: npm run build
 
+      # The service-account JSON may contain raw newlines (e.g. when pasted from a phone).
+      # Parse it leniently and rewrite it as valid JSON before authenticating.
+      - name: Prepare Firebase credentials
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_NEVOTACTICAL }}
+        run: |
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" | python3 -c '
+          import json, sys
+          try:
+              d = json.loads(sys.stdin.read().strip(), strict=False)
+          except json.JSONDecodeError as e:
+              sys.exit(f"Service account secret is not valid JSON (position {e.pos}). Re-add it.")
+          for k in ("type", "project_id", "private_key", "client_email"):
+              if k not in d:
+                  sys.exit(f"Service account secret is missing field: {k}")
+          json.dump(d, open(sys.argv[1], "w"))
+          ' "$RUNNER_TEMP/firebase-sa.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-sa.json" >> "$GITHUB_ENV"
+
       - name: Deploy to Firebase Hosting
-        uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_NEVOTACTICAL }}
-          projectId: nevotactical
-          channelId: live
-          entryPoint: nevotactical
+        run: npx --yes firebase-tools@15 deploy --only hosting --project nevotactical --non-interactive
+
+      - name: Remove credentials file
+        if: always()
+        run: rm -f "$RUNNER_TEMP/firebase-sa.json"
