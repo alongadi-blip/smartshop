@@ -1490,6 +1490,23 @@ function printLabels(orders) {
     const parts     = (o.name || '').trim().split(' ');
     const firstName = parts[0] || '';
     const lastName  = parts.slice(1).join(' ') || '';
+    // Aggregate items by type + size so each line shows type, size, quantity
+    const itemMap = new Map();
+    for (const st of (o.sets || [])) {
+      const q = Number(st.quantity) || 1;
+      for (const [type, size] of [['חולצה', st.shirtSize], ['מכנסיים', st.pantsSize]]) {
+        if (!size) continue;
+        const k = `${type}|${size}`;
+        itemMap.set(k, { type, size, qty: (itemMap.get(k)?.qty || 0) + q });
+      }
+    }
+    const items = [...itemMap.values()].sort((a, b) => (a.type === b.type ? 0 : a.type === 'חולצה' ? -1 : 1));
+    const itemsHTML = items.length ? `
+        <div class="label-divider"></div>
+        <table class="label-items">
+          <thead><tr><th>סוג פריט</th><th>מידה</th><th>כמות</th></tr></thead>
+          <tbody>${items.map(it => `<tr><td>${esc(it.type)}</td><td>${esc(it.size)}</td><td>${it.qty}</td></tr>`).join('')}</tbody>
+        </table>` : '';
     return `
       <div class="label">
         <div class="label-logo">NEVO TACTICAL</div>
@@ -1499,6 +1516,7 @@ function printLabels(orders) {
         <div class="label-row"><span class="lk">כתובת</span><span class="lv">${esc(o.address || '')}</span></div>
         <div class="label-row"><span class="lk">עיר</span><span class="lv">${esc(o.city || '')}</span></div>
         ${o.zip ? `<div class="label-row"><span class="lk">מיקוד</span><span class="lv">${esc(o.zip)}</span></div>` : ''}
+        ${itemsHTML}
         ${o.orderNumber ? `<div class="label-order">#${esc(o.orderNumber)}</div>` : ''}
       </div>`;
   }).join('');
@@ -1528,6 +1546,10 @@ function printLabels(orders) {
   .label-row { display: flex; gap: 4mm; align-items: baseline; }
   .lk { font-size: 7pt; font-weight: 700; color: #888; min-width: 18mm; flex-shrink: 0; }
   .lv { font-size: 13pt; font-weight: 700; color: #111; line-height: 1.2; }
+  .label-items { width: 100%; border-collapse: collapse; font-size: 10pt; }
+  .label-items th { font-size: 7pt; font-weight: 700; color: #888; text-align: right; padding: 0 0 1mm; border-bottom: 1px solid #ccc; }
+  .label-items td { font-weight: 700; color: #111; padding: 1mm 0; border-bottom: 1px solid #eee; }
+  .label-items th:nth-child(n+2), .label-items td:nth-child(n+2) { text-align: center; }
   .label-order { position: absolute; bottom: 7mm; left: 8mm; font-size: 7pt; color: #bbb; font-weight: 700; letter-spacing: 1px; }
 </style>
 </head>
