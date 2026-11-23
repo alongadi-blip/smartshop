@@ -1090,6 +1090,19 @@ function OrderSuccessOverlay({ orderNumber, onClose }) {
 }
 
 // ─── STATUS BADGE ─────────────────────────────────────────────────────────────
+// סימון שהופקה קבלה להזמנה (מספרי הקבלות מתוך order.payments[].receiptNumber).
+function ReceiptMark({ order }) {
+  const nums = [...new Set((order.payments || []).map(p => p.receiptNumber).filter(Boolean))].sort((a, b) => a - b);
+  if (!nums.length) return null;
+  return (
+    <span title={`הופקה קבלה: ${nums.join(', ')}`}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', fontSize: 11, fontWeight: 700,
+               border: '1px solid var(--accent)', color: 'var(--accent)', background: 'var(--accent-dim)', whiteSpace: 'nowrap' }}>
+      ✓ קבלה {nums.length > 1 ? `×${nums.length}` : nums[0]}
+    </span>
+  );
+}
+
 function StatusBadge({ status }) {
   const map = { new: 'הוזמן', paid: 'שולם', sent: 'נשלח', cancelled: 'בוטל' };
   const cls = { new: 'nt-badge nt-badge-new', paid: 'nt-badge nt-badge-paid', sent: 'nt-badge nt-badge-sent', cancelled: 'nt-badge nt-badge-cancelled' };
@@ -1210,6 +1223,7 @@ function OrderDetailModal({ order: o, onClose, onUpdateStatus, onDelete, onAddPa
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span className="nt-modal-title">{editMode ? 'עריכת הזמנה' : 'פרטי הזמנה'}</span>
             {!editMode && <StatusBadge status={status} />}
+            {!editMode && <ReceiptMark order={o} />}
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             {!editMode && (
@@ -2304,7 +2318,10 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
                               ))}
                             </div>
                           </div>
-                          <StatusBadge status={o.status || 'new'} />
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                            <StatusBadge status={o.status || 'new'} />
+                            <ReceiptMark order={o} />
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -2404,7 +2421,12 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
                             </td>
                             <td style={{ fontFamily: 'var(--font-brand)', fontSize: 16, color: 'var(--gold)' }}>{o.total ? `₪${o.total}` : '—'}</td>
                             <td style={{ color: 'var(--text-muted)', fontSize: 11 }}>{o.timestamp?.toDate?.()?.toLocaleDateString('he-IL') || '—'}</td>
-                            <td><StatusBadge status={s} /></td>
+                            <td>
+                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
+                                <StatusBadge status={s} />
+                                <ReceiptMark order={o} />
+                              </div>
+                            </td>
                             <td onClick={e => e.stopPropagation()}>
                               <div className="nt-action-btns">
                                 {s === 'new'       && <button className="btn btn-paid   btn-xs" onClick={() => updateStatus(o.id, 'paid')}>שולם</button>}
