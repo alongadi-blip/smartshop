@@ -13,6 +13,10 @@ import {
   isTracked, countUnits, addUnits, negateUnits, holdsStock, adjustOrdered,
   createOrderWithStock, saveTotals, resyncOrdered, OutOfStockError, shortageText,
 } from './inventory';
+import {
+  PAYMENT_METHODS, DEFAULT_BUSINESS, loadBusiness, saveBusiness, businessMissing, issueReceipt,
+  loadReceipt, buildReceiptPdf, receiptFileName, downloadBlob, shareReceiptWhatsApp,
+} from './receipts';
 
 
 const ADMIN_EMAIL = 'admin@nevotactical.com';
@@ -1098,8 +1102,6 @@ function StatusBadge({ status }) {
 // ─── ORDER DETAIL MODAL ───────────────────────────────────────────────────────
 const EDIT_SIZES = SIZES;
 
-const PAYMENT_METHODS = { cash: 'מזומן', bank: 'העברה בנקאית', bit: 'ביט', paybox: 'פייבוקס' };
-
 function todayISO() { return isoFromDate(new Date()); }
 
 function isoFromDate(d) {
@@ -1124,6 +1126,54 @@ function OrderDetailModal({ order: o, onClose, onUpdateStatus, onDelete, onAddPa
   const [payDate, setPayDate]           = useState(todayISO);
   const [payMethod, setPayMethod]       = useState('');
   const [savingPayment, setSavingPayment] = useState(false);
+
+  // קבלה פתוחה בחלון: { receipt, blob, copy }
+  const [receiptView, setReceiptView] = useState(null);
+  const [receiptBusy, setReceiptBusy] = useState(null); // ts של התשלום / מספר קבלה בטיפול
+  const [shareMsg, setShareMsg]       = useState('');
+
+  const handleIssueReceipt = async (p) => {
+    setReceiptBusy(p.ts);
+    try {
+      const business = await loadBusiness();
+      const missing = businessMissing(business);
+      if (missing.length) {
+        alert(`לפני הפקת קבלה צריך למלא בממשק הניהול ב"פרטי העסק לקבלות": ${missing.join(', ')}`);
+        return;
+      }
+      const method = PAYMENT_METHODS[p.method] || 'לא צוין';
+      if (!confirm(`להפיק קבלה על ₪${p.amount} (${method})?\nקבלה שהופקה אינה ניתנת לעריכה או למחיקה.`)) return;
+      const { receipt, payments } = await issueReceipt(o.id, p.ts, business);
+      await onUpdateOrder(o.id, { payments });
+      const blob = await buildReceiptPdf(receipt);
+      downloadBlob(blob, receiptFileName(receipt));
+      setShareMsg('');
+      setReceiptView({ receipt, blob, copy: false });
+    } catch (e) {
+      alert(e?.message || 'שגיאה בהפקת הקבלה');
+    } finally {
+      setReceiptBusy(null);
+    }
+  };
+
+  const handleOpenReceipt = async (number) => {
+    setReceiptBusy(number);
+    try {
+      const receipt = await loadReceipt(number);
+      const blob = await buildReceiptPdf(receipt, { copy: true });
+      setShareMsg('');
+      setReceiptView({ receipt, blob, copy: true });
+    } catch (e) {
+      alert(e?.message || 'שגיאה בטעינת הקבלה');
+    } finally {
+      setReceiptBusy(null);
+    }
+  };
+
+  const handleShareReceipt = async () => {
+    const res = await shareReceiptWhatsApp(receiptView.blob, receiptView.receipt);
+    if (res === 'fallback') setShareMsg('הקובץ ירד למחשב ונפתח צ׳אט עם הלקוח — צרף אליו את הקובץ.');
+  };
 
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState(null);
@@ -1305,9 +1355,16 @@ function OrderDetailModal({ order: o, onClose, onUpdateStatus, onDelete, onAddPa
                 {editData.payments.length === 0 && (
                   <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>אין תשלומים רשומים.</p>
                 )}
-                {editData.payments.map((p, i) => (
+                {editData.payments.map((p, i) => {
+                  const locked = !!p.receiptNumber;
+                  return (
                   <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                    {locked && (
+                      <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                        הופקה קבלה מס' {p.receiptNumber} — הסכום, הסוג והמועד נעולים.
+                      </p>
+                    )}
+                    <fieldset disabled={locked} style={{ border: 'none', padding: 0, margin: 0, display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap', opacity: locked ? 0.6 : 1 }}>
                       <div style={{ flex: 1, minWidth: 110 }}>
                         <label className="nt-field-label">סוג תשלום</label>
                         <select className="nt-input" value={p.method || ''} onChange={e => updatePayment(i, 'method', e.target.value)}>
@@ -1323,12 +1380,15 @@ function OrderDetailModal({ order: o, onClose, onUpdateStatus, onDelete, onAddPa
                         <label className="nt-field-label">סכום (₪)</label>
                         <input className="nt-input" type="number" min="1" value={p.amount} onChange={e => updatePayment(i, 'amount', e.target.value)} style={{ textAlign: 'center' }} />
                       </div>
-                      <button className="btn btn-xs" style={{ background: 'transparent', borderColor: 'var(--danger)', color: 'var(--danger)', marginBottom: 6 }}
-                        onClick={() => removePayment(i)} aria-label={`מחק תשלום ${i + 1}`}><IcTrash /></button>
-                    </div>
+                      {!locked && (
+                        <button className="btn btn-xs" style={{ background: 'transparent', borderColor: 'var(--danger)', color: 'var(--danger)', marginBottom: 6 }}
+                          onClick={() => removePayment(i)} aria-label={`מחק תשלום ${i + 1}`}><IcTrash /></button>
+                      )}
+                    </fieldset>
                     <input className="nt-input" placeholder="הערות על התשלום..." value={p.note || ''} onChange={e => updatePayment(i, 'note', e.target.value)} />
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ) : (
@@ -1426,9 +1486,39 @@ function OrderDetailModal({ order: o, onClose, onUpdateStatus, onDelete, onAddPa
                         {p.method && <span style={{ marginRight: 8, fontSize: 12, fontWeight: 700, color: 'var(--accent)' }}>{PAYMENT_METHODS[p.method] || p.method}</span>}
                         {p.note && <div style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 2 }}>{p.note}</div>}
                       </div>
-                      <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>{formatPaymentDate(p)}</span>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                        <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>{formatPaymentDate(p)}</span>
+                        {p.receiptNumber ? (
+                          <button className="btn btn-ghost btn-xs" onClick={() => handleOpenReceipt(p.receiptNumber)} disabled={receiptBusy != null}>
+                            {receiptBusy === p.receiptNumber ? <span className="spinner" aria-hidden="true" /> : `קבלה ${p.receiptNumber}`}
+                          </button>
+                        ) : p.ts ? (
+                          <button className="btn btn-primary btn-xs" onClick={() => handleIssueReceipt(p)} disabled={receiptBusy != null}>
+                            {receiptBusy === p.ts ? <span className="spinner" aria-hidden="true" /> : 'הפק קבלה'}
+                          </button>
+                        ) : null}
+                      </div>
                     </div>
                   ))}
+                  {receiptView && (
+                    <div style={{ marginTop: 10, padding: 12, border: '1px solid var(--accent)', background: 'var(--accent-dim)' }} role="status">
+                      <p style={{ fontWeight: 800, fontSize: 13, marginBottom: 8 }}>
+                        {receiptView.copy
+                          ? `קבלה מס' ${receiptView.receipt.number} (העתק)`
+                          : `✓ קבלה מס' ${receiptView.receipt.number} הופקה ונשמרה כ-PDF`}
+                      </p>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <button className="btn btn-sm" style={{ borderColor: '#25d366', color: '#25d366', background: 'transparent', display: 'flex', alignItems: 'center', gap: 6 }} onClick={handleShareReceipt}>
+                          <IcWhatsApp /> שלח בוואטסאפ
+                        </button>
+                        <button className="btn btn-ghost btn-sm" onClick={() => downloadBlob(receiptView.blob, receiptFileName(receiptView.receipt))}>
+                          <IcDownload /> הורד PDF
+                        </button>
+                        <button className="btn btn-ghost btn-sm" onClick={() => { setReceiptView(null); setShareMsg(''); }}>סגור</button>
+                      </div>
+                      {shareMsg && <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8 }}>{shareMsg}</p>}
+                    </div>
+                  )}
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 13 }}>
                     <span style={{ color: 'var(--success)', fontWeight: 700 }}>שולם: ₪{paid}</span>
                     <span style={{ color: remaining > 0 ? 'var(--danger)' : 'var(--success)', fontWeight: 700 }}>נותר: ₪{Math.max(0, remaining)}</span>
@@ -1773,6 +1863,68 @@ function ColFilterDropdown({ col, colLabel, anchor, values, selected, filterSear
 }
 
 // ─── ADMIN DASHBOARD ──────────────────────────────────────────────────────────
+// פרטי העסק שמודפסים בראש כל קבלה (settings/business).
+function BusinessSettingsSection() {
+  const [open, setOpen]     = useState(false);
+  const [data, setData]     = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved]   = useState(false);
+
+  useEffect(() => {
+    if (open && !data) loadBusiness().then(setData).catch(() => setData({ ...DEFAULT_BUSINESS }));
+  }, [open, data]);
+
+  const fields = [
+    ['name', 'שם העסק *'], ['taxId', 'מספר עוסק פטור (ת.ז.) *'], ['owner', 'שם בעל העסק'],
+    ['address', 'כתובת'], ['phone', 'טלפון'], ['email', 'מייל'],
+  ];
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await saveBusiness(data);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch { alert('שגיאה בשמירה. נסה שוב.'); }
+    setSaving(false);
+  };
+
+  return (
+    <section className="nt-section-collapse">
+      <button className="nt-section-collapse-header" onClick={() => setOpen(o => !o)} aria-expanded={open}>
+        <span className="nt-section-collapse-title">פרטי העסק לקבלות</span>
+        <span className={`nt-chevron${open ? ' open' : ''}`}><IcChevron /></span>
+      </button>
+      {open && (
+        <div className="nt-section-collapse-body" style={{ direction: 'rtl' }}>
+          {!data ? <span className="spinner" aria-hidden="true" /> : (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 }}>
+                {fields.map(([k, label]) => (
+                  <div key={k}>
+                    <label className="nt-field-label">{label}</label>
+                    <input className="nt-input" value={data[k] || ''} onChange={e => setData(d => ({ ...d, [k]: e.target.value }))}
+                      dir={k === 'phone' || k === 'email' || k === 'taxId' ? 'ltr' : undefined}
+                      style={k === 'phone' || k === 'email' || k === 'taxId' ? { textAlign: 'right' } : undefined} />
+                  </div>
+                ))}
+              </div>
+              <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>
+                הפרטים נשמרים בכל קבלה ברגע הפקתה — שינוי כאן משפיע רק על קבלות חדשות. מספור הקבלות מתחיל ב-100001.
+              </p>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+                <button className={`btn ${saved ? 'btn-success' : 'btn-primary'} btn-sm`} onClick={save} disabled={saving}>
+                  {saved ? '✓ נשמר' : saving ? <><span className="spinner" aria-hidden="true" /> שומר...</> : 'שמור פרטים'}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, onSavePrices, onUpdateStatus, onDeleteOrder, onAddPayment, onDeleteAll, onUpdateOrder, inventory, onSaveStock, onSyncStock, theme, onToggleTheme }) {
   // Aggregate sets from all orders
   const allSets = orders.flatMap(o =>
@@ -2190,6 +2342,8 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
                 </div>
               )}
             </section>
+
+            <BusinessSettingsSection />
 
             {/* City chips */}
             {sortedCities.length > 0 && (

@@ -10,6 +10,19 @@ service cloud.firestore {
       allow read: if true;
       allow write: if request.auth != null;
     }
+    // קבלות: רק אדמין. קבלה שהופקה לא נערכת ולא נמחקת; המונה רץ קדימה בלבד.
+    match /receipts/{number} {
+      allow read, create: if request.auth != null;
+      allow update, delete: if false;
+    }
+    match /settings/receiptCounter {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && (resource == null || request.resource.data.next > resource.data.next);
+    }
+    match /settings/business {
+      allow read, write: if request.auth != null;
+    }
     match /settings/orderCounter {
       allow read, write: if true;
     }
