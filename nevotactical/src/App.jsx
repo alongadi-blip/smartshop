@@ -13,7 +13,7 @@ import {
   isTracked, countUnits, addUnits, negateUnits, holdsStock, adjustOrdered,
   createOrderWithStock, saveTotals, resyncOrdered, OutOfStockError, shortageText,
 } from './inventory';
-import { PAYMENT_METHODS, DEFAULT_BUSINESS, loadBusiness, saveBusiness } from './receipts';
+import { PAYMENT_METHODS, DEFAULT_BUSINESS, loadBusiness, saveBusiness, printAllReceipts } from './receipts';
 import { OrderReceipts } from './ReceiptUI';
 
 
@@ -2330,6 +2330,7 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
                     <IcSizeAI /> AI תובנות
                   </button>
                   <button className="btn btn-ghost btn-sm" onClick={() => printLabels(orders)} title="הדפס תוויות לכל הזמנות המשלוח"><IcPrint /> תוויות</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => printAllReceipts().catch(e => alert(e.message))} title="הדפס את כל הקבלות שהופקו"><IcPrint /> קבלות</button>
                   <button className="btn btn-primary btn-sm" onClick={exportCSV}><IcDownload /> CSV</button>
                   <button className="btn btn-danger btn-sm" onClick={() => { if (window.confirm(`למחוק את כל ${orders.length} ההזמנות?`)) onDeleteAll(); }}><IcTrash /> מחק הכל</button>
                 </div>

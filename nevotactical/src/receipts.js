@@ -11,7 +11,7 @@
 // בקבלה מסומן ב-receiptNumber, ועריכת הקבלה מעדכנת גם אותם — באותה טרנזקציה.
 
 import { db } from './firebase';
-import { doc, getDoc, setDoc, runTransaction, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, getDocs, collection, setDoc, runTransaction, serverTimestamp } from 'firebase/firestore';
 
 export const FIRST_RECEIPT_NUMBER = 100001;
 
@@ -327,6 +327,46 @@ export async function buildReceiptPdf(receipt, { copy = false } = {}) {
     return pdf.output('blob');
   } finally {
     host.remove();
+  }
+}
+
+/**
+ * פותח חלון הדפסה עם כל הקבלות, ממוינות לפי מספר — קבלה בכל עמוד A4.
+ * החלון נפתח מיד (לפני הטעינה) כדי שחוסם החלונות הקופצים לא יחסום אותו.
+ */
+export async function printAllReceipts() {
+  const win = window.open('', '_blank');
+  if (!win) throw new Error('הדפדפן חסם את חלון ההדפסה — אפשר חלונות קופצים לאתר ונסה שוב.');
+  win.document.write('<p dir="rtl" style="font-family:Arial;padding:24px">טוען קבלות...</p>');
+  try {
+    const snap = await getDocs(collection(db, 'receipts'));
+    const receipts = snap.docs.map(d => normalizeReceipt(d.data())).sort((a, b) => a.number - b.number);
+    if (!receipts.length) {
+      win.close();
+      throw new Error('עדיין לא הופקו קבלות.');
+    }
+    const first = receipts[0].number, last = receipts[receipts.length - 1].number;
+    win.document.open();
+    win.document.write(`<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8">
+      <title>קבלות ${first}–${last}</title>
+      <style>
+        ${RECEIPT_CSS}
+        @page { size: A4; margin: 0; }
+        body { margin: 0; background: #888; }
+        .rc { margin: 16px auto; break-after: page; }
+        @media print {
+          body { background: #fff; }
+          .rc { margin: 0; width: 210mm; min-height: 0; height: 296mm; overflow: hidden; }
+        }
+      </style></head><body>
+      ${receipts.map(r => receiptHtml(r, true)).join('')}
+      <script>window.onload = () => setTimeout(() => window.print(), 300);<\/script>
+      </body></html>`);
+    win.document.close();
+    return receipts.length;
+  } catch (e) {
+    if (!win.closed) win.close();
+    throw e;
   }
 }
 
