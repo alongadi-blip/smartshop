@@ -1098,12 +1098,30 @@ function StatusBadge({ status }) {
 // ─── ORDER DETAIL MODAL ───────────────────────────────────────────────────────
 const EDIT_SIZES = SIZES;
 
+const PAYMENT_METHODS = { cash: 'מזומן', bank: 'העברה בנקאית', bit: 'ביט', paybox: 'פייבוקס' };
+
+function todayISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// תשלומים ישנים נשמרו בלי date — אז מציגים את מועד הרישום (ts).
+function formatPaymentDate(p) {
+  if (p.date) {
+    const [y, m, d] = p.date.split('-');
+    return `${Number(d)}.${Number(m)}.${y}`;
+  }
+  return p.ts ? new Date(p.ts).toLocaleDateString('he-IL') : '';
+}
+
 function OrderDetailModal({ order: o, onClose, onUpdateStatus, onDelete, onAddPayment, onUpdateOrder }) {
   const status = o.status || 'new';
   const sets   = o.sets || [];
 
   const [payAmount, setPayAmount]       = useState('');
   const [payNote, setPayNote]           = useState('');
+  const [payDate, setPayDate]           = useState(todayISO);
+  const [payMethod, setPayMethod]       = useState('');
   const [savingPayment, setSavingPayment] = useState(false);
 
   const [editMode, setEditMode] = useState(false);
@@ -1153,11 +1171,13 @@ function OrderDetailModal({ order: o, onClose, onUpdateStatus, onDelete, onAddPa
 
   const handleAddPayment = async () => {
     const amount = Number(payAmount);
-    if (!amount || amount <= 0) return;
+    if (!amount || amount <= 0 || !payMethod || !payDate) return;
     setSavingPayment(true);
-    await onAddPayment(o.id, { amount, note: payNote.trim(), ts: Date.now() });
+    await onAddPayment(o.id, { amount, method: payMethod, date: payDate, note: payNote.trim(), ts: Date.now() });
     setPayAmount('');
     setPayNote('');
+    setPayMethod('');
+    setPayDate(todayISO());
     setSavingPayment(false);
   };
 
@@ -1346,7 +1366,7 @@ function OrderDetailModal({ order: o, onClose, onUpdateStatus, onDelete, onAddPa
 
           {/* Partial Payments — always visible */}
           <div className="nt-detail-section">
-            <p className="nt-detail-section-label" style={{ marginBottom: 10 }}>תשלום חלקי</p>
+            <p className="nt-detail-section-label" style={{ marginBottom: 10 }}>תשלומים</p>
 
             {(o.payments || []).length > 0 && (() => {
               const paid      = (o.payments || []).reduce((s, p) => s + (p.amount || 0), 0);
@@ -1357,9 +1377,10 @@ function OrderDetailModal({ order: o, onClose, onUpdateStatus, onDelete, onAddPa
                     <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '7px 0', borderBottom: '1px solid var(--border)' }}>
                       <div>
                         <span style={{ fontFamily: 'var(--font-brand)', fontSize: 16, color: 'var(--gold)' }}>₪{p.amount}</span>
+                        {p.method && <span style={{ marginRight: 8, fontSize: 12, fontWeight: 700, color: 'var(--accent)' }}>{PAYMENT_METHODS[p.method] || p.method}</span>}
                         {p.note && <div style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 2 }}>{p.note}</div>}
                       </div>
-                      <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>{new Date(p.ts).toLocaleDateString('he-IL')}</span>
+                      <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>{formatPaymentDate(p)}</span>
                     </div>
                   ))}
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 13 }}>
@@ -1371,7 +1392,29 @@ function OrderDetailModal({ order: o, onClose, onUpdateStatus, onDelete, onAddPa
             })()}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div>
+                <label className="nt-field-label" style={{ marginBottom: 4 }}>סוג תשלום</label>
+                <div className="nt-delivery-toggle" role="radiogroup" aria-label="סוג תשלום">
+                  {Object.entries(PAYMENT_METHODS).map(([v, label]) => (
+                    <button key={v} type="button" role="radio" aria-checked={payMethod === v}
+                      className={`nt-delivery-opt${payMethod === v ? ' active' : ''}`}
+                      style={{ padding: '10px 6px' }}
+                      onClick={() => setPayMethod(v)}>{label}</button>
+                  ))}
+                </div>
+              </div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+                <div style={{ flex: 1 }}>
+                  <label className="nt-field-label" style={{ marginBottom: 4 }}>מועד תשלום</label>
+                  <input
+                    type="date"
+                    className="nt-input"
+                    value={payDate}
+                    max={todayISO()}
+                    onChange={e => setPayDate(e.target.value)}
+                    style={{ textAlign: 'center' }}
+                  />
+                </div>
                 <div style={{ flex: 1 }}>
                   <label className="nt-field-label" style={{ marginBottom: 4 }}>סכום (₪)</label>
                   <input
@@ -1386,7 +1429,8 @@ function OrderDetailModal({ order: o, onClose, onUpdateStatus, onDelete, onAddPa
                 <button
                   className="btn btn-primary btn-sm"
                   onClick={handleAddPayment}
-                  disabled={!payAmount || Number(payAmount) <= 0 || savingPayment}
+                  disabled={!payAmount || Number(payAmount) <= 0 || !payMethod || !payDate || savingPayment}
+                  title={!payMethod ? 'בחר סוג תשלום' : undefined}
                   style={{ padding: '10px 16px', marginBottom: 1 }}
                 >
                   {savingPayment ? <span className="spinner" aria-hidden="true" /> : '+ הוסף'}
