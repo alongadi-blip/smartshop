@@ -52,9 +52,9 @@ export function formatISODate(iso) {
   return `${d}/${m}/${y}`;
 }
 
-// שורות הטובין מתוך ההזמנה — סט אחד לכל צירוף מידות, ודמי משלוח אם נגבו.
+// שורות הטובין מתוך ההזמנה — סט אחד לכל צירוף מידות. דמי משלוח לא מפורטים בקבלה.
 function goodsOf(order) {
-  const lines = (order.sets || []).map(s => {
+  return (order.sets || []).map(s => {
     const qty = s.quantity || 1;
     const unit = s.setPrice || 0;
     return {
@@ -64,10 +64,6 @@ function goodsOf(order) {
       total: unit * qty,
     };
   });
-  if (order.deliveryType === 'delivery' && typeof order.shipping === 'number' && order.shipping > 0) {
-    lines.push({ description: 'דמי משלוח', quantity: 1, unitPrice: order.shipping, total: order.shipping });
-  }
-  return lines;
 }
 
 /**
