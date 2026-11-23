@@ -13,10 +13,8 @@ import {
   isTracked, countUnits, addUnits, negateUnits, holdsStock, adjustOrdered,
   createOrderWithStock, saveTotals, resyncOrdered, OutOfStockError, shortageText,
 } from './inventory';
-import {
-  PAYMENT_METHODS, DEFAULT_BUSINESS, loadBusiness, saveBusiness, businessMissing, issueReceipt,
-  loadReceipt, buildReceiptPdf, receiptFileName, downloadBlob, shareReceiptWhatsApp,
-} from './receipts';
+import { PAYMENT_METHODS, DEFAULT_BUSINESS, loadBusiness, saveBusiness } from './receipts';
+import { OrderReceipts } from './ReceiptUI';
 
 
 const ADMIN_EMAIL = 'admin@nevotactical.com';
@@ -1127,54 +1125,6 @@ function OrderDetailModal({ order: o, onClose, onUpdateStatus, onDelete, onAddPa
   const [payMethod, setPayMethod]       = useState('');
   const [savingPayment, setSavingPayment] = useState(false);
 
-  // קבלה פתוחה בחלון: { receipt, blob, copy }
-  const [receiptView, setReceiptView] = useState(null);
-  const [receiptBusy, setReceiptBusy] = useState(null); // ts של התשלום / מספר קבלה בטיפול
-  const [shareMsg, setShareMsg]       = useState('');
-
-  const handleIssueReceipt = async (p) => {
-    setReceiptBusy(p.ts);
-    try {
-      const business = await loadBusiness();
-      const missing = businessMissing(business);
-      if (missing.length) {
-        alert(`לפני הפקת קבלה צריך למלא בממשק הניהול ב"פרטי העסק לקבלות": ${missing.join(', ')}`);
-        return;
-      }
-      const method = PAYMENT_METHODS[p.method] || 'לא צוין';
-      if (!confirm(`להפיק קבלה על ₪${p.amount} (${method})?\nקבלה שהופקה אינה ניתנת לעריכה או למחיקה.`)) return;
-      const { receipt, payments } = await issueReceipt(o.id, p.ts, business);
-      await onUpdateOrder(o.id, { payments });
-      const blob = await buildReceiptPdf(receipt);
-      downloadBlob(blob, receiptFileName(receipt));
-      setShareMsg('');
-      setReceiptView({ receipt, blob, copy: false });
-    } catch (e) {
-      alert(e?.message || 'שגיאה בהפקת הקבלה');
-    } finally {
-      setReceiptBusy(null);
-    }
-  };
-
-  const handleOpenReceipt = async (number) => {
-    setReceiptBusy(number);
-    try {
-      const receipt = await loadReceipt(number);
-      const blob = await buildReceiptPdf(receipt, { copy: true });
-      setShareMsg('');
-      setReceiptView({ receipt, blob, copy: true });
-    } catch (e) {
-      alert(e?.message || 'שגיאה בטעינת הקבלה');
-    } finally {
-      setReceiptBusy(null);
-    }
-  };
-
-  const handleShareReceipt = async () => {
-    const res = await shareReceiptWhatsApp(receiptView.blob, receiptView.receipt);
-    if (res === 'fallback') setShareMsg('הקובץ ירד למחשב ונפתח צ׳אט עם הלקוח — צרף אליו את הקובץ.');
-  };
-
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState(null);
   const [savingEdit, setSavingEdit] = useState(false);
@@ -1361,7 +1311,7 @@ function OrderDetailModal({ order: o, onClose, onUpdateStatus, onDelete, onAddPa
                   <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
                     {locked && (
                       <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                        הופקה קבלה מס' {p.receiptNumber} — הסכום, הסוג והמועד נעולים.
+                        שייך לקבלה מס' {p.receiptNumber} — לשינוי הסכום, הסוג או המועד: "קבלה {p.receiptNumber}" ← "ערוך קבלה".
                       </p>
                     )}
                     <fieldset disabled={locked} style={{ border: 'none', padding: 0, margin: 0, display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap', opacity: locked ? 0.6 : 1 }}>
@@ -1488,41 +1438,15 @@ function OrderDetailModal({ order: o, onClose, onUpdateStatus, onDelete, onAddPa
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
                         <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>{formatPaymentDate(p)}</span>
-                        {p.receiptNumber ? (
-                          <button className="btn btn-ghost btn-xs" onClick={() => handleOpenReceipt(p.receiptNumber)} disabled={receiptBusy != null}>
-                            {receiptBusy === p.receiptNumber ? <span className="spinner" aria-hidden="true" /> : `קבלה ${p.receiptNumber}`}
-                          </button>
-                        ) : p.ts ? (
-                          <button className="btn btn-primary btn-xs" onClick={() => handleIssueReceipt(p)} disabled={receiptBusy != null}>
-                            {receiptBusy === p.ts ? <span className="spinner" aria-hidden="true" /> : 'הפק קבלה'}
-                          </button>
-                        ) : null}
+                        {p.receiptNumber && <span style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 700 }}>קבלה {p.receiptNumber}</span>}
                       </div>
                     </div>
                   ))}
-                  {receiptView && (
-                    <div style={{ marginTop: 10, padding: 12, border: '1px solid var(--accent)', background: 'var(--accent-dim)' }} role="status">
-                      <p style={{ fontWeight: 800, fontSize: 13, marginBottom: 8 }}>
-                        {receiptView.copy
-                          ? `קבלה מס' ${receiptView.receipt.number} (העתק)`
-                          : `✓ קבלה מס' ${receiptView.receipt.number} הופקה ונשמרה כ-PDF`}
-                      </p>
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        <button className="btn btn-sm" style={{ borderColor: '#25d366', color: '#25d366', background: 'transparent', display: 'flex', alignItems: 'center', gap: 6 }} onClick={handleShareReceipt}>
-                          <IcWhatsApp /> שלח בוואטסאפ
-                        </button>
-                        <button className="btn btn-ghost btn-sm" onClick={() => downloadBlob(receiptView.blob, receiptFileName(receiptView.receipt))}>
-                          <IcDownload /> הורד PDF
-                        </button>
-                        <button className="btn btn-ghost btn-sm" onClick={() => { setReceiptView(null); setShareMsg(''); }}>סגור</button>
-                      </div>
-                      {shareMsg && <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8 }}>{shareMsg}</p>}
-                    </div>
-                  )}
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 13 }}>
                     <span style={{ color: 'var(--success)', fontWeight: 700 }}>שולם: ₪{paid}</span>
                     <span style={{ color: remaining > 0 ? 'var(--danger)' : 'var(--success)', fontWeight: 700 }}>נותר: ₪{Math.max(0, remaining)}</span>
                   </div>
+                  <OrderReceipts order={o} onPaymentsChanged={payments => onUpdateOrder(o.id, { payments })} />
                 </div>
               );
             })()}

@@ -1,13 +1,14 @@
 // ─── קבלות לעוסק פטור ─────────────────────────────────────────────────────────
-// כל קבלה מתעדת תשלום אחד מתוך order.payments[].
+// קבלה אחת מתעדת תשלום אחד או כמה (פיצול: למשל ₪500 בביט + ₪400 במזומן).
 //
 //   settings/receiptCounter = { next }    — המספר הבא. מתחיל ב-100001, רץ ללא דילוגים.
 //   settings/business       = פרטי העסק שמודפסים בראש הקבלה (נערכים באדמין).
-//   receipts/{number}       = תמונת מצב של הקבלה כפי שהופקה. לא נערכת ולא נמחקת,
-//                             כך שהפקה חוזרת של ה-PDF תמיד זהה למקור ("העתק נאמן למקור").
+//   receipts/{number}       = הקבלה: פרטי עסק, לקוח, טובין ושורות תשלום. ניתנת לעריכה, לא למחיקה.
+//   receiptLinks/{token}    = עותק ציבורי של הקבלה, נקרא רק לפי token אקראי — זה הקישור
+//                             שנשלח ללקוח בוואטסאפ (nevotactical.web.app/?r=token).
 //
-// הקצאת המספר, כתיבת הקבלה וסימון התשלום (payment.receiptNumber) קורים בטרנזקציה אחת,
-// כדי שלא ייווצר מספר בלי קבלה או תשלום שקיבל שתי קבלות.
+// התשלומים בהזמנה (order.payments[]) ושורות התשלום בקבלה הם אותו מידע: כל תשלום שנכלל
+// בקבלה מסומן ב-receiptNumber, ועריכת הקבלה מעדכנת גם אותם — באותה טרנזקציה.
 
 import { db } from './firebase';
 import { doc, getDoc, setDoc, runTransaction, serverTimestamp } from 'firebase/firestore';
@@ -41,7 +42,7 @@ export function businessMissing(b) {
   return missing;
 }
 
-function todayISO() {
+export function todayISO() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
@@ -50,6 +51,24 @@ export function formatISODate(iso) {
   if (!iso) return '';
   const [y, m, d] = iso.split('-');
   return `${d}/${m}/${y}`;
+}
+
+export const money = n => `₪${Number(n || 0).toLocaleString('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+// קבלות מהגרסה הראשונה שמרו תשלום יחיד בשדה payment.
+export function normalizeReceipt(r) {
+  if (!r) return r;
+  const payments = r.payments || (r.payment ? [r.payment] : []);
+  const { payment, ...rest } = r;
+  return { ...rest, payments };
+}
+
+export const receiptTotal = r => (r.payments || []).reduce((s, p) => s + (Number(p.amount) || 0), 0);
+
+function newToken() {
+  const a = new Uint8Array(16);
+  crypto.getRandomValues(a);
+  return Array.from(a, b => b.toString(16).padStart(2, '0')).join('');
 }
 
 // שורות הטובין מתוך ההזמנה — סט אחד לכל צירוף מידות. דמי משלוח לא מפורטים בקבלה.
@@ -66,10 +85,23 @@ function goodsOf(order) {
   });
 }
 
+const paymentLine = p => ({
+  amount: Number(p.amount) || 0,
+  method: p.method || '',
+  date: p.date || '',
+  ts: p.ts,
+});
+
+// מה שנחשף בקישור הציבורי — בלי מזהים פנימיים.
+const publicCopy = r => ({
+  number: r.number, issueDate: r.issueDate, business: r.business, customer: r.customer,
+  orderNumber: r.orderNumber ?? null, goods: r.goods, payments: r.payments,
+});
+
 /**
- * מפיק קבלה לתשלום שמזוהה לפי ts. מחזיר את הקבלה ואת מערך התשלומים המעודכן.
+ * מפיק קבלה אחת לתשלומים שמזוהים לפי ts. מחזיר את הקבלה ואת מערך התשלומים המעודכן של ההזמנה.
  */
-export async function issueReceipt(orderId, paymentTs, business) {
+export async function issueReceipt(orderId, paymentTsList, business) {
   return runTransaction(db, async (tx) => {
     const counterRef = doc(db, 'settings', 'receiptCounter');
     const orderRef   = doc(db, 'orders', orderId);
@@ -78,12 +110,12 @@ export async function issueReceipt(orderId, paymentTs, business) {
 
     const order    = orderSnap.data();
     const payments = order.payments || [];
-    const idx      = payments.findIndex(p => p.ts === paymentTs);
-    if (idx === -1) throw new Error('התשלום לא נמצא — ייתכן שנערך. רענן ונסה שוב.');
-    if (payments[idx].receiptNumber) throw new Error(`לתשלום הזה כבר הופקה קבלה מס' ${payments[idx].receiptNumber}`);
+    const chosen   = payments.filter(p => paymentTsList.includes(p.ts));
+    if (chosen.length !== paymentTsList.length) throw new Error('חלק מהתשלומים לא נמצאו — ייתכן שנערכו. רענן ונסה שוב.');
+    const taken = chosen.find(p => p.receiptNumber);
+    if (taken) throw new Error(`לתשלום על ₪${taken.amount} כבר הופקה קבלה מס' ${taken.receiptNumber}`);
 
     const number  = Math.max(FIRST_RECEIPT_NUMBER, counterSnap.exists() ? counterSnap.data().next || 0 : 0);
-    const payment = payments[idx];
     const receipt = {
       number,
       issueDate: todayISO(),
@@ -91,25 +123,69 @@ export async function issueReceipt(orderId, paymentTs, business) {
         name: business.name || '', owner: business.owner || '', taxId: business.taxId || '',
         address: business.address || '', phone: business.phone || '', email: business.email || '',
       },
-      customer: { name: order.name || '', phone: order.phone || '', email: order.email || '' },
+      customer: { name: order.name || '', phone: order.phone || '' },
       orderId,
       orderNumber: order.orderNumber || null,
-      orderTotal: order.total || 0,
       goods: goodsOf(order),
-      payment: {
-        amount: Number(payment.amount) || 0,
-        method: payment.method || '',
-        date: payment.date || '',
-        note: payment.note || '',
-        ts: payment.ts,
-      },
-      createdAt: serverTimestamp(),
+      payments: chosen.map(paymentLine),
+      linkToken: newToken(),
     };
 
-    const nextPayments = payments.map((p, i) => i === idx ? { ...p, receiptNumber: number } : p);
-    tx.set(doc(db, 'receipts', String(number)), receipt);
+    const nextPayments = payments.map(p => paymentTsList.includes(p.ts) ? { ...p, receiptNumber: number } : p);
+    tx.set(doc(db, 'receipts', String(number)), { ...receipt, createdAt: serverTimestamp() });
+    tx.set(doc(db, 'receiptLinks', receipt.linkToken), publicCopy(receipt));
     tx.set(counterRef, { next: number + 1 });
     tx.update(orderRef, { payments: nextPayments });
+    return { receipt, payments: nextPayments };
+  });
+}
+
+/**
+ * שומר קבלה ערוכה (המספר לא משתנה) ומסנכרן את תשלומי ההזמנה לשורות התשלום שבה:
+ * שורה קיימת מעדכנת את התשלום שלה, שורה חדשה נוספת כתשלום, ושורה שנמחקה משתחררת מהקבלה.
+ */
+export async function updateReceipt(edited) {
+  return runTransaction(db, async (tx) => {
+    const receiptRef = doc(db, 'receipts', String(edited.number));
+    const receiptSnap = await tx.get(receiptRef);
+    if (!receiptSnap.exists()) throw new Error(`קבלה ${edited.number} לא נמצאה`);
+    const current = normalizeReceipt(receiptSnap.data());
+    const orderRef = current.orderId ? doc(db, 'orders', current.orderId) : null;
+    const orderSnap = orderRef ? await tx.get(orderRef) : null;
+
+    const baseTs = Date.now();
+    const lines = edited.payments.map((p, i) => ({ ...paymentLine(p), ts: p.ts ?? baseTs + i }));
+    const receipt = {
+      ...current,
+      issueDate: edited.issueDate,
+      customer: { ...current.customer, ...edited.customer },
+      goods: edited.goods.map(g => {
+        const quantity = Number(g.quantity) || 0, unitPrice = Number(g.unitPrice) || 0;
+        return { description: g.description, quantity, unitPrice, total: quantity * unitPrice };
+      }),
+      payments: lines,
+      linkToken: current.linkToken || newToken(),
+    };
+
+    let nextPayments = null;
+    if (orderSnap?.exists()) {
+      const old = orderSnap.data().payments || [];
+      const byTs = Object.fromEntries(old.map(p => [p.ts, p]));
+      const others = old
+        .filter(p => p.receiptNumber !== receipt.number)
+        .filter(p => !lines.some(l => l.ts === p.ts));
+      const mine = lines.map(l => ({ note: byTs[l.ts]?.note || '', ...l, receiptNumber: receipt.number }));
+      // תשלום שהוסר מהקבלה נשאר בהזמנה, רק בלי שיוך לקבלה
+      const released = old
+        .filter(p => p.receiptNumber === receipt.number && !lines.some(l => l.ts === p.ts))
+        .map(({ receiptNumber, ...p }) => p);
+      nextPayments = [...others, ...released, ...mine]
+        .sort((a, b) => (a.ts || 0) - (b.ts || 0));
+      tx.update(orderRef, { payments: nextPayments });
+    }
+
+    tx.set(receiptRef, { ...receipt, editedAt: serverTimestamp() });
+    tx.set(doc(db, 'receiptLinks', receipt.linkToken), publicCopy(receipt));
     return { receipt, payments: nextPayments };
   });
 }
@@ -117,15 +193,31 @@ export async function issueReceipt(orderId, paymentTs, business) {
 export async function loadReceipt(number) {
   const snap = await getDoc(doc(db, 'receipts', String(number)));
   if (!snap.exists()) throw new Error(`קבלה ${number} לא נמצאה`);
-  return snap.data();
+  return normalizeReceipt(snap.data());
 }
 
-// ─── PDF ─────────────────────────────────────────────────────────────────────
+// לקבלות שהופקו לפני שהיה קישור ציבורי.
+export async function ensureReceiptLink(receipt) {
+  if (receipt.linkToken) return receipt;
+  const linkToken = newToken();
+  const next = { ...receipt, linkToken };
+  await setDoc(doc(db, 'receiptLinks', linkToken), publicCopy(next));
+  await setDoc(doc(db, 'receipts', String(receipt.number)), { linkToken }, { merge: true });
+  return next;
+}
+
+export async function loadPublicReceipt(token) {
+  const snap = await getDoc(doc(db, 'receiptLinks', token));
+  return snap.exists() ? normalizeReceipt(snap.data()) : null;
+}
+
+export const receiptUrl = r => `${window.location.origin}/?r=${r.linkToken}`;
+
+// ─── HTML + PDF ──────────────────────────────────────────────────────────────
 
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-const money = n => `₪${Number(n || 0).toLocaleString('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-function receiptHtml(r, isCopy) {
+export function receiptHtml(r, isCopy) {
   const b = r.business;
   const bizLines = [
     b.owner && esc(b.owner),
@@ -141,8 +233,13 @@ function receiptHtml(r, isCopy) {
       <td class="c">${money(g.unitPrice)}</td>
       <td class="c">${money(g.total)}</td>
     </tr>`).join('');
-  const goodsTotal = r.goods.reduce((s, g) => s + g.total, 0);
-  const p = r.payment;
+  const goodsTotal = r.goods.reduce((s, g) => s + (g.total || 0), 0);
+  const payRows = r.payments.map(p => `
+    <tr>
+      <td>${esc(PAYMENT_METHODS[p.method] || p.method || '—')}</td>
+      <td class="c">${formatISODate(p.date) || '—'}</td>
+      <td class="c">${money(p.amount)}</td>
+    </tr>`).join('');
 
   return `
   <div class="rc">
@@ -154,7 +251,7 @@ function receiptHtml(r, isCopy) {
       <div class="doc">
         <div class="doc-title">קבלה</div>
         <div class="doc-num">מס' ${r.number}</div>
-        <div class="doc-kind">${isCopy ? 'העתק נאמן למקור' : 'מקור'}</div>
+        ${isCopy == null ? '' : `<div class="doc-kind">${isCopy ? 'העתק נאמן למקור' : 'מקור'}</div>`}
       </div>
     </div>
 
@@ -179,20 +276,16 @@ function receiptHtml(r, isCopy) {
     <div class="lbl">פרטי התשלום</div>
     <table>
       <thead><tr><th>אמצעי תשלום</th><th class="c">תאריך תשלום</th><th class="c">סכום</th></tr></thead>
-      <tbody><tr>
-        <td>${esc(PAYMENT_METHODS[p.method] || p.method || '—')}</td>
-        <td class="c">${formatISODate(p.date) || '—'}</td>
-        <td class="c">${money(p.amount)}</td>
-      </tr></tbody>
+      <tbody>${payRows}</tbody>
     </table>
 
-    <div class="sum"><span>סה"כ התקבל</span><span>${money(p.amount)}</span></div>
+    <div class="sum"><span>סה"כ התקבל</span><span>${money(receiptTotal(r))}</span></div>
 
     <div class="foot">עוסק פטור — המסמך אינו חשבונית מס. המסמך הופק באופן ממוחשב.</div>
   </div>`;
 }
 
-const RECEIPT_CSS = `
+export const RECEIPT_CSS = `
   .rc { width: 794px; min-height: 1123px; box-sizing: border-box; padding: 56px 60px; direction: rtl;
         font-family: Arial, 'Segoe UI', sans-serif; color: #1a1a1a; background: #fff; font-size: 15px; line-height: 1.5; }
   .rc .head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #4a5d23; padding-bottom: 18px; }
@@ -217,6 +310,7 @@ const RECEIPT_CSS = `
   .rc .foot { margin-top: 40px; font-size: 11px; color: #888; text-align: center; }
 `;
 
+/** copy: true = "העתק נאמן למקור", false = "מקור", null = בלי סימון (הקישור ללקוח). */
 export async function buildReceiptPdf(receipt, { copy = false } = {}) {
   const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import('html2canvas'), import('jspdf')]);
 
@@ -254,26 +348,39 @@ function waNumber(phone) {
   return d;
 }
 
-/**
- * שולח את ה-PDF בוואטסאפ. בטלפון (ובדפדפנים שתומכים בשיתוף קבצים) נפתח חלון השיתוף
- * עם הקובץ מצורף — בוחרים וואטסאפ ואת הלקוח. אחרת: הקובץ יורד, ונפתח צ'אט עם הלקוח
- * כדי לצרף אותו ידנית. מחזיר 'shared' | 'fallback' | 'cancelled'.
- */
-export async function shareReceiptWhatsApp(blob, receipt) {
-  const name = receiptFileName(receipt);
-  const text = `שלום ${receipt.customer.name}, מצורפת קבלה מס' ${receipt.number} על סך ${money(receipt.payment.amount)}. תודה, ${receipt.business.name}`;
-  const file = new File([blob], name, { type: 'application/pdf' });
+function waText(r) {
+  return `שלום ${r.customer.name}, מצורפת קבלה מס' ${r.number} על סך ${money(receiptTotal(r))}:\n${receiptUrl(r)}\n\nתודה, ${r.business.name}`;
+}
 
-  if (navigator.canShare?.({ files: [file] })) {
-    try {
-      await navigator.share({ files: [file], title: `קבלה ${receipt.number}`, text });
-      return 'shared';
-    } catch (e) {
-      if (e?.name === 'AbortError') return 'cancelled';
-    }
+/**
+ * פותח צ'אט וואטסאפ עם הלקוח, עם הודעה מוכנה שמכילה קישור ל-PDF של הקבלה — נשאר רק ללחוץ "שלח".
+ * החלון נפתח מיד (לפני ה-await) כדי שחוסם החלונות הקופצים לא יחסום אותו.
+ */
+export async function sendReceiptWhatsApp(receipt) {
+  const win = window.open('', '_blank');
+  try {
+    const r = await ensureReceiptLink(receipt);
+    const url = `https://wa.me/${waNumber(r.customer.phone)}?text=${encodeURIComponent(waText(r))}`;
+    if (win) win.location.href = url; else window.location.href = url;
+    return r;
+  } catch (e) {
+    win?.close();
+    throw e;
   }
-  downloadBlob(blob, name);
-  const num = waNumber(receipt.customer.phone);
-  window.open(`https://wa.me/${num}?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
-  return 'fallback';
+}
+
+/** שיתוף הקובץ עצמו (בטלפון): פותח את חלון השיתוף של המכשיר עם ה-PDF מצורף. */
+export const canShareFiles = () => {
+  try {
+    return !!navigator.canShare?.({ files: [new File([''], 'x.pdf', { type: 'application/pdf' })] });
+  } catch { return false; }
+};
+
+export async function sharePdfFile(blob, receipt) {
+  const file = new File([blob], receiptFileName(receipt), { type: 'application/pdf' });
+  try {
+    await navigator.share({ files: [file], title: `קבלה ${receipt.number}` });
+  } catch (e) {
+    if (e?.name !== 'AbortError') throw e;
+  }
 }
