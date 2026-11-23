@@ -1223,7 +1223,6 @@ function OrderDetailModal({ order: o, onClose, onUpdateStatus, onDelete, onAddPa
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span className="nt-modal-title">{editMode ? 'עריכת הזמנה' : 'פרטי הזמנה'}</span>
             {!editMode && <StatusBadge status={status} />}
-            {!editMode && <ReceiptMark order={o} />}
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             {!editMode && (
@@ -2342,7 +2341,7 @@ function AdminDashboard({ orders, loading, onBack, onRefresh, products, prices, 
                     <button key={key} className={`nt-tab${tab === key ? ' active' : ''}`} onClick={() => setTab(key)} role="tab" aria-selected={tab === key}>{label}</button>
                   ))}
                 </div>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <button className="btn btn-ghost btn-sm" onClick={fetchInsights} title="תובנות AI על ההזמנות" style={{ fontSize: 11, letterSpacing: 1 }}>
                     <IcSizeAI /> AI תובנות
                   </button>
