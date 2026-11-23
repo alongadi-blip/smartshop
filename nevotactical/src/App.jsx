@@ -1100,8 +1100,9 @@ const EDIT_SIZES = SIZES;
 
 const PAYMENT_METHODS = { cash: 'מזומן', bank: 'העברה בנקאית', bit: 'ביט', paybox: 'פייבוקס' };
 
-function todayISO() {
-  const d = new Date();
+function todayISO() { return isoFromDate(new Date()); }
+
+function isoFromDate(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
@@ -1140,6 +1141,7 @@ function OrderDetailModal({ order: o, onClose, onUpdateStatus, onDelete, onAddPa
       sets:         (o.sets || []).map(s => ({ ...s })),
       total:        o.total || 0,
       shipping:     o.shipping ?? 50,
+      payments:     (o.payments || []).map(p => ({ ...p, date: p.date || (p.ts ? isoFromDate(new Date(p.ts)) : todayISO()) })),
     });
     setEditMode(true);
   };
@@ -1147,10 +1149,15 @@ function OrderDetailModal({ order: o, onClose, onUpdateStatus, onDelete, onAddPa
   const cancelEdit = () => { setEditMode(false); setEditData(null); };
 
   const saveEdit = async () => {
+    const payments = editData.payments.map(p => ({ ...p, amount: Number(p.amount) }));
+    if (payments.some(p => !p.amount || p.amount <= 0 || !p.date)) {
+      alert('בכל תשלום חייבים סכום חיובי ומועד תשלום.');
+      return;
+    }
     setSavingEdit(true);
     try {
       const cityVal = editData.deliveryType === 'pickup' ? 'איסוף עצמי' : editData.city;
-      const dataToSave = { ...editData, city: cityVal };
+      const dataToSave = { ...editData, city: cityVal, payments };
       await onUpdateOrder(o.id, dataToSave);
       setEditMode(false);
       setEditData(null);
@@ -1164,6 +1171,13 @@ function OrderDetailModal({ order: o, onClose, onUpdateStatus, onDelete, onAddPa
     return { ...d, sets: s };
   });
   const removeSet = (i) => setEditData(d => ({ ...d, sets: d.sets.filter((_, idx) => idx !== i) }));
+  const updatePayment = (i, field, val) => setEditData(d => ({
+    ...d, payments: d.payments.map((p, idx) => idx === i ? { ...p, [field]: val } : p),
+  }));
+  const removePayment = (i) => {
+    if (!confirm('למחוק את התשלום?')) return;
+    setEditData(d => ({ ...d, payments: d.payments.filter((_, idx) => idx !== i) }));
+  };
   const addSet = () => setEditData(d => ({
     ...d,
     sets: [...d.sets, { shirtSize: '', pantsSize: '', quantity: 1, setPrice: d.sets[0]?.setPrice || 450 }],
@@ -1284,6 +1298,38 @@ function OrderDetailModal({ order: o, onClose, onUpdateStatus, onDelete, onAddPa
                   </button>)
                 </p>
               </div>
+
+              {/* Payments */}
+              <div className="nt-detail-section">
+                <p className="nt-detail-section-label" style={{ marginBottom: 10 }}>תשלומים</p>
+                {editData.payments.length === 0 && (
+                  <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>אין תשלומים רשומים.</p>
+                )}
+                {editData.payments.map((p, i) => (
+                  <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                      <div style={{ flex: 1, minWidth: 110 }}>
+                        <label className="nt-field-label">סוג תשלום</label>
+                        <select className="nt-input" value={p.method || ''} onChange={e => updatePayment(i, 'method', e.target.value)}>
+                          <option value="">— לא צוין —</option>
+                          {Object.entries(PAYMENT_METHODS).map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+                        </select>
+                      </div>
+                      <div style={{ flex: 1, minWidth: 120 }}>
+                        <label className="nt-field-label">מועד תשלום</label>
+                        <input className="nt-input" type="date" value={p.date || ''} max={todayISO()} onChange={e => updatePayment(i, 'date', e.target.value)} />
+                      </div>
+                      <div style={{ width: 90 }}>
+                        <label className="nt-field-label">סכום (₪)</label>
+                        <input className="nt-input" type="number" min="1" value={p.amount} onChange={e => updatePayment(i, 'amount', e.target.value)} style={{ textAlign: 'center' }} />
+                      </div>
+                      <button className="btn btn-xs" style={{ background: 'transparent', borderColor: 'var(--danger)', color: 'var(--danger)', marginBottom: 6 }}
+                        onClick={() => removePayment(i)} aria-label={`מחק תשלום ${i + 1}`}><IcTrash /></button>
+                    </div>
+                    <input className="nt-input" placeholder="הערות על התשלום..." value={p.note || ''} onChange={e => updatePayment(i, 'note', e.target.value)} />
+                  </div>
+                ))}
+              </div>
             </div>
           ) : (
 
@@ -1364,8 +1410,8 @@ function OrderDetailModal({ order: o, onClose, onUpdateStatus, onDelete, onAddPa
           </> /* end display mode */
           )} {/* end editMode ternary */}
 
-          {/* Partial Payments — always visible */}
-          <div className="nt-detail-section">
+          {/* Payments — in edit mode they're edited in the form above */}
+          {!editMode && <div className="nt-detail-section">
             <p className="nt-detail-section-label" style={{ marginBottom: 10 }}>תשלומים</p>
 
             {(o.payments || []).length > 0 && (() => {
@@ -1447,7 +1493,10 @@ function OrderDetailModal({ order: o, onClose, onUpdateStatus, onDelete, onAddPa
                 />
               </div>
             </div>
-          </div>
+            {(o.payments || []).length > 0 && (
+              <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>לתיקון תשלום שנשמר — לחץ "ערוך" בראש החלון.</p>
+            )}
+          </div>}
 
           <p style={{ color: 'var(--text-muted)', fontSize: 12, marginBottom: 12 }}>
             תאריך: {o.timestamp?.toDate?.()?.toLocaleDateString('he-IL') || '—'}
