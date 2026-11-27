@@ -605,6 +605,18 @@
     .share-wa-btn { display: flex; align-items: center; justify-content: center; gap: 8px; background: #25D366; color: white; border: none; border-radius: var(--radius); padding: 11px 16px; font-size: 0.9375rem; font-weight: 600; cursor: pointer; width: 100%; margin-bottom: 8px; font-family: inherit; transition: opacity var(--tr); }
     .share-wa-btn:hover { opacity: 0.88; }
     .share-note { font-size: 0.8rem; color: var(--text-muted); text-align: center; margin: 10px 0 4px; line-height: 1.6; }
+    .share-member-row { display: flex; align-items: center; gap: 10px; padding: 10px 4px; border-bottom: 1px solid var(--border); cursor: pointer; flex-wrap: wrap; }
+    .share-member-row input { width: 20px; height: 20px; flex-shrink: 0; accent-color: var(--primary, #2E7D32); }
+    .share-member-name { font-weight: 600; font-size: 0.92rem; overflow-wrap: anywhere; }
+    .share-member-email { font-size: 0.76rem; color: var(--text-muted); overflow-wrap: anywhere; min-width: 0; }
+    .group-name-row { display: flex; align-items: center; gap: 6px; }
+    .group-name { font-size: 1.05rem; font-weight: 700; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+    .group-sub { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px; }
+    .group-member { display: flex; align-items: center; gap: 8px; padding: 9px 2px; border-bottom: 1px solid var(--border); }
+    .group-member-info { flex: 1; min-width: 0; }
+    .group-remove-btn { background: none; border: 1px solid var(--danger); color: var(--danger); border-radius: 8px; padding: 4px 10px; font-size: 0.8rem; cursor: pointer; font-family: inherit; flex-shrink: 0; }
+    .group-invite { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px; text-align: center; }
+    .group-invite-title { font-weight: 700; margin-bottom: 6px; }
     .share-revoke-link { background: none; border: none; color: var(--danger); cursor: pointer; font-size: 0.8rem; text-decoration: underline; font-family: inherit; }
 
     /* ============================================================
@@ -810,7 +822,11 @@
     </button>
     <button class="more-item" onclick="openShare(); closeMoreMenu()">
       <span class="more-item-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></span>
-      <span class="more-item-label">הזמן לרשימה</span>
+      <span class="more-item-label">שיתוף הרשימה</span>
+    </button>
+    <button class="more-item" id="groupBtn" onclick="openGroup(); closeMoreMenu()" style="display:none">
+      <span class="more-item-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+      <span class="more-item-label">הקבוצה שלי</span>
     </button>
     <button class="more-item" onclick="openBrowse(); closeMoreMenu()">
       <span class="more-item-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>
@@ -831,7 +847,7 @@
     </button>
     <button class="more-item" id="adminBtn" onclick="openAdmin(); closeMoreMenu()" style="display:none">
       <span class="more-item-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg></span>
-      <span class="more-item-label">ניהול קטלוג</span>
+      <span class="more-item-label">ניהול</span>
     </button>
     <button class="more-item" id="installBtn" onclick="installPwa(); closeMoreMenu()" style="display:none">
       <span class="more-item-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>
@@ -1030,27 +1046,20 @@
     <div style="font-size:3rem;margin-bottom:12px">🔒</div>
     <div style="font-size:1.2rem;font-weight:700;margin-bottom:8px">אין גישה לרשימה</div>
     <div style="font-size:0.9rem;color:var(--text-muted);line-height:1.6;margin-bottom:20px">
-      הקישור שבידיך אינו תקף.<br>בקש קישור הזמנה עדכני מבעל הרשימה.
+      הרשימה נמחקה, או שלא שותפה איתך.<br>בקש ממי שיצר אותה לשתף אותה איתך.
     </div>
-    <button class="btn btn-primary btn-full" onclick="location.hash='';location.reload()">צור רשימה חדשה</button>
+    <button class="btn btn-primary btn-full" onclick="location.hash='';location.reload()">לרשימות שלי</button>
   </div>
 </div>
 
 <!-- SHARE MODAL -->
 <div class="overlay" id="shareOverlay">
   <div class="modal" role="dialog" style="max-height:92vh;overflow-y:auto">
-    <div class="modal-title">🔗 הזמן לרשימה</div>
+    <div class="modal-title">🔗 שיתוף הרשימה</div>
     <div style="font-size:0.84rem;color:var(--text-muted);margin-bottom:12px">
-      שתף את הקישור הבא עם מי שרצונך שיראה ויעדכן את הרשימה:
+      סמן את חברי הקבוצה שיראו ויעדכנו את הרשימה:
     </div>
-    <div class="share-url-box" id="shareUrlBox"></div>
-    <div class="share-qr">
-      <img id="shareQrImg" src="" alt="QR code" loading="lazy">
-    </div>
-    <button class="share-wa-btn" id="shareWaBtn">
-      <span style="font-size:1.1rem">💬</span> שלח בוואטסאפ
-    </button>
-    <button class="btn btn-primary btn-full" onclick="copyShareUrl()">📋 העתק קישור</button>
+    <div id="shareMembersBox"></div>
 
     <div style="border-top:1px solid var(--border);margin:14px 0"></div>
     <div style="font-size:0.84rem;color:var(--text-muted);margin-bottom:10px">
@@ -1061,13 +1070,32 @@
     </button>
     <button class="btn btn-ghost btn-full" onclick="copyListAsText()">📋 העתק רשימה כטקסט</button>
 
-    <div class="share-note">
-      כל מי שיקבל את הקישור הזה יוכל לצפות ולהוסיף מוצרים לרשימה.<br>
-      <button class="share-revoke-link" onclick="revokeAccess()">🔄 בטל את הקישור הנוכחי ובצור חדש</button>
-    </div>
     <div class="modal-actions" style="margin-top:12px">
       <button class="btn btn-ghost btn-full" onclick="closeShare()">סגור</button>
     </div>
+  </div>
+</div>
+
+<!-- GROUP MODAL -->
+<div class="overlay" id="groupOverlay" onclick="if(event.target===this)closeGroup()">
+  <div class="modal" role="dialog" style="max-height:92vh;overflow-y:auto">
+    <div class="modal-title">👥 הקבוצה שלי</div>
+    <div id="groupBody"></div>
+    <div class="modal-actions" style="margin-top:12px">
+      <button class="btn btn-ghost btn-full" onclick="closeGroup()">סגור</button>
+    </div>
+  </div>
+</div>
+
+<!-- NO GROUP (invite-only) -->
+<div id="noGroupScreen" class="access-denied-screen">
+  <div class="access-denied-card">
+    <div style="font-size:3rem;margin-bottom:12px">🔒</div>
+    <div style="font-size:1.2rem;font-weight:700;margin-bottom:8px">האפליקציה בהזמנה בלבד</div>
+    <div style="font-size:0.9rem;color:var(--text-muted);line-height:1.6;margin-bottom:20px">
+      כדי להשתמש ב-SmartShop צריך להצטרף לקבוצה.<br>בקש ממנהל הקבוצה קישור הצטרפות ופתח אותו.
+    </div>
+    <button class="btn btn-ghost btn-full" onclick="auth.signOut().then(()=>location.reload())">התנתק</button>
   </div>
 </div>
 
@@ -1112,7 +1140,18 @@
 <!-- ADMIN MODAL -->
 <div class="overlay" id="adminOverlay">
   <div class="modal" role="dialog" style="max-height:90vh;overflow-y:auto">
-    <div class="modal-title">🔧 ניהול קטלוג מוצרים</div>
+    <div class="modal-title">👥 מנהלי קבוצות</div>
+    <div style="font-size:0.84rem;color:var(--text-muted);margin-bottom:12px">
+      מנהל קבוצה יכול להזמין עד 9 אנשים לקבוצה שלו. הוא יקבל את האפליקציה כשייכנס עם חשבון Google של המייל הזה.
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <input class="fc" id="adminManagerEmail" type="email" dir="ltr" placeholder="name@gmail.com" maxlength="100" style="flex:1;min-width:0"
+             onkeydown="if(event.key==='Enter') addManager()">
+      <button class="btn btn-primary" onclick="addManager()">הוסף</button>
+    </div>
+    <div id="adminManagersList" style="margin-bottom:18px"></div>
+
+    <div class="modal-title" style="border-top:1px solid var(--border);padding-top:14px">🔧 ניהול קטלוג מוצרים</div>
     <div style="font-size:0.84rem;color:var(--text-muted);margin-bottom:12px">
       מוצרים שתוסיף יופיעו בחיפוש ובעיון הקטגוריות לכל המשתמשים ולכל הרשימות.
     </div>
@@ -1986,6 +2025,7 @@ const UNITS = ["יח'", 'ק"ג', 'גרם', 'ליטר', 'מ"ל', 'חבילה', '�
 // ============================================================
 function parseHash() {
   const raw = location.hash.slice(1);
+  if (raw.startsWith('join=')) return { id: '', token: '' };
   const idx = raw.indexOf('~');
   if (idx < 0) return { id: raw, token: '' };
   return { id: raw.slice(0, idx), token: raw.slice(idx + 1) };
@@ -2001,9 +2041,13 @@ function generateToken() {
   return secureRandHex(16);
 }
 
-function buildShareUrl() {
-  return location.origin + location.pathname + location.search + '#' + listId + '~' + listToken;
+function parseJoinHash() {
+  const raw = location.hash.slice(1);
+  const m = raw.match(/^join=(g_[0-9a-f]{12})~([0-9a-f]{32})$/);
+  return m ? { gid: m[1], token: m[2] } : null;
 }
+
+function emailKey(e) { return String(e || '').toLowerCase().replace(/\./g, ','); }
 
 function hideLoading() {
   const s = document.getElementById('loadingScreen');
@@ -2065,11 +2109,111 @@ function init() {
   }
 }
 
-function initWithFirebase() {
+// ============================================================
+//  GROUPS — invite-only access
+//  A group = one manager (appointed by the admin) + up to 9 people
+//  the manager invited. Lists can only be shared inside the group.
+//  All checks are enforced by database.rules.json.
+// ============================================================
+let myGroup = null;        // group id
+let myGroupOwner = null;   // uid of the group's manager
+let isManagerFlag = false; // appointed as a group manager by the admin
+let listOwner = null;      // owner uid of the open list
+const GROUP_MAX = 10;
+
+function myProfile() {
+  return {
+    name: (currentUser.displayName || currentUser.email || '').slice(0, 60),
+    email: (currentUser.email || '').slice(0, 100),
+    ts: Date.now()
+  };
+}
+function ownedLimit() { return isAdmin() ? Infinity : (isManagerFlag ? 20 : 10); }
+
+async function resolveMembership() {
+  const uid = currentUser.uid;
+  try {
+    isManagerFlag = (await db.ref('smartshop/managers/' + emailKey(currentUser.email)).once('value')).exists();
+  } catch { isManagerFlag = false; }
+  myGroup = (await db.ref('smartshop/users/' + uid + '/group').once('value')).val();
+
+  const join = parseJoinHash();
+  if (join) {
+    history.replaceState(null, '', location.pathname + location.search);
+    if (myGroup === join.gid) toast('אתה כבר חבר בקבוצה הזו');
+    else if (myGroup) toast('⚠️ אתה כבר חבר בקבוצה אחרת. כדי לעבור, צא קודם מהקבוצה הנוכחית');
+    else await joinGroup(join.gid, join.token);
+  }
+
+  if (!myGroup && isManagerFlag) await createMyGroup();
+
+  if (myGroup) {
+    try {
+      myGroupOwner = (await db.ref('smartshop/groups/' + myGroup + '/owner').once('value')).val();
+      // Keep our display name/email in the group roster up to date
+      db.ref('smartshop/groups/' + myGroup + '/members/' + uid).update(myProfile()).catch(() => {});
+    } catch {
+      myGroup = null; // no longer a member
+    }
+  }
+}
+
+async function joinGroup(gid, token) {
+  const uid = currentUser.uid;
+  try {
+    const cnt = (await db.ref('smartshop/groups/' + gid + '/memberCount').once('value')).val();
+    if (cnt === null) { toast('⚠️ קישור ההצטרפות אינו תקף'); return; }
+    if (cnt >= GROUP_MAX) { toast('⚠️ הקבוצה מלאה (' + GROUP_MAX + ' משתתפים)'); return; }
+    await db.ref('smartshop').update({
+      ['groups/' + gid + '/joins/' + uid]: token,
+      ['groups/' + gid + '/members/' + uid]: myProfile(),
+      ['groups/' + gid + '/memberCount']: cnt + 1,
+      ['users/' + uid + '/group']: gid
+    });
+    myGroup = gid;
+    toast('✅ הצטרפת לקבוצה');
+  } catch (e) {
+    console.error(e);
+    toast('⚠️ לא ניתן להצטרף — הקישור הוחלף או שהקבוצה מלאה. בקש קישור חדש מהמנהל');
+  }
+}
+
+async function createMyGroup() {
+  const uid = currentUser.uid;
+  const gid = 'g_' + secureRandHex(6);
+  const first = (currentUser.displayName || currentUser.email || '').split(' ')[0];
+  try {
+    await db.ref('smartshop').update({
+      ['groups/' + gid]: {
+        owner: uid,
+        ownerKey: emailKey(currentUser.email),
+        name: ('הקבוצה של ' + first).slice(0, 40),
+        inviteToken: secureRandHex(16),
+        memberCount: 1,
+        members: { [uid]: myProfile() }
+      },
+      ['users/' + uid + '/group']: gid
+    });
+    myGroup = gid;
+  } catch (e) {
+    console.error('createMyGroup', e);
+  }
+}
+
+function showNoGroup() {
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('noGroupScreen').style.display = 'flex';
+}
+
+async function initWithFirebase() {
   loadExtraProducts();
+  try { await resolveMembership(); } catch (e) { console.error(e); }
+  if (!myGroup) { showNoGroup(); return; }
+  updateGroupUI();
+
   const parsed = parseHash();
   listId = parsed.id;
-  listToken = parsed.token;
+  listToken = '';
 
   // If no hash in URL, show inline home screen
   if (!listId) {
@@ -2082,49 +2226,18 @@ function initWithFirebase() {
   validateAndContinue();
 }
 
-// Membership model: the database rules only allow reading/writing a list to
-// its members (or owner). Joining = writing members/{uid} with the correct
-// share token; the rules validate the token server-side, so the token is a
-// join credential and membership persists until the owner revokes the link.
+// Access model: the rules let a user read a list only if they are its owner
+// or a member AND belong to the list's group. Lists are created and shared
+// explicitly (newList / share modal) — there are no join-by-link lists.
 function validateAndContinue() {
-  const base = db.ref('smartshop/' + listId);
-  base.child('meta').once('value')
+  db.ref('smartshop/' + listId + '/meta').once('value')
     .then(snap => {
-      // Read succeeded — we're the owner, an existing member, or the list is new
       const meta = snap.val() || {};
-      const storedToken = meta.token;
-      if (!storedToken) {
-        // New list: claim ownership first, then register our membership
-        // (two sequential writes — multi-path updates are validated per-path,
-        // so the member record can't see the new meta/token in one update)
-        if (!listToken) listToken = generateToken();
-        base.child('meta').update({ token: listToken, owner: currentUser.uid })
-          .then(() => base.child('members/' + currentUser.uid).set({ token: listToken, ts: Date.now() }))
-          .then(() => {
-            history.replaceState(null, '', '#' + listId + '~' + listToken);
-            continueInit(false);
-          })
-          .catch(() => showAccessDenied());
-      } else {
-        listToken = storedToken;
-        history.replaceState(null, '', '#' + listId + '~' + listToken);
-        const isShared = !!(meta.owner && meta.owner !== currentUser.uid);
-        // Backfill a membership record (legacy lists created before the members model)
-        base.child('members/' + currentUser.uid).set({ token: storedToken, ts: Date.now() }).catch(() => {});
-        continueInit(isShared);
-      }
+      listOwner = meta.owner || null;
+      history.replaceState(null, '', '#' + listId);
+      continueInit(!!(listOwner && listOwner !== currentUser.uid));
     })
-    .catch(() => {
-      // No read access — we're not a member. Try to join with the token from
-      // the URL; the rules accept the write only if the token matches.
-      if (!listToken) { showAccessDenied(); return; }
-      base.child('members/' + currentUser.uid).set({ token: listToken, ts: Date.now() })
-        .then(() => {
-          history.replaceState(null, '', '#' + listId + '~' + listToken);
-          continueInit(true);
-        })
-        .catch(() => showAccessDenied());
-    });
+    .catch(() => showAccessDenied());
 }
 
 function continueInit(isShared) {
@@ -2222,7 +2335,7 @@ function startOffline() { continueWithoutLogin(); }
 // ============================================================
 function saveToUserLists(isShared) {
   if (!currentUser || !db) return;
-  const data = { name: listName || '', token: listToken, last: Date.now() };
+  const data = { name: (listName || '').slice(0, 60), last: Date.now() };
   if (isShared) data.shared = true;
   db.ref('smartshop/users/' + currentUser.uid + '/lists/' + listId).update(data);
 }
@@ -2279,7 +2392,7 @@ function saveEditName() {
   listName = name;
   renderListName();
   localStorage.setItem('ss_meta_' + listId, JSON.stringify({ name: listName }));
-  if (!offlineMode && db) db.ref('smartshop/' + listId + '/meta/name').set(listName);
+  if (!offlineMode && db) db.ref('smartshop/' + listId + '/meta/name').set(listName.slice(0, 40)).catch(() => {});
   updateRegistry(listId, listName, listToken);
   saveToUserLists(false);
   if (name) toast('✅ שם הרשימה נשמר: ' + name);
@@ -2335,35 +2448,31 @@ function renderHomeList() {
   const body = document.getElementById('homeListsBody');
   body.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted)">טוען…</div>';
   if (currentUser && db) {
-    db.ref('smartshop/users/' + currentUser.uid + '/lists').once('value', snap => {
-      const val = snap.val();
-      if (val) {
-        const lists = Object.entries(val)
-          .map(([id, d]) => {
-            // Enrich name from localStorage meta if Firebase entry has no name
-            if (!d.name) {
-              const local = JSON.parse(localStorage.getItem('ss_meta_' + id) || 'null') || {};
-              d.name = local.name || '';
-            }
-            return { id, ...d };
-          })
-          .sort((a, b) => (b.last || 0) - (a.last || 0));
-        _renderListsHtml(body, lists);
-      } else {
-        // Firebase has no lists — fall back to localStorage registry
-        const reg = getRegistry().map(r => {
-          if (!r.name) {
-            const local = JSON.parse(localStorage.getItem('ss_meta_' + r.id) || 'null') || {};
-            r.name = local.name || r.name;
-          }
-          return r;
-        });
-        _renderListsHtml(body, reg);
-      }
-    });
+    fetchMyLists().then(lists => _renderListsHtml(body, lists));
   } else {
     _renderListsHtml(body, getRegistry());
   }
+}
+
+// My lists = my own registry + lists other group members shared with me
+async function fetchMyLists() {
+  const uid = currentUser.uid;
+  const [regSnap, shSnap] = await Promise.all([
+    db.ref('smartshop/users/' + uid + '/lists').once('value'),
+    db.ref('smartshop/users/' + uid + '/shared').once('value')
+  ]);
+  const map = {};
+  Object.entries(regSnap.val() || {}).forEach(([id, d]) => { map[id] = { id, ...d }; });
+  Object.entries(shSnap.val() || {}).forEach(([id, d]) => {
+    map[id] = { id, ...(map[id] || {}), name: (map[id] && map[id].name) || d.name || '', shared: true };
+  });
+  return Object.values(map).map(r => {
+    if (!r.name) {
+      const local = JSON.parse(localStorage.getItem('ss_meta_' + r.id) || 'null') || {};
+      r.name = local.name || '';
+    }
+    return r;
+  }).sort((a, b) => (b.last || 0) - (a.last || 0));
 }
 
 function openLists() {
@@ -2380,14 +2489,7 @@ function renderLists() {
   body.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted)">טוען…</div>';
 
   if (currentUser && db) {
-    db.ref('smartshop/users/' + currentUser.uid + '/lists').once('value', snap => {
-      const val = snap.val();
-      if (!val) { _renderListsHtml(body, []); return; }
-      const lists = Object.entries(val)
-        .map(([id, d]) => ({ id, ...d }))
-        .sort((a, b) => (b.last || 0) - (a.last || 0));
-      _renderListsHtml(body, lists);
-    });
+    fetchMyLists().then(lists => _renderListsHtml(body, lists));
   } else {
     _renderListsHtml(body, getRegistry());
   }
@@ -2412,15 +2514,15 @@ function _renderListsHtml(body, reg) {
         </div>
         <div class="list-row-date">${dateStr}</div>
       </div>
-      ${!isCurrent ? `<button class="list-open-btn" data-lid="${hEsc(r.id)}" data-ltoken="${hEsc(r.token||'')}" onclick="switchListBtn(this)">פתח</button>` : ''}
+      ${!isCurrent ? `<button class="list-open-btn" data-lid="${hEsc(r.id)}" onclick="switchListBtn(this)">פתח</button>` : ''}
       <button class="list-del-btn" data-lid="${hEsc(r.id)}" data-name="${hEsc(r.name||'')}" onclick="renameListBtn(this)" title="שנה שם">✏️</button>
-      <button class="list-del-btn" data-idx="${i}" data-lid="${hEsc(r.id)}" onclick="deleteFromRegBtn(this)" title="הסר מהרשימה">🗑️</button>
+      <button class="list-del-btn" data-idx="${i}" data-lid="${hEsc(r.id)}" data-name="${hEsc(r.name||'')}" onclick="deleteFromRegBtn(this)" title="מחק / הסר">🗑️</button>
     </div>`;
   }).join('');
 }
 
-function switchListBtn(btn) { switchList(btn.dataset.lid, btn.dataset.ltoken); }
-function deleteFromRegBtn(btn) { deleteFromReg(parseInt(btn.dataset.idx, 10), btn.dataset.lid); }
+function switchListBtn(btn) { switchList(btn.dataset.lid, ''); }
+function deleteFromRegBtn(btn) { deleteFromReg(parseInt(btn.dataset.idx, 10), btn.dataset.lid, btn.dataset.name || ''); }
 function renameListBtn(btn) {
   const id = btn.dataset.lid;
   const current = btn.dataset.name || '';
@@ -2453,19 +2555,102 @@ function newList() {
   const trimmed = (name || '').trim().slice(0, 40);
   closeLists();
   const newId = 'sl_' + secureRandHex(6);
-  const newToken = generateToken();
   if (trimmed) localStorage.setItem('ss_meta_' + newId, JSON.stringify({ name: trimmed }));
-  updateRegistry(newId, trimmed, newToken);
-  location.hash = newId + '~' + newToken;
-  location.reload();
+
+  if (offlineMode || !db || !currentUser) {
+    updateRegistry(newId, trimmed, '');
+    location.hash = newId;
+    location.reload();
+    return;
+  }
+  createListInDb(newId, trimmed).then(ok => {
+    if (!ok) return;
+    updateRegistry(newId, trimmed, '');
+    location.hash = newId;
+    location.reload();
+  });
 }
 
-function deleteFromReg(idx, id) {
-  if (!confirm('להסיר את הרשימה מהרשימות שלך?\n(הנתונים לא יימחקו מ-Firebase)')) return;
+// One atomic write: the list, my membership, and my list-quota counter.
+// The rules reject it if the counter is wrong or over the limit.
+async function createListInDb(id, name) {
+  const uid = currentUser.uid;
+  try {
+    const n = (await db.ref('smartshop/users/' + uid + '/ownedCount').once('value')).val() || 0;
+    const limit = ownedLimit();
+    if (n >= limit) {
+      toast('⚠️ הגעת למכסה של ' + limit + ' רשימות. מחק רשימה ישנה כדי ליצור חדשה');
+      return false;
+    }
+    const now = Date.now();
+    await db.ref('smartshop').update({
+      [id + '/meta']: { owner: uid, group: myGroup, name, createdAt: now },
+      [id + '/members/' + uid]: { ts: now },
+      ['users/' + uid + '/owned/' + id]: true,
+      ['users/' + uid + '/ownedCount']: n + 1,
+      ['users/' + uid + '/ownedOp']: id,
+      ['users/' + uid + '/lists/' + id]: { name, last: now }
+    });
+    return true;
+  } catch (e) {
+    console.error('createList', e);
+    toast('⚠️ לא ניתן ליצור רשימה כרגע');
+    return false;
+  }
+}
+
+async function deleteFromReg(idx, id, name) {
   if (currentUser && db && id) {
-    db.ref('smartshop/users/' + currentUser.uid + '/lists/' + id).remove()
-      .then(() => renderLists());
+    const uid = currentUser.uid;
+    let meta = null;
+    try { meta = (await db.ref('smartshop/' + id + '/meta').once('value')).val(); } catch {}
+    const upd = { ['users/' + uid + '/lists/' + id]: null };
+
+    if (meta && meta.owner === uid) {
+      // Owner: permanent delete for everyone
+      if (!confirm('למחוק את הרשימה "' + (name || 'ללא שם') + '" לצמיתות?\nהרשימה תימחק גם אצל כל מי שהיא משותפת איתו.')) return;
+      if (!confirm('בטוח? אי אפשר לשחזר את הרשימה אחרי המחיקה.')) return;
+      try {
+        const [memSnap, ownedSnap, cntSnap] = await Promise.all([
+          db.ref('smartshop/' + id + '/members').once('value'),
+          db.ref('smartshop/users/' + uid + '/owned/' + id).once('value'),
+          db.ref('smartshop/users/' + uid + '/ownedCount').once('value')
+        ]);
+        upd[id] = null;
+        Object.keys(memSnap.val() || {}).forEach(m => { if (m !== uid) upd['users/' + m + '/shared/' + id] = null; });
+        if (ownedSnap.exists()) {
+          upd['users/' + uid + '/owned/' + id] = null;
+          upd['users/' + uid + '/ownedCount'] = Math.max(0, (cntSnap.val() || 1) - 1);
+          upd['users/' + uid + '/ownedOp'] = id;
+        }
+        await db.ref('smartshop').update(upd);
+        toast('🗑️ הרשימה נמחקה');
+      } catch (e) {
+        console.error(e);
+        toast('⚠️ המחיקה נכשלה');
+        return;
+      }
+    } else {
+      // Not the owner: leave the list (remove myself from it)
+      if (!confirm('להסיר את הרשימה מהרשימות שלך?\nהרשימה תמשיך להתקיים אצל מי שיצר אותה.')) return;
+      upd['users/' + uid + '/shared/' + id] = null;
+      if (meta) upd[id + '/members/' + uid] = null;
+      try { await db.ref('smartshop').update(upd); }
+      catch (e) {
+        // Fall back to just hiding it from my own lists
+        await db.ref('smartshop').update({
+          ['users/' + uid + '/lists/' + id]: null,
+          ['users/' + uid + '/shared/' + id]: null
+        }).catch(() => {});
+      }
+    }
+    const reg = getRegistry().filter(r => r.id !== id);
+    saveRegistry(reg);
+    if (id === listId) { location.hash = ''; location.reload(); return; }
+    renderLists();
+    if (homeMode) renderHomeList();
   } else {
+    if (!confirm('להסיר את הרשימה מהרשימות שלך?')) return;
     const reg = getRegistry();
     if (!reg[idx]) return;
     reg.splice(idx, 1);
@@ -3155,26 +3340,67 @@ function applyDark(on) {
 // ============================================================
 //  SHARE / INVITE
 // ============================================================
+// A list is shared by its owner with chosen members of the owner's group.
+// The rules refuse adding anyone who is not in the same group.
 function openShare() {
-  const url = buildShareUrl();
-  document.getElementById('shareUrlBox').textContent = url;
-  const qrImg = document.getElementById('shareQrImg');
-  qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=' + encodeURIComponent(url);
-  const msg = encodeURIComponent('הצטרף לרשימת הקניות "' + (listName || 'SmartShop') + '":\n' + url);
-  document.getElementById('shareWaBtn').onclick = () => window.open('https://wa.me/?text=' + msg, '_blank');
   document.getElementById('shareOverlay').classList.add('open');
+  renderShareMembers();
 }
 
 function closeShare() { document.getElementById('shareOverlay').classList.remove('open'); }
 
-function copyShareUrl() {
-  const url = buildShareUrl();
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(url).then(() => toast('🔗 קישור ההזמנה הועתק!'));
-  } else {
-    prompt('העתק את קישור ההזמנה:', url);
+async function renderShareMembers() {
+  const box = document.getElementById('shareMembersBox');
+  if (offlineMode || !db || !currentUser || !listId || homeMode) {
+    box.innerHTML = '<div class="share-note">שיתוף זמין רק לרשימה פתוחה במצב מחובר.</div>';
+    return;
   }
-  closeShare();
+  if (listOwner !== currentUser.uid) {
+    box.innerHTML = '<div class="share-note">רק מי שיצר את הרשימה יכול לבחור עם מי לשתף אותה.</div>';
+    return;
+  }
+  box.innerHTML = '<div class="share-note">טוען…</div>';
+  try {
+    const [gSnap, lSnap] = await Promise.all([
+      db.ref('smartshop/groups/' + myGroup + '/members').once('value'),
+      db.ref('smartshop/' + listId + '/members').once('value')
+    ]);
+    const inList = lSnap.val() || {};
+    const others = Object.entries(gSnap.val() || {}).filter(([u]) => u !== currentUser.uid);
+    if (!others.length) {
+      box.innerHTML = '<div class="share-note">אין עוד חברים בקבוצה שלך.' +
+        (myGroupOwner === currentUser.uid ? '<br>הזמן אנשים מתפריט ⋯ ← "הקבוצה שלי".' : '') + '</div>';
+      return;
+    }
+    box.innerHTML = others.map(([u, m]) => `
+      <label class="share-member-row">
+        <input type="checkbox" data-uid="${hEsc(u)}" ${inList[u] ? 'checked' : ''} onchange="toggleListMember(this)">
+        <span class="share-member-name">${hEsc(m.name || 'משתמש')}</span>
+        <span class="share-member-email">${hEsc(m.email || '')}</span>
+      </label>`).join('');
+  } catch (e) {
+    console.error(e);
+    box.innerHTML = '<div class="share-note">שגיאה בטעינת חברי הקבוצה</div>';
+  }
+}
+
+async function toggleListMember(cb) {
+  const u = cb.dataset.uid;
+  const on = cb.checked;
+  cb.disabled = true;
+  const upd = on
+    ? { [listId + '/members/' + u]: { ts: Date.now() },
+        ['users/' + u + '/shared/' + listId]: { by: currentUser.uid, name: (listName || '').slice(0, 40) } }
+    : { [listId + '/members/' + u]: null, ['users/' + u + '/shared/' + listId]: null };
+  try {
+    await db.ref('smartshop').update(upd);
+    toast(on ? '✅ הרשימה שותפה' : 'השיתוף הוסר');
+  } catch (e) {
+    console.error(e);
+    cb.checked = !on;
+    toast('⚠️ הפעולה נכשלה');
+  }
+  cb.disabled = false;
 }
 
 function buildListText() {
@@ -3218,21 +3444,149 @@ function copyListAsText() {
   }
 }
 
-function revokeAccess() {
-  if (!confirm('לבטל את הקישור הנוכחי?\nמי שיש לו את הקישור הישן לא יוכל יותר לגשת לרשימה.')) return;
-  listToken = generateToken();
-  if (!offlineMode && db) {
-    const base = db.ref('smartshop/' + listId);
-    // Change the token first, then reset membership to just us —
-    // existing members must re-join via the new link
-    base.child('meta/token').set(listToken)
-      .then(() => base.child('members').set({ [currentUser.uid]: { token: listToken, ts: Date.now() } }))
-      .catch(() => toast('⚠️ שגיאה בעדכון הקישור — נסה שוב'));
+// ============================================================
+//  MY GROUP — roster, invite link (manager only), remove / leave
+// ============================================================
+let _groupCache = null;
+
+function updateGroupUI() {
+  const b = document.getElementById('groupBtn');
+  if (b) b.style.display = myGroup ? '' : 'none';
+}
+
+function openGroup() {
+  document.getElementById('groupOverlay').classList.add('open');
+  renderGroup();
+}
+function closeGroup() { document.getElementById('groupOverlay').classList.remove('open'); }
+
+function groupInviteUrl(g) {
+  return location.origin + location.pathname + '#join=' + myGroup + '~' + g.inviteToken;
+}
+
+async function renderGroup() {
+  const body = document.getElementById('groupBody');
+  body.innerHTML = '<div class="share-note">טוען…</div>';
+  const uid = currentUser.uid;
+  const isOwner = myGroupOwner === uid;
+  try {
+    let g;
+    if (isOwner) {
+      g = (await db.ref('smartshop/groups/' + myGroup).once('value')).val() || {};
+    } else {
+      const [n, m] = await Promise.all([
+        db.ref('smartshop/groups/' + myGroup + '/name').once('value'),
+        db.ref('smartshop/groups/' + myGroup + '/members').once('value')
+      ]);
+      g = { name: n.val(), members: m.val() || {} };
+    }
+    _groupCache = g;
+    const members = Object.entries(g.members || {})
+      .sort((a, b) => (a[0] === myGroupOwner ? -1 : b[0] === myGroupOwner ? 1 : (a[1].ts || 0) - (b[1].ts || 0)));
+    const count = members.length;
+
+    let html = `<div class="group-name-row">
+        <div class="group-name">${hEsc(g.name || 'הקבוצה שלי')}</div>
+        ${isOwner ? '<button class="list-del-btn" onclick="renameGroup()" title="שנה שם">✏️</button>' : ''}
+      </div>
+      <div class="group-sub">${count} מתוך ${GROUP_MAX} משתתפים</div>
+      <div class="group-members">` +
+      members.map(([u, m]) => `
+        <div class="group-member">
+          <div class="group-member-info">
+            <div class="share-member-name">${hEsc(m.name || 'משתמש')}${u === myGroupOwner ? ' <span class="list-shared-tag">מנהל</span>' : ''}${u === uid ? ' <span class="list-cur-tag">אני</span>' : ''}</div>
+            <div class="share-member-email">${hEsc(m.email || '')}</div>
+          </div>
+          ${isOwner && u !== uid ? `<button class="group-remove-btn" data-uid="${hEsc(u)}" data-name="${hEsc(m.name || '')}" onclick="removeGroupMember(this)">הוצא</button>` : ''}
+        </div>`).join('') +
+      '</div>';
+
+    if (isOwner) {
+      if (count >= GROUP_MAX) {
+        html += '<div class="share-note">הקבוצה מלאה. כדי להזמין מישהו חדש, הוצא קודם משתתף.</div>';
+      } else {
+        html += `<div class="group-invite">
+          <div class="group-invite-title">הזמנת משתתף חדש</div>
+          <div class="share-note" style="margin:0 0 10px">שלח את הקישור רק למי שאתה רוצה בקבוצה. מי שנכנס דרכו יכול ליצור רשימות ולשתף אותן עם חברי הקבוצה בלבד.</div>
+          <button class="share-wa-btn" onclick="shareInviteWA()"><span style="font-size:1.1rem">💬</span> שלח הזמנה בוואטסאפ</button>
+          <button class="btn btn-primary btn-full" onclick="copyInvite()">📋 העתק קישור הזמנה</button>
+          <button class="share-revoke-link" onclick="rotateInvite()">🔄 החלף קישור (הקישור הישן יפסיק לעבוד)</button>
+        </div>`;
+      }
+    } else {
+      html += '<button class="share-revoke-link" style="margin-top:14px" onclick="leaveGroup()">יציאה מהקבוצה</button>';
+    }
+    body.innerHTML = html;
+  } catch (e) {
+    console.error(e);
+    body.innerHTML = '<div class="share-note">שגיאה בטעינת הקבוצה</div>';
   }
-  history.replaceState(null, '', '#' + listId + '~' + listToken);
-  closeShare();
-  setTimeout(openShare, 180);
-  toast('🔄 קישור ההזמנה אופס — שתף את הקישור החדש');
+}
+
+function shareInviteWA() {
+  if (!_groupCache || !_groupCache.inviteToken) return;
+  const msg = 'הוזמנת לקבוצה "' + (_groupCache.name || 'SmartShop') + '" באפליקציית הקניות SmartShop:\n' + groupInviteUrl(_groupCache);
+  window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+}
+
+function copyInvite() {
+  if (!_groupCache || !_groupCache.inviteToken) return;
+  const url = groupInviteUrl(_groupCache);
+  if (navigator.clipboard) navigator.clipboard.writeText(url).then(() => toast('🔗 קישור ההזמנה הועתק'));
+  else prompt('העתק את קישור ההזמנה:', url);
+}
+
+async function rotateInvite() {
+  if (!confirm('להחליף את קישור ההזמנה?\nהקישור הקודם יפסיק לעבוד. מי שכבר בקבוצה נשאר בה.')) return;
+  try {
+    await db.ref('smartshop/groups/' + myGroup + '/inviteToken').set(secureRandHex(16));
+    toast('🔄 נוצר קישור הזמנה חדש');
+    renderGroup();
+  } catch (e) { toast('⚠️ הפעולה נכשלה'); }
+}
+
+async function renameGroup() {
+  const n = prompt('שם הקבוצה:', (_groupCache && _groupCache.name) || '');
+  if (n === null) return;
+  try {
+    await db.ref('smartshop/groups/' + myGroup + '/name').set(n.trim().slice(0, 40));
+    renderGroup();
+  } catch (e) { toast('⚠️ הפעולה נכשלה'); }
+}
+
+async function removeGroupMember(btn) {
+  const u = btn.dataset.uid;
+  if (!confirm('להוציא את ' + (btn.dataset.name || 'המשתמש') + ' מהקבוצה?\nהוא יאבד גישה לכל רשימות הקבוצה, וקישור ההזמנה יוחלף.')) return;
+  try {
+    const cnt = (await db.ref('smartshop/groups/' + myGroup + '/memberCount').once('value')).val();
+    await db.ref('smartshop').update({
+      ['groups/' + myGroup + '/members/' + u]: null,
+      ['groups/' + myGroup + '/joins/' + u]: null,
+      ['groups/' + myGroup + '/lastRemoved']: u,
+      ['groups/' + myGroup + '/memberCount']: cnt - 1,
+      ['groups/' + myGroup + '/inviteToken']: secureRandHex(16),
+      ['users/' + u + '/group']: null
+    });
+    toast('המשתמש הוצא מהקבוצה');
+    renderGroup();
+  } catch (e) { console.error(e); toast('⚠️ הפעולה נכשלה'); }
+}
+
+async function leaveGroup() {
+  if (!confirm('לצאת מהקבוצה?\nתאבד גישה לכל הרשימות של הקבוצה, כולל אלה שיצרת. כדי לחזור תצטרך הזמנה חדשה מהמנהל.')) return;
+  const uid = currentUser.uid;
+  try {
+    const cnt = (await db.ref('smartshop/groups/' + myGroup + '/memberCount').once('value')).val();
+    await db.ref('smartshop').update({
+      ['groups/' + myGroup + '/members/' + uid]: null,
+      ['groups/' + myGroup + '/joins/' + uid]: null,
+      ['groups/' + myGroup + '/lastRemoved']: uid,
+      ['groups/' + myGroup + '/memberCount']: cnt - 1,
+      ['users/' + uid + '/group']: null
+    });
+    location.hash = '';
+    location.reload();
+  } catch (e) { console.error(e); toast('⚠️ הפעולה נכשלה'); }
 }
 
 // ============================================================
@@ -3352,6 +3706,7 @@ function openAdmin() {
   if (!isAdmin()) return;
   populateCatSelects();
   renderAdminProductList();
+  renderManagers();
   document.getElementById('adminProdName').value = '';
   document.getElementById('adminOverlay').classList.add('open');
   setTimeout(() => document.getElementById('adminProdName').focus(), 80);
@@ -3384,6 +3739,59 @@ function submitAdminProduct() {
   db.ref('smartshop/global/products/' + key).set({ name, cat, addedBy: currentUser.uid, ts: Date.now() })
     .then(() => { document.getElementById('adminProdName').value = ''; toast('✅ "' + name + '" נוסף לקטלוג'); })
     .catch(e => toast('שגיאה: ' + e.message));
+}
+
+// ---- Group managers (admin only; enforced by the rules) ----
+async function renderManagers() {
+  const box = document.getElementById('adminManagersList');
+  box.innerHTML = '<div class="share-note">טוען…</div>';
+  try {
+    const [mSnap, gSnap] = await Promise.all([
+      db.ref('smartshop/managers').once('value'),
+      db.ref('smartshop/groups').once('value')
+    ]);
+    const groupsByKey = {};
+    Object.values(gSnap.val() || {}).forEach(g => { if (g && g.ownerKey) groupsByKey[g.ownerKey] = g; });
+    const entries = Object.entries(mSnap.val() || {});
+    if (!entries.length) {
+      box.innerHTML = '<div class="share-note">אין עדיין מנהלי קבוצות.</div>';
+      return;
+    }
+    box.innerHTML = entries.map(([key, m]) => {
+      const g = groupsByKey[key];
+      const info = g ? (hEsc(g.name || '') + ' · ' + (g.memberCount || 1) + '/' + GROUP_MAX) : 'עוד לא נכנס לאפליקציה';
+      return `<div class="group-member">
+        <div class="group-member-info">
+          <div class="share-member-name" dir="ltr" style="text-align:right">${hEsc(m.email || '')}</div>
+          <div class="share-member-email">${info}</div>
+        </div>
+        <button class="group-remove-btn" data-key="${hEsc(key)}" data-email="${hEsc(m.email || '')}" onclick="removeManager(this)">הסר</button>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    console.error(e);
+    box.innerHTML = '<div class="share-note">שגיאה בטעינה</div>';
+  }
+}
+
+async function addManager() {
+  const inp = document.getElementById('adminManagerEmail');
+  const email = inp.value.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 100) { toast('⚠️ כתובת מייל לא תקינה'); return; }
+  try {
+    await db.ref('smartshop/managers/' + emailKey(email)).set({ email, ts: Date.now() });
+    inp.value = '';
+    toast('✅ ' + email + ' מונה למנהל קבוצה');
+    renderManagers();
+  } catch (e) { toast('⚠️ הפעולה נכשלה'); }
+}
+
+async function removeManager(btn) {
+  if (!confirm('להסיר את ' + btn.dataset.email + ' ממנהלי הקבוצות?\nהקבוצה שלו תמשיך לעבוד, אבל לא יהיה אפשר להצטרף אליה יותר.')) return;
+  try {
+    await db.ref('smartshop/managers/' + btn.dataset.key).remove();
+    renderManagers();
+  } catch (e) { toast('⚠️ הפעולה נכשלה'); }
 }
 
 function deleteAdminProduct(key) {
@@ -3743,6 +4151,7 @@ window.addEventListener('popstate', function(e) {
     { id: 'adminOverlay', cls: 'open', close: closeAdmin },
     { id: 'helpOverlay',  cls: 'open', close: closeHelp },
     { id: 'shareOverlay', cls: 'open', close: closeShare },
+    { id: 'groupOverlay', cls: 'open', close: closeGroup },
     { id: 'editOverlay',  cls: 'open', close: closeEdit },
     { id: 'addOverlay',   cls: 'open', close: closeAdd },
     { id: 'browseOverlay',cls: 'open', close: closeBrowse },
